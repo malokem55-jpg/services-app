@@ -1,0 +1,49 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(docker compose *)",
+      "Bash(Start-Sleep -Seconds 12)",
+      "Bash(docker exec *)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d \"{\\\\\"username\\\\\":\\\\\"admin\\\\\",\\\\\"password\\\\\":\\\\\"admin123\\\\\"}\")",
+      "Bash(npx prisma *)",
+      "Bash(Start-Process \"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\" -ErrorAction SilentlyContinue)",
+      "Bash(Start-Sleep -Seconds 20)",
+      "Bash(docker info *)",
+      "Bash(Select-Object -First 5)",
+      "PowerShell(Start-Process \"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\" -ErrorAction SilentlyContinue)",
+      "PowerShell(docker info 2>&1)",
+      "PowerShell(docker exec services_app_db mysqladmin -u root -prootpassword ping 2>&1)",
+      "Bash(SHOW TABLES)",
+      "Bash(\" 2>&1)",
+      "PowerShell(docker exec services_app_db mysql -u root -prootpassword -e \"USE servicesofficeapp; SHOW TABLES;\" 2>&1)",
+      "PowerShell(cd \"d:\\\\Node Projects\\\\services-app\\\\server\"; $job = Start-Job { Set-Location \"d:\\\\Node Projects\\\\services-app\\\\server\"; npx tsx src/index.ts 2>&1 }; Start-Sleep -Seconds 5; Receive-Job $job)",
+      "PowerShell(Invoke-RestMethod -Method POST -Uri \"http://localhost:3000/api/auth/login\" -ContentType \"application/json\" -Body '{\"username\":\"admin\",\"password\":\"admin123\"}')",
+      "PowerShell(curl -s -o - -w \"\\\\nHTTP %{http_code}\" -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d \"{\\\\\"username\\\\\":\\\\\"admin\\\\\",\\\\\"password\\\\\":\\\\\"wrong\\\\\"}\")",
+      "PowerShell(curl -s -o - -w \"\\\\nHTTP %{http_code}\" -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d \"{\\\\\"username\\\\\":\\\\\"admin\\\\\"}\")",
+      "PowerShell(curl -s -o - -w \"\\\\nHTTP %{http_code}\" http://localhost:3000/api/health)",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\" -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"admin\",\"password\":\"wrong\"}')",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\" -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"admin\"}')",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\" http://localhost:3000/api/health)",
+      "PowerShell(docker exec services_app_db mysql -u root -prootpassword --default-character-set=utf8mb4 -e \"SELECT id, name, card_type, notes FROM servicesofficeapp.clients;\" 2>&1)",
+      "Bash(node -e ' *)",
+      "Bash(npm create *)",
+      "Bash(Copy-Item -Path \"client-temp\\\\*\" -Destination \"client\\\\\" -Recurse -Force 2>&1 && Remove-Item -Recurse -Force \"client-temp\" 2>&1 && ls client)",
+      "PowerShell(New-Item -ItemType Directory -Force \"d:\\\\Node Projects\\\\services-app\\\\client\\\\src\\\\components\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"d:\\\\Node Projects\\\\services-app\\\\client\\\\src\\\\pages\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"d:\\\\Node Projects\\\\services-app\\\\client\\\\src\\\\hooks\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"d:\\\\Node Projects\\\\services-app\\\\client\\\\public\\\\icons\")",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(npx tsx -e ' *)",
+      "Bash(npx tsx *)",
+      "PowerShell(cd \"d:\\\\Node Projects\\\\services-app\\\\server\"; $env:PRISMA_MIGRATE_SKIP_GENERATE = \"true\"; npx prisma migrate dev --name remove_org_extra_fields --accept-data-loss 2>&1)",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\Node Projects\\\\services-app\" -Force | Select-Object Name, @{Name='Type';Expression={if\\($_.PSIsContainer\\){'Folder'}else{'File'}}} | Format-Table -AutoSize)",
+      "Bash(dir \"d:\\\\Node Projects\\\\services-app\\\\server\\\\src\")",
+      "Bash(xargs wc -l)"
+    ],
+    "additionalDirectories": [
+      "d:\\Node Projects\\services-app\\client-temp"
+    ]
+  }
+}

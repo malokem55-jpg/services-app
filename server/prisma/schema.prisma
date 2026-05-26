@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String?
+  username  String?
+  phone     String?
+  password  String?
+  createdAt DateTime? @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+
+  @@map("users")
+}
+
+model Service {
+  id        Int           @id @default(autoincrement())
+  name      String?
+  createdAt DateTime?     @map("created_at")
+  updatedAt DateTime?     @map("updated_at")
+  steps     ServiceStep[]
+  clients   Client[]
+
+  @@map("services")
+}
+
+model Organization {
+  id          Int       @id @default(autoincrement())
+  name        String?
+  number      String?
+  expiredDate DateTime? @map("expired_date") @db.Date
+  createdAt   DateTime? @map("created_at")
+  updatedAt   DateTime? @map("updated_at")
+  clients     Client[]
+
+  @@map("organizations")
+}
+
+model ServiceStep {
+  id          Int          @id @default(autoincrement())
+  name        String?
+  number      String?
+  order       Int?         @map("order")
+  serviceId   Int?         @map("service_id")
+  createdAt   DateTime?    @map("created_at")
+  updatedAt   DateTime?    @map("updated_at")
+  service     Service?     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  clientSteps ClientStep[]
+
+  @@map("service_steps")
+}
+
+model Client {
+  id              Int                    @id @default(autoincrement())
+  name            String?
+  phone           String?
+  passport        String?
+  boardNumber     String?                @map("board_number")
+  visaNumber      String?                @map("visa_number")
+  iqamaNumber     String?                @map("iqama_number")
+  iqamaEndDate    DateTime?              @map("iqama_end_date") @db.Date
+  cardType        String?                @default("بدون") @map("card_type")
+  cardValue       Float?                 @default(0) @map("card_value")
+  notes           String?
+  paymentType     String?                @map("payment_type")
+  nextPaymentDate DateTime?              @map("next_payment_date") @db.Date
+  amount          Float?
+  serviceId       Int?                   @map("service_id")
+  organizationId  Int?                   @map("organization_id")
+  lastStepId      Int?                   @map("last_step_id")
+  createdAt       DateTime?              @map("created_at")
+  updatedAt       DateTime?              @map("updated_at")
+  service         Service?               @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  organization    Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  steps           ClientStep[]
+  payments        ClientPayment[]
+  paymentMonthlies ClientPaymentMonthly[]
+
+  @@map("clients")
+}
+
+model ClientStep {
+  id        Int          @id @default(autoincrement())
+  stepDate  DateTime?    @map("step_date") @db.Date
+  clientId  Int?         @map("client_id")
+  stepId    Int?         @map("step_id")
+  createdAt DateTime?    @map("created_at")
+  updatedAt DateTime?    @map("updated_at")
+  client    Client?      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  step      ServiceStep? @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@map("client_steps")
+}
+
+model ClientPayment {
+  id              Int       @id @default(autoincrement())
+  clientId        Int?      @map("client_id")
+  amount          Float?
+  nextPaymentDate DateTime? @map("next_payment_date") @db.Date
+  isDone          Boolean?  @default(true) @map("is_done")
+  lastPayment     Boolean?  @default(true) @map("last_payment")
+  notes           String?
+  createdAt       DateTime? @map("created_at")
+  updatedAt       DateTime? @map("updated_at")
+  client          Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("client_payments")
+}
+
+model ClientPaymentMonthly {
+  id             Int       @id @default(autoincrement())
+  clientId       Int?      @map("client_id")
+  iqamaEndDate   DateTime? @map("iqama_end_date") @db.Date
+  month          String?
+  receivedDate   DateTime? @map("received_date") @db.Date
+  amount         Float?
+  receivedAmount Float?    @map("received_amount")
+  status         String?
+  notes          String?
+  createdAt      DateTime? @map("created_at")
+  updatedAt      DateTime? @map("updated_at")
+  client         Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("client_payment_monthlies")
+}
