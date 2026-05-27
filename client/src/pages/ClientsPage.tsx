@@ -80,7 +80,7 @@ function IqamaBadge({ dateStr }: { dateStr: string | null }) {
 
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-gray-600 whitespace-nowrap">{formatBothDates(dateStr)}</span>
+      <span className="text-xs text-gray-600">{s.label}</span>
       {s.extra && (
         <span className={`inline-flex items-center self-start rounded-full px-2 py-0.5 text-xs font-semibold ${badgeCls}`}>
           {s.extra}
@@ -595,9 +595,9 @@ export default function ClientsPage() {
                       {c.cardType && c.cardType !== 'بدون' && (
                         <span>كرت: {c.cardType}</span>
                       )}
-                      {c.iqamaEndDate && (
-                        <span className={`col-span-2 ${iqama.cls.includes('red') ? 'text-red-600' : iqama.cls.includes('amber') ? 'text-amber-600' : 'text-gray-500'}`}>
-                          {formatBothDates(c.iqamaEndDate)}
+                      {iqama.label !== '—' && (
+                        <span className={iqama.cls.includes('red') ? 'text-red-600' : iqama.cls.includes('amber') ? 'text-amber-600' : 'text-gray-500'}>
+                          {iqama.label}
                         </span>
                       )}
                     </div>
