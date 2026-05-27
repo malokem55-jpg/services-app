@@ -6,10 +6,24 @@ export interface OrgInfo { name: string | null }
 
 export interface MonthlyPaymentAlert {
   id: number
-  name: string | null
-  nextPaymentDate: string | null
+  receivedDate: string | null
   amount: number | null
+  month: string | null
+  client: {
+    name: string | null
+    iqamaNumber: string | null
+    service: ServiceInfo | null
+    organization: OrgInfo | null
+  } | null
+}
+
+export interface CustomPaymentAlert {
+  id: number
+  name: string | null
+  iqamaNumber: string | null
+  nextPaymentDate: string | null
   service: ServiceInfo | null
+  organization: OrgInfo | null
 }
 
 export interface IqamaAlert {
@@ -24,6 +38,7 @@ export interface IqamaAlert {
 
 export interface NotificationsData {
   monthlyPayments: MonthlyPaymentAlert[]
+  customPayments: CustomPaymentAlert[]
   iqamaExpirySoon: IqamaAlert[]
   iqamaExpired: IqamaAlert[]
 }

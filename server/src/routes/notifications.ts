@@ -2,6 +2,7 @@ import { Router, Response, NextFunction } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import {
   getMonthlyPaymentAlerts,
+  getCustomPaymentAlerts,
   getIqamaExpirySoonAlerts,
   getIqamaExpiryUrgentAlerts,
 } from '../services/notifications.service.js';
@@ -12,12 +13,13 @@ router.use(requireAuth);
 
 router.get('/', async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const [monthlyPayments, iqamaExpirySoon, iqamaExpired] = await Promise.all([
+    const [monthlyPayments, customPayments, iqamaExpirySoon, iqamaExpired] = await Promise.all([
       getMonthlyPaymentAlerts(),
+      getCustomPaymentAlerts(),
       getIqamaExpirySoonAlerts(),
       getIqamaExpiryUrgentAlerts(),
     ]);
-    res.json({ monthlyPayments, iqamaExpirySoon, iqamaExpired });
+    res.json({ monthlyPayments, customPayments, iqamaExpirySoon, iqamaExpired });
   } catch (err) {
     next(err);
   }

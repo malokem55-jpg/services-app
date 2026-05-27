@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
+import { organizationSchema, getErrors } from '../lib/schemas'
 import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
 
@@ -52,6 +53,7 @@ export default function OrganizationsPage() {
     open: false, org: null,
   })
   const [form, setForm] = useState<OrgFormData>(EMPTY_FORM)
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
 
@@ -67,7 +69,7 @@ export default function OrganizationsPage() {
 
   function openAdd() { setForm(EMPTY_FORM); setModal({ open: true, org: null }) }
   function openEdit(org: OrgItem) { setForm(orgToForm(org)); setModal({ open: true, org }) }
-  function closeModal() { setModal({ open: false, org: null }); setForm(EMPTY_FORM) }
+  function closeModal() { setModal({ open: false, org: null }); setForm(EMPTY_FORM); setFormErrors({}) }
   function setField(field: keyof OrgFormData, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
@@ -107,6 +109,13 @@ export default function OrganizationsPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    const errs = getErrors(organizationSchema, {
+      name: form.name,
+      number: form.number,
+      expiredDate: form.expiredDate,
+    })
+    setFormErrors(errs)
+    if (Object.keys(errs).length > 0) return
     const payload = buildPayload(form)
     if (modal.org) updateOrg.mutate({ id: modal.org.id, body: payload })
     else createOrg.mutate(payload)
@@ -368,17 +377,22 @@ export default function OrganizationsPage() {
             <div>
               <label className={labelCls}>اسم المؤسسة</label>
               <input type="text" value={form.name} onChange={(e) => setField('name', e.target.value)}
-                placeholder="اسم المؤسسة" autoFocus className={inputCls} />
+                placeholder="اسم المؤسسة" autoFocus
+                className={`${inputCls}${formErrors.name ? ' border-red-400! focus:ring-red-400!' : ''}`} />
+              {formErrors.name && <p className="mt-1 text-xs text-red-500">{formErrors.name}</p>}
             </div>
             <div>
               <label className={labelCls}>رقم السجل</label>
               <input type="text" value={form.number} onChange={(e) => setField('number', e.target.value)}
-                placeholder="رقم السجل التجاري" className={inputCls} />
+                placeholder="رقم السجل التجاري"
+                className={`${inputCls}${formErrors.number ? ' border-red-400! focus:ring-red-400!' : ''}`} />
+              {formErrors.number && <p className="mt-1 text-xs text-red-500">{formErrors.number}</p>}
             </div>
             <div>
               <label className={labelCls}>تاريخ انتهاء السجل</label>
               <input type="date" value={form.expiredDate} onChange={(e) => setField('expiredDate', e.target.value)}
-                className={inputCls} />
+                className={`${inputCls}${formErrors.expiredDate ? ' border-red-400! focus:ring-red-400!' : ''}`} />
+              {formErrors.expiredDate && <p className="mt-1 text-xs text-red-500">{formErrors.expiredDate}</p>}
             </div>
 
             {mutationError && (

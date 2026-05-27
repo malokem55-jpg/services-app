@@ -9,6 +9,7 @@ import {
   buildClientPayload,
   iqamaStatus,
 } from '../lib/clientForm'
+import { clientSchema, clientStepSchema, clientPaymentSchema, getErrors } from '../lib/schemas'
 import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
 import ClientFormFields from '../components/ClientFormFields'
@@ -196,10 +197,14 @@ export default function ClientDetailPage() {
     serviceId: '', organizationId: '', boardNumber: '', visaNumber: '',
     receivedAmount: '', notes: '', nextPaymentDate: '',
   })
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({})
+  const [stepErrors, setStepErrors] = useState<Record<string, string>>({})
+  const [payErrors, setPayErrors] = useState<Record<string, string>>({})
 
   function openEdit() {
     if (!client) return
     setEditForm(clientToForm(client))
+    setEditErrors({})
     setShowEdit(true)
   }
 
@@ -292,17 +297,25 @@ export default function ClientDetailPage() {
 
   function handleEdit(e: React.FormEvent) {
     e.preventDefault()
+    const errs = getErrors(clientSchema(false), editForm)
+    setEditErrors(errs)
+    if (Object.keys(errs).length > 0) return
     updateClient.mutate(buildClientPayload(editForm))
   }
 
   function handleAddStep(e: React.FormEvent) {
     e.preventDefault()
-    if (!stepId) return
+    const errs = getErrors(clientStepSchema, { stepId, stepDate })
+    setStepErrors(errs)
+    if (Object.keys(errs).length > 0) return
     addStep.mutate({ clientId, stepId: Number(stepId), stepDate: stepDate || undefined })
   }
 
   function handleAddPayment(e: React.FormEvent) {
     e.preventDefault()
+    const errs = getErrors(clientPaymentSchema, { amount: payAmount, nextPaymentDate: payDate })
+    setPayErrors(errs)
+    if (Object.keys(errs).length > 0) return
     addPayment.mutate({
       clientId,
       amount: payAmount ? Number(payAmount) : undefined,
@@ -363,8 +376,6 @@ export default function ClientDetailPage() {
       </div>
     )
   }
-
-  const iqama = iqamaStatus(client.iqamaEndDate)
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -534,25 +545,39 @@ export default function ClientDetailPage() {
           {client.serviceId ? (
             <>
               <form onSubmit={handleAddStep}
-                className="flex flex-wrap gap-2.5 border-t border-gray-100 pt-5">
-                <select value={stepId} onChange={(e) => setStepId(e.target.value)} required
-                  className="flex-1 min-w-40 rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm
-                             focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white min-h-11">
-                  <option value="">— اختر الخطوة —</option>
-                  {serviceSteps.map((st) => (
-                    <option key={st.id} value={st.id}>
-                      {st.order != null ? `${st.order}. ` : ''}{st.name}
-                    </option>
-                  ))}
-                </select>
-                <input type="date" value={stepDate} onChange={(e) => setStepDate(e.target.value)}
-                  className="rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm
-                             focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white min-h-11" />
-                <button type="submit" disabled={addStep.isPending}
-                  className="rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
-                             text-white text-sm font-semibold px-5 py-2.5 min-h-11 transition-colors">
-                  {addStep.isPending ? '...' : 'إضافة'}
-                </button>
+                className="flex flex-col gap-2.5 border-t border-gray-100 pt-5">
+                <div className="flex flex-wrap gap-2.5">
+                  <div className="flex-1 min-w-40">
+                    <select value={stepId} onChange={(e) => setStepId(e.target.value)}
+                      className={`w-full rounded-xl border bg-gray-50 px-3 py-2.5 text-sm
+                                 focus:outline-none focus:ring-2 focus:bg-white min-h-11
+                                 ${stepErrors.stepId
+                                   ? 'border-red-400 focus:ring-red-400'
+                                   : 'border-gray-300 focus:ring-sky-500'}`}>
+                      <option value="">— اختر الخطوة —</option>
+                      {serviceSteps.map((st) => (
+                        <option key={st.id} value={st.id}>
+                          {st.order != null ? `${st.order}. ` : ''}{st.name}
+                        </option>
+                      ))}
+                    </select>
+                    {stepErrors.stepId && <p className="mt-1 text-xs text-red-500">{stepErrors.stepId}</p>}
+                  </div>
+                  <div>
+                    <input type="date" value={stepDate} onChange={(e) => setStepDate(e.target.value)}
+                      className={`rounded-xl border bg-gray-50 px-3 py-2.5 text-sm
+                                 focus:outline-none focus:ring-2 focus:bg-white min-h-11
+                                 ${stepErrors.stepDate
+                                   ? 'border-red-400 focus:ring-red-400'
+                                   : 'border-gray-300 focus:ring-sky-500'}`} />
+                    {stepErrors.stepDate && <p className="mt-1 text-xs text-red-500">{stepErrors.stepDate}</p>}
+                  </div>
+                  <button type="submit" disabled={addStep.isPending}
+                    className="rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
+                               text-white text-sm font-semibold px-5 py-2.5 min-h-11 transition-colors self-start">
+                    {addStep.isPending ? '...' : 'إضافة'}
+                  </button>
+                </div>
               </form>
               {addStep.isError && (
                 <p className="text-xs text-red-600 mt-2">
@@ -636,12 +661,14 @@ export default function ClientDetailPage() {
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">المبلغ (ر.س)</label>
                 <input type="number" min={0} value={payAmount}
                   onChange={(e) => setPayAmount(e.target.value)} placeholder="0.00"
-                  className={inputCls} />
+                  className={`${inputCls}${payErrors.amount ? ' border-red-400! focus:ring-red-400!' : ''}`} />
+                {payErrors.amount && <p className="mt-1 text-xs text-red-500">{payErrors.amount}</p>}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">تاريخ الدفعة التالية</label>
                 <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)}
-                  className={inputCls} />
+                  className={`${inputCls}${payErrors.nextPaymentDate ? ' border-red-400! focus:ring-red-400!' : ''}`} />
+                {payErrors.nextPaymentDate && <p className="mt-1 text-xs text-red-500">{payErrors.nextPaymentDate}</p>}
               </div>
             </div>
             <div>
@@ -674,13 +701,14 @@ export default function ClientDetailPage() {
 
       {/* ── Edit modal ── */}
       {showEdit && (
-        <Modal title="تعديل بيانات العميل" size="lg" onClose={() => setShowEdit(false)}>
+        <Modal title="تعديل بيانات العميل" size="lg" onClose={() => { setShowEdit(false); setEditErrors({}) }}>
           <form onSubmit={handleEdit} className="space-y-4">
             <ClientFormFields
               form={editForm}
               onChange={(field, value) => setEditForm((prev) => ({ ...prev, [field]: value }))}
               services={services}
               organizations={organizations}
+              errors={editErrors}
             />
 
             {updateClient.isError && (

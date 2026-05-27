@@ -5,7 +5,7 @@ import { apiFetch } from '../lib/api'
 import Logo from './Logo'
 import NotificationBell from './NotificationBell'
 import { useNotifications } from '../hooks/useNotifications'
-import type { MonthlyPaymentAlert, IqamaAlert } from '../hooks/useNotifications'
+import type { MonthlyPaymentAlert, CustomPaymentAlert, IqamaAlert } from '../hooks/useNotifications'
 
 interface Me { name: string | null; username: string | null }
 
@@ -23,28 +23,59 @@ function fmtDate(s: string | null | undefined): string {
 
 function MonthlyItem({ item }: { item: MonthlyPaymentAlert }) {
   return (
-    <div className="px-4 py-3 border-e-4 border-violet-400 bg-gray-50 text-sm text-gray-700 leading-relaxed">
-      <p>
-        لديك دفعية قادمة من <span className="font-semibold">{item.name ?? '—'}</span>
-        {item.service?.name ? ` [${item.service.name}]` : ''}
-      </p>
-      <p>بتاريخ ({fmtDate(item.nextPaymentDate)})</p>
-      <p className="text-violet-700 font-medium">المبلغ: {item.amount ?? '—'}</p>
+    <div className="flex border-b border-gray-100 last:border-b-0">
+      <div className="w-1 shrink-0 bg-violet-500 rounded-ss" />
+      <div className="flex-1 px-3 py-4 text-sm text-gray-700 leading-relaxed">
+        <p>
+          لديك دفعية قادمة من {item.client?.name ?? '—'}
+          {item.client?.service?.name ? ` [${item.client.service.name}]` : ''}
+        </p>
+        <p className="mt-0.5">
+          بتاريخ ({fmtDate(item.receivedDate)})
+          {' '}<span className="font-semibold text-violet-600">المبلغ: {item.amount ?? '—'}</span>
+        </p>
+      </div>
     </div>
   )
 }
 
-function IqamaItem({ item, borderColor }: { item: IqamaAlert; borderColor: string }) {
+function CustomPaymentItem({ item }: { item: CustomPaymentAlert }) {
   return (
-    <div className={`px-4 py-3 border-e-4 ${borderColor} bg-gray-50 text-sm text-gray-700 leading-relaxed`}>
-      <p>
-        صاحب الاقامة <span className="font-semibold">{item.name ?? '—'}</span>
-        {item.service?.name ? ` [${item.service.name}]` : ''}
-        {item.iqamaNumber ? ` بالرقم (${item.iqamaNumber})` : ''}
-        {item.organization?.name ? ` ضمن مؤسسة ( ${item.organization.name} )` : ''}
-      </p>
-      <p>ستنتهي بتاريخ : {fmtDate(item.iqamaEndDate)}</p>
-      {item.paymentType && <p>( {item.paymentType} )</p>}
+    <div className="flex border-b border-gray-100 last:border-b-0">
+      <div className="w-1 shrink-0 bg-red-500 rounded-ss" />
+      <div className="flex-1 px-3 py-4 text-sm text-gray-700 leading-relaxed">
+        <p>
+          صاحب الاقامة {item.name ?? '—'}
+          {item.service?.name ? ` [${item.service.name}]` : ''}
+          {item.iqamaNumber ? ` بالرقم (${item.iqamaNumber})` : ''}
+          {item.organization?.name ? ` ضمن مؤسسة ( ${item.organization.name} )` : ''}
+        </p>
+        <p className="mt-0.5">
+          لديه دفعية قادمة بتاريخ: {fmtDate(item.nextPaymentDate)}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function IqamaItem({ item, accentColor }: { item: IqamaAlert; accentColor: string }) {
+  return (
+    <div className="flex border-b border-gray-100 last:border-b-0">
+      <div className={`w-1 shrink-0 ${accentColor} rounded-ss`} />
+      <div className="flex-1 px-3 py-4 text-sm text-gray-700 leading-relaxed">
+        <p>
+          صاحب الاقامة <span className="font-semibold text-gray-900">{item.name ?? '—'}</span>
+          {item.service?.name ? ` [${item.service.name}]` : ''}
+          {item.iqamaNumber ? ` بالرقم (${item.iqamaNumber})` : ''}
+        </p>
+        {item.organization?.name && (
+          <p className="mt-0.5 text-gray-500">ضمن مؤسسة ({item.organization.name})</p>
+        )}
+        <p className="mt-0.5 text-gray-500">ستنتهي بتاريخ: {fmtDate(item.iqamaEndDate)}</p>
+        {item.paymentType && (
+          <p className="mt-0.5 font-medium text-gray-600">( دفع {item.paymentType} )</p>
+        )}
+      </div>
     </div>
   )
 }
@@ -53,6 +84,11 @@ export default function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [openBell, setOpenBell] = useState<string | null>(null)
+
+  function toggleBell(id: string) {
+    setOpenBell(prev => prev === id ? null : id)
+  }
   const { data: me } = useQuery<Me>({
     queryKey: ['me'],
     queryFn: () => apiFetch<Me>('/api/auth/me'),
@@ -128,9 +164,25 @@ export default function Navbar() {
               {/* Notification bells */}
               <div className="flex items-center gap-1">
                 <NotificationBell
+                  count={notifs?.customPayments.length ?? 0}
+                  badgeColor="bg-red-500"
+                  title="تنبيهات الدفعيات المخصصة"
+                  ringDelay="0s"
+                  mobileOpen={openBell === 'custom'}
+                  onMobileToggle={() => toggleBell('custom')}
+                >
+                  {notifs?.customPayments.map(item => (
+                    <CustomPaymentItem key={item.id} item={item} />
+                  ))}
+                </NotificationBell>
+
+                <NotificationBell
                   count={notifs?.monthlyPayments.length ?? 0}
                   badgeColor="bg-violet-500"
                   title="تنبيهات الدفعيات الشهرية"
+                  ringDelay="0.25s"
+                  mobileOpen={openBell === 'monthly'}
+                  onMobileToggle={() => toggleBell('monthly')}
                 >
                   {notifs?.monthlyPayments.map(item => (
                     <MonthlyItem key={item.id} item={item} />
@@ -141,9 +193,12 @@ export default function Navbar() {
                   count={notifs?.iqamaExpirySoon.length ?? 0}
                   badgeColor="bg-amber-500"
                   title="تنبيهات الاقامات قبل 30 يوم"
+                  ringDelay="0.5s"
+                  mobileOpen={openBell === 'iqama-soon'}
+                  onMobileToggle={() => toggleBell('iqama-soon')}
                 >
                   {notifs?.iqamaExpirySoon.map(item => (
-                    <IqamaItem key={item.id} item={item} borderColor="border-amber-400" />
+                    <IqamaItem key={item.id} item={item} accentColor="bg-amber-500" />
                   ))}
                 </NotificationBell>
 
@@ -151,9 +206,12 @@ export default function Navbar() {
                   count={notifs?.iqamaExpired.length ?? 0}
                   badgeColor="bg-red-500"
                   title="تنبيهات الاقامات"
+                  ringDelay="0.75s"
+                  mobileOpen={openBell === 'iqama-expired'}
+                  onMobileToggle={() => toggleBell('iqama-expired')}
                 >
                   {notifs?.iqamaExpired.map(item => (
-                    <IqamaItem key={item.id} item={item} borderColor="border-red-400" />
+                    <IqamaItem key={item.id} item={item} accentColor="bg-red-500" />
                   ))}
                 </NotificationBell>
               </div>

@@ -9,18 +9,29 @@ interface Props {
   serviceSteps?: ServiceStepOption[]
   stepEntries?: StepFormEntry[]
   onStepChange?: (stepId: number, field: 'date' | 'done', value: string | boolean) => void
+  errors?: Record<string, string>
 }
 
 const inputCls =
   'w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm ' +
   'focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 focus:bg-white transition-colors min-h-11'
 
+const inputErrCls =
+  'w-full rounded-xl border border-red-400 bg-gray-50 px-3 py-2.5 text-sm ' +
+  'focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-red-400 focus:bg-white transition-colors min-h-11'
+
 const labelCls = 'block text-xs font-semibold text-gray-600 mb-1.5'
+
+function FieldError({ msg }: { msg?: string }) {
+  if (!msg) return null
+  return <p className="mt-1 text-xs text-red-500">{msg}</p>
+}
 
 export default function ClientFormFields({
   form, onChange, services, organizations,
-  serviceSteps = [], stepEntries = [], onStepChange,
+  serviceSteps = [], stepEntries = [], onStepChange, errors = {},
 }: Props) {
+  const ic = (field: string) => (errors[field] ? inputErrCls : inputCls)
   const isIqama = serviceSteps.length > 0
   const hasService = !!form.serviceId
 
@@ -31,12 +42,13 @@ export default function ClientFormFields({
       <div>
         <label className={labelCls}>اختر العملية</label>
         <select value={form.serviceId} onChange={(e) => onChange('serviceId', e.target.value)}
-          className={inputCls}>
+          className={ic('serviceId')}>
           <option value="">— اختر الخدمة —</option>
           {services.map((s) => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
+        <FieldError msg={errors.serviceId} />
       </div>
 
       {/* ── Fields appear after service is chosen ── */}
@@ -52,17 +64,20 @@ export default function ClientFormFields({
                 <div>
                   <label className={labelCls}>اسم العميل</label>
                   <input type="text" value={form.name} onChange={(e) => onChange('name', e.target.value)}
-                    placeholder="الاسم الكامل" className={inputCls} />
+                    placeholder="الاسم الكامل" className={ic('name')} />
+                  <FieldError msg={errors.name} />
                 </div>
                 <div>
                   <label className={labelCls}>رقم الهاتف</label>
                   <input type="tel" value={form.phone} onChange={(e) => onChange('phone', e.target.value)}
-                    placeholder="05xxxxxxxx" className={inputCls} />
+                    placeholder="05xxxxxxxx" className={ic('phone')} />
+                  <FieldError msg={errors.phone} />
                 </div>
                 <div>
                   <label className={labelCls}>رقم الإقامة</label>
                   <input type="text" value={form.iqamaNumber} onChange={(e) => onChange('iqamaNumber', e.target.value)}
-                    placeholder="رقم الإقامة" className={inputCls} />
+                    placeholder="رقم الإقامة" className={ic('iqamaNumber')} />
+                  <FieldError msg={errors.iqamaNumber} />
                 </div>
               </div>
 
@@ -71,26 +86,29 @@ export default function ClientFormFields({
                 <div>
                   <label className={labelCls}>تاريخ انتهاء الإقامة</label>
                   <input type="date" value={form.iqamaEndDate} onChange={(e) => onChange('iqamaEndDate', e.target.value)}
-                    className={inputCls} />
+                    className={ic('iqamaEndDate')} />
+                  <FieldError msg={errors.iqamaEndDate} />
                 </div>
                 <div>
                   <label className={labelCls}>المؤسسة</label>
                   <select value={form.organizationId} onChange={(e) => onChange('organizationId', e.target.value)}
-                    className={inputCls}>
+                    className={ic('organizationId')}>
                     <option value="">— اختر المؤسسة —</option>
                     {organizations.map((o) => (
                       <option key={o.id} value={o.id}>{o.name}</option>
                     ))}
                   </select>
+                  <FieldError msg={errors.organizationId} />
                 </div>
                 <div>
                   <label className={labelCls}>كرت العمل</label>
                   <select value={form.cardType} onChange={(e) => onChange('cardType', e.target.value)}
-                    className={inputCls}>
+                    className={ic('cardType')}>
                     {CARD_TYPE_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
+                  <FieldError msg={errors.cardType} />
                 </div>
               </div>
 
@@ -101,21 +119,24 @@ export default function ClientFormFields({
                     <div>
                       <label className={labelCls}>طريقة الدفع</label>
                       <select value={form.paymentType} onChange={(e) => onChange('paymentType', e.target.value)}
-                        className={inputCls}>
+                        className={ic('paymentType')}>
                         <option value="">— اختر —</option>
                         <option value="شهري">شهري</option>
                         <option value="سنوي">سنوي</option>
                       </select>
+                      <FieldError msg={errors.paymentType} />
                     </div>
                     <div>
                       <label className={labelCls}>المبلغ (ر.س)</label>
                       <input type="number" min={0} value={form.amount} onChange={(e) => onChange('amount', e.target.value)}
-                        placeholder="0.00" className={inputCls} />
+                        placeholder="0.00" className={ic('amount')} />
+                      <FieldError msg={errors.amount} />
                     </div>
                     <div>
                       <label className={labelCls}>المبلغ المستلم (ر.س)</label>
                       <input type="number" min={0} value={form.receivedAmount} onChange={(e) => onChange('receivedAmount', e.target.value)}
-                        placeholder="0.00" className={inputCls} />
+                        placeholder="0.00" className={ic('receivedAmount')} />
+                      <FieldError msg={errors.receivedAmount} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -137,21 +158,24 @@ export default function ClientFormFields({
                     <div>
                       <label className={labelCls}>طريقة الدفع</label>
                       <select value={form.paymentType} onChange={(e) => onChange('paymentType', e.target.value)}
-                        className={inputCls}>
+                        className={ic('paymentType')}>
                         <option value="">— اختر —</option>
                         <option value="شهري">شهري</option>
                         <option value="سنوي">سنوي</option>
                       </select>
+                      <FieldError msg={errors.paymentType} />
                     </div>
                     <div>
                       <label className={labelCls}>القسط الشهري (ر.س)</label>
                       <input type="number" min={0} value={form.amount} onChange={(e) => onChange('amount', e.target.value)}
-                        placeholder="0.00" className={inputCls} />
+                        placeholder="0.00" className={ic('amount')} />
+                      <FieldError msg={errors.amount} />
                     </div>
                     <div>
                       <label className={labelCls}>يوم الاستلام من كل شهر</label>
                       <input type="number" min={1} max={31} value={form.boardNumber} onChange={(e) => onChange('boardNumber', e.target.value)}
-                        placeholder="1 - 31" className={inputCls} />
+                        placeholder="1 - 31" className={ic('boardNumber')} />
+                      <FieldError msg={errors.boardNumber} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -167,11 +191,12 @@ export default function ClientFormFields({
                   <div>
                     <label className={labelCls}>طريقة الدفع</label>
                     <select value={form.paymentType} onChange={(e) => onChange('paymentType', e.target.value)}
-                      className={inputCls}>
+                      className={ic('paymentType')}>
                       <option value="">— اختر —</option>
                       <option value="شهري">شهري</option>
                       <option value="سنوي">سنوي</option>
                     </select>
+                    <FieldError msg={errors.paymentType} />
                   </div>
                 </div>
               )}
@@ -186,12 +211,14 @@ export default function ClientFormFields({
                 <div>
                   <label className={labelCls}>اسم العميل</label>
                   <input type="text" value={form.name} onChange={(e) => onChange('name', e.target.value)}
-                    placeholder="الاسم الكامل" className={inputCls} />
+                    placeholder="الاسم الكامل" className={ic('name')} />
+                  <FieldError msg={errors.name} />
                 </div>
                 <div>
                   <label className={labelCls}>رقم الهاتف</label>
                   <input type="tel" value={form.phone} onChange={(e) => onChange('phone', e.target.value)}
-                    placeholder="05xxxxxxxx" className={inputCls} />
+                    placeholder="05xxxxxxxx" className={ic('phone')} />
+                  <FieldError msg={errors.phone} />
                 </div>
                 <div>
                   <label className={labelCls}>رقم الجواز</label>
@@ -215,12 +242,13 @@ export default function ClientFormFields({
                 <div>
                   <label className={labelCls}>المؤسسة</label>
                   <select value={form.organizationId} onChange={(e) => onChange('organizationId', e.target.value)}
-                    className={inputCls}>
+                    className={ic('organizationId')}>
                     <option value="">— اختر المؤسسة —</option>
                     {organizations.map((o) => (
                       <option key={o.id} value={o.id}>{o.name}</option>
                     ))}
                   </select>
+                  <FieldError msg={errors.organizationId} />
                 </div>
               </div>
 
@@ -229,11 +257,12 @@ export default function ClientFormFields({
                 <div>
                   <label className={labelCls}>كرت العمل</label>
                   <select value={form.cardType} onChange={(e) => onChange('cardType', e.target.value)}
-                    className={inputCls}>
+                    className={ic('cardType')}>
                     {CARD_TYPE_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
+                  <FieldError msg={errors.cardType} />
                 </div>
                 <div>
                   <label className={labelCls}>طريقة الدفع</label>
@@ -243,12 +272,19 @@ export default function ClientFormFields({
                 <div>
                   <label className={labelCls}>المبلغ (ر.س)</label>
                   <input type="number" min={0} value={form.amount} onChange={(e) => onChange('amount', e.target.value)}
-                    placeholder="0.00" className={inputCls} />
+                    placeholder="0.00" className={ic('amount')} />
+                  <FieldError msg={errors.amount} />
                 </div>
               </div>
 
-              {/* صف 4: ملاحظات | تاريخ الدفعة القادمة */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* صف 4: المبلغ المستلم | ملاحظات | تاريخ الدفعة القادمة */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className={labelCls}>المبلغ المستلم (ر.س)</label>
+                  <input type="number" min={0} value={form.receivedAmount} onChange={(e) => onChange('receivedAmount', e.target.value)}
+                    placeholder="0.00" className={ic('receivedAmount')} />
+                  <FieldError msg={errors.receivedAmount} />
+                </div>
                 <div>
                   <label className={labelCls}>ملاحظات عن الدفعية</label>
                   <input type="text" value={form.notes} onChange={(e) => onChange('notes', e.target.value)}

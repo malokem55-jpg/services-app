@@ -12,6 +12,7 @@ import {
   buildClientPayload,
   iqamaStatus,
 } from '../lib/clientForm'
+import { clientSchema, clientStepSchema, getErrors } from '../lib/schemas'
 import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
 import ClientFormFields from '../components/ClientFormFields'
@@ -159,6 +160,8 @@ export default function ClientsPage() {
   const [issueNumber, setIssueNumber] = useState('')
   const [issueEndDate, setIssueEndDate] = useState('')
   const [issueSubmitAttempted, setIssueSubmitAttempted] = useState(false)
+  const [addErrors, setAddErrors] = useState<Record<string, string>>({})
+  const [addStepErrors, setAddStepErrors] = useState<Record<string, string>>({})
   const [renewalId, setRenewalId] = useState<number | null>(null)
   const [renewEndDate, setRenewEndDate] = useState('')
   const [renewAmount, setRenewAmount] = useState('')
@@ -178,6 +181,7 @@ export default function ClientsPage() {
     setIssueNumber('')
     setIssueEndDate('')
     setIssueSubmitAttempted(false)
+    setAddStepErrors({})
   }
 
   function closeRenewal() {
@@ -322,7 +326,9 @@ export default function ClientsPage() {
 
   function handleAddStep(e: React.FormEvent) {
     e.preventDefault()
-    if (!detailId || !newStepId) return
+    const errs = getErrors(clientStepSchema, { stepId: newStepId, stepDate: newStepDate })
+    setAddStepErrors(errs)
+    if (!detailId || Object.keys(errs).length > 0) return
     addStep.mutate({
       clientId: detailId,
       stepId: Number(newStepId),
@@ -422,11 +428,16 @@ export default function ClientsPage() {
       setShowAdd(false)
       setForm(EMPTY_CLIENT_FORM)
       setStepEntries([])
+      setAddErrors({})
     },
   })
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
+    const isIqama = serviceSteps.length > 0
+    const errs = getErrors(clientSchema(isIqama, true), form)
+    setAddErrors(errs)
+    if (Object.keys(errs).length > 0) return
     createClient.mutate(buildClientPayload(form))
   }
 
@@ -679,7 +690,6 @@ export default function ClientsPage() {
                   </tr>
                 ) : (
                   filteredClients.map((c) => {
-                    const iqama = iqamaStatus(c.iqamaEndDate)
                     return (
                       <tr
                         key={c.id}
@@ -866,19 +876,23 @@ export default function ClientsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <div>
                 <label className={labelCls}>الخطوة</label>
-                <select value={newStepId} onChange={(e) => setNewStepId(e.target.value)} className={fldCls}>
+                <select value={newStepId} onChange={(e) => setNewStepId(e.target.value)}
+                  className={`${fldCls}${addStepErrors.stepId ? ' border-red-400! focus:ring-red-400!' : ''}`}>
                   <option value="">اختر الخطوة...</option>
                   {detailServiceSteps.map((s) => (
                     <option key={s.id} value={String(s.id)}>{s.name}</option>
                   ))}
                 </select>
+                {addStepErrors.stepId && <p className="mt-1 text-xs text-red-500">{addStepErrors.stepId}</p>}
               </div>
               <div>
                 <label className={labelCls}>التاريخ</label>
-                <input type="date" value={newStepDate} onChange={(e) => setNewStepDate(e.target.value)} className={fldCls} />
+                <input type="date" value={newStepDate} onChange={(e) => setNewStepDate(e.target.value)}
+                  className={`${fldCls}${addStepErrors.stepDate ? ' border-red-400! focus:ring-red-400!' : ''}`} />
+                {addStepErrors.stepDate && <p className="mt-1 text-xs text-red-500">{addStepErrors.stepDate}</p>}
               </div>
             </div>
-            <button type="submit" disabled={addStep.isPending || !newStepId}
+            <button type="submit" disabled={addStep.isPending}
               className="rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
                          text-white text-sm font-semibold px-8 py-2.5 transition-colors">
               {addStep.isPending ? '...' : 'حفظ'}
@@ -1148,7 +1162,7 @@ export default function ClientsPage() {
         <Modal
           title="إضافة عميل جديد"
           size="lg"
-          onClose={() => { setShowAdd(false); setForm(EMPTY_CLIENT_FORM); setStepEntries([]) }}
+          onClose={() => { setShowAdd(false); setForm(EMPTY_CLIENT_FORM); setStepEntries([]); setAddErrors({}) }}
         >
           <form onSubmit={handleCreate} className="space-y-4">
             <ClientFormFields
@@ -1159,6 +1173,7 @@ export default function ClientsPage() {
               serviceSteps={serviceSteps}
               stepEntries={stepEntries}
               onStepChange={handleStepChange}
+              errors={addErrors}
             />
 
             {createClient.isError && (

@@ -86,6 +86,27 @@ body {
   animation: backdrop-in 0.2s ease-out both;
 }
 
+/* ─── Bell ring animation ────────────────────────────────────────────────── */
+@keyframes bell-ring {
+  0%   { transform: rotate(0deg); }
+  10%  { transform: rotate(18deg); }
+  20%  { transform: rotate(-16deg); }
+  30%  { transform: rotate(14deg); }
+  40%  { transform: rotate(-12deg); }
+  50%  { transform: rotate(8deg); }
+  60%  { transform: rotate(-6deg); }
+  70%  { transform: rotate(4deg); }
+  80%  { transform: rotate(-2deg); }
+  90%  { transform: rotate(1deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.bell-ring {
+  transform-origin: top center;
+  animation: bell-ring 4s ease-in-out infinite;
+  animation-delay: var(--bell-delay, 0s);
+}
+
 /* ─── Drawer slide-in from start (right in RTL) ──────────────────────────── */
 @keyframes drawer-in {
   from {

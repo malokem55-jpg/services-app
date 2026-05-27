@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
+import { loginSchema, getErrors } from '../lib/schemas'
 import Logo from '../components/Logo'
 
 interface LoginResponse {
@@ -19,6 +20,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const mutation = useMutation({
     mutationFn: loginRequest,
@@ -30,6 +32,9 @@ export default function LoginPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    const errs = getErrors(loginSchema, { username, password })
+    setErrors(errs)
+    if (Object.keys(errs).length > 0) return
     mutation.mutate({ username, password })
   }
 
@@ -76,15 +81,20 @@ export default function LoginPage() {
                   id="username"
                   type="text"
                   autoComplete="username"
-                  required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="اسم المستخدم"
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 pe-10 ps-4 py-3 text-gray-900
-                             placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500
-                             focus:border-sky-500 focus:bg-white transition-all min-h-12"
+                  className={`w-full rounded-xl border bg-gray-50 pe-10 ps-4 py-3 text-gray-900
+                             placeholder-gray-400 text-sm focus:outline-none focus:ring-2
+                             focus:bg-white transition-all min-h-12
+                             ${errors.username
+                               ? 'border-red-400 focus:ring-red-400 focus:border-red-400'
+                               : 'border-gray-200 focus:ring-sky-500 focus:border-sky-500'}`}
                 />
               </div>
+              {errors.username && (
+                <p className="mt-1.5 text-xs text-red-500">{errors.username}</p>
+              )}
             </div>
 
             {/* Password */}
@@ -103,15 +113,20 @@ export default function LoginPage() {
                   id="password"
                   type="password"
                   autoComplete="current-password"
-                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 pe-10 ps-4 py-3 text-gray-900
-                             placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500
-                             focus:border-sky-500 focus:bg-white transition-all min-h-12"
+                  className={`w-full rounded-xl border bg-gray-50 pe-10 ps-4 py-3 text-gray-900
+                             placeholder-gray-400 text-sm focus:outline-none focus:ring-2
+                             focus:bg-white transition-all min-h-12
+                             ${errors.password
+                               ? 'border-red-400 focus:ring-red-400 focus:border-red-400'
+                               : 'border-gray-200 focus:ring-sky-500 focus:border-sky-500'}`}
                 />
               </div>
+              {errors.password && (
+                <p className="mt-1.5 text-xs text-red-500">{errors.password}</p>
+              )}
             </div>
 
             {/* Error message */}

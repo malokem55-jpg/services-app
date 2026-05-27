@@ -1,39 +1,33 @@
-import { useState, useRef } from 'react'
+// no useState needed — mobile state is managed by parent
 
 interface Props {
   count: number
   badgeColor: string
   title: string
   children: React.ReactNode
+  ringDelay?: string
+  mobileOpen?: boolean
+  onMobileToggle?: () => void
 }
 
-export default function NotificationBell({ count, badgeColor, title, children }: Props) {
-  const [isOpen, setIsOpen] = useState(false)
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  function handleMouseEnter() {
-    if (closeTimer.current) clearTimeout(closeTimer.current)
-    setIsOpen(true)
-  }
-
-  function handleMouseLeave() {
-    closeTimer.current = setTimeout(() => setIsOpen(false), 150)
-  }
+export default function NotificationBell({
+  count, badgeColor, title, children, ringDelay = '0s',
+  mobileOpen = false, onMobileToggle,
+}: Props) {
 
   return (
-    <div
-      className="relative"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
+    <div className="relative group">
       <button
         className="relative flex items-center justify-center w-9 h-9 rounded-full
                    text-sky-100 hover:text-white hover:bg-sky-600 transition-colors"
         aria-label={title}
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen(v => !v)}
+        onClick={() => onMobileToggle?.()}
       >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg
+          className={`w-5 h-5 ${count > 0 ? 'bell-ring' : ''}`}
+          style={{ '--bell-delay': ringDelay } as React.CSSProperties}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
           <path strokeLinecap="round" strokeLinejoin="round"
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
@@ -46,11 +40,23 @@ export default function NotificationBell({ count, badgeColor, title, children }:
         )}
       </button>
 
-      {isOpen && (
+      {/*
+        القائمة تبدأ من top-9 (نهاية الزر مباشرة) بدون فراغ.
+        pt-3 داخلها يصنع المسافة البصرية فقط، بينما منطقة الـ hover متصلة.
+      */}
+      <div
+        className={`
+          hidden sm:block
+          absolute top-9 inset-e-0 w-80 pt-3 z-50
+          sm:opacity-0 sm:invisible
+          sm:group-hover:opacity-100 sm:group-hover:visible
+          transition-all duration-200 ease-in-out
+        `}
+      >
         <div
           dir="rtl"
-          className="absolute top-11 end-0 w-80 max-h-96 bg-white rounded-xl shadow-2xl
-                     border border-gray-100 z-50 overflow-hidden flex flex-col"
+          className="bg-white rounded-xl shadow-2xl border border-gray-100
+                     max-h-96 overflow-hidden flex flex-col"
         >
           <div className="px-4 py-3 border-b border-gray-100 shrink-0">
             <h3 className="font-bold text-gray-800 text-sm">{title}</h3>
@@ -58,7 +64,27 @@ export default function NotificationBell({ count, badgeColor, title, children }:
           {count === 0 ? (
             <p className="text-center text-gray-400 text-sm py-8">لا توجد تنبيهات</p>
           ) : (
-            <div className="overflow-y-auto">
+            <div className="overflow-y-auto divide-y divide-gray-100">
+              {children}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* موبايل فقط */}
+      {mobileOpen && (
+        <div
+          dir="rtl"
+          className="fixed top-16 inset-x-2 max-h-[70vh] bg-white rounded-xl shadow-2xl
+                     border border-gray-100 z-50 overflow-hidden flex flex-col sm:hidden"
+        >
+          <div className="px-4 py-3 border-b border-gray-100 shrink-0">
+            <h3 className="font-bold text-gray-800 text-sm">{title}</h3>
+          </div>
+          {count === 0 ? (
+            <p className="text-center text-gray-400 text-sm py-8">لا توجد تنبيهات</p>
+          ) : (
+            <div className="overflow-y-auto divide-y divide-gray-100">
               {children}
             </div>
           )}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
+import { serviceStepSchema, getErrors } from '../lib/schemas'
 
 interface Step {
   id: number
@@ -14,6 +15,7 @@ export default function StepsPanel({ serviceId }: { serviceId: number }) {
   const qc = useQueryClient()
   const [name, setName] = useState('')
   const [number, setNumber] = useState('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const { data: steps = [], isLoading } = useQuery<Step[]>({
     queryKey: ['service-steps', serviceId],
@@ -28,6 +30,7 @@ export default function StepsPanel({ serviceId }: { serviceId: number }) {
       qc.invalidateQueries({ queryKey: ['services'] })
       setName('')
       setNumber('')
+      setErrors({})
     },
   })
 
@@ -53,8 +56,10 @@ export default function StepsPanel({ serviceId }: { serviceId: number }) {
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) return
-    addStep.mutate({ name: name.trim(), number: number.trim() || undefined, serviceId })
+    const errs = getErrors(serviceStepSchema, { name: name.trim(), number: number.trim() })
+    setErrors(errs)
+    if (Object.keys(errs).length > 0) return
+    addStep.mutate({ name: name.trim(), number: number.trim(), serviceId })
   }
 
   return (
@@ -143,30 +148,43 @@ export default function StepsPanel({ serviceId }: { serviceId: number }) {
       )}
 
       {/* Add step form */}
-      <form onSubmit={handleAdd} className="flex gap-2 pt-1">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="اسم الخطوة"
-          required
-          className="flex-1 rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm
-                     focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 min-h-11"
-        />
-        <input
-          value={number}
-          onChange={(e) => setNumber(e.target.value)}
-          placeholder="رقم (اختياري)"
-          className="w-28 rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm
-                     focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 min-h-11"
-        />
-        <button
-          type="submit"
-          disabled={addStep.isPending}
-          className="rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
-                     text-white px-4 py-2.5 text-sm font-semibold min-h-11 transition-colors"
-        >
-          {addStep.isPending ? '...' : 'إضافة'}
-        </button>
+      <form onSubmit={handleAdd} className="pt-1 space-y-2">
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="اسم الخطوة"
+              className={`w-full rounded-xl border bg-white px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 min-h-11
+                         ${errors.name
+                           ? 'border-red-400 focus:ring-red-400 focus:border-red-400'
+                           : 'border-sky-200 focus:ring-sky-500 focus:border-sky-500'}`}
+            />
+            {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
+          </div>
+          <div className="w-28">
+            <input
+              value={number}
+              onChange={(e) => setNumber(e.target.value)}
+              placeholder="الرقم"
+              className={`w-full rounded-xl border bg-white px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 min-h-11
+                         ${errors.number
+                           ? 'border-red-400 focus:ring-red-400 focus:border-red-400'
+                           : 'border-sky-200 focus:ring-sky-500 focus:border-sky-500'}`}
+            />
+            {errors.number && <p className="mt-1 text-xs text-red-500">{errors.number}</p>}
+          </div>
+          <button
+            type="submit"
+            disabled={addStep.isPending}
+            className="rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
+                       text-white px-4 py-2.5 text-sm font-semibold min-h-11 transition-colors self-start"
+          >
+            {addStep.isPending ? '...' : 'إضافة'}
+          </button>
+        </div>
       </form>
     </div>
   )
