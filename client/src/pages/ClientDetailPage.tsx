@@ -71,6 +71,16 @@ function formatDate(iso: string | null | undefined) {
   })
 }
 
+function formatBothDates(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const hijri = new Date(iso)
+    .toLocaleDateString('ar-SA-u-ca-islamic-nu-latn', {
+      year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC',
+    })
+    .replace(/\//g, '-')
+  return `${hijri} / ${iso.slice(0, 10)}`
+}
+
 function clientToForm(c: ClientDetail): ClientFormData {
   return {
     name: c.name ?? '',
@@ -378,6 +388,16 @@ export default function ClientDetailPage() {
     )
   }
 
+  // ── derived values (mirrors ClientsPage modal logic) ─────────────────────
+
+  const isUnderProcedure = !client?.iqamaNumber
+  const isMonthly = client?.paymentType === 'شهري'
+  const paidAmount = client?.payments
+    .filter((p) => p.isDone)
+    .reduce((sum, p) => sum + (p.amount ?? 0), 0) ?? 0
+  const remaining = (client?.amount ?? 0) - paidAmount
+  const currentStep = client?.steps[0]?.step?.name ?? '—'
+
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
@@ -449,42 +469,116 @@ export default function ClientDetailPage() {
         </div>
 
         {/* ── Info card ── */}
-        <SectionCard title="البيانات الأساسية">
-          <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-5">
-            {([
-              { label: 'الاسم', value: client.name },
-              { label: 'الهاتف', value: client.phone },
-              { label: 'رقم الجواز', value: client.passport },
-              { label: 'رقم الإقامة', value: client.iqamaNumber },
-              {
-                label: 'انتهاء الإقامة',
-                custom: <IqamaBadge dateStr={client.iqamaEndDate} />,
-              },
-              { label: 'الخدمة', value: client.service?.name },
-              { label: 'المؤسسة', value: client.organization?.name },
-              { label: 'نوع الدفع', value: client.paymentType },
-              {
-                label: 'المبلغ',
-                value: client.amount != null
-                  ? `${client.amount.toLocaleString('ar-SA')} ر.س`
-                  : null,
-              },
-              { label: 'كرت العمل', value: client.cardType },
-              {
-                label: client.paymentType === 'شهري' ? 'يوم الاستلام' : 'رقم الحدود',
-                value: client.boardNumber,
-              },
-              { label: 'رقم التأشيرة', value: client.visaNumber },
-            ] as Array<{ label: string; value?: string | null; custom?: ReactNode }>)
-              .map(({ label, value, custom }) => (
-                <div key={label}>
-                  <dt className="text-xs font-medium text-gray-400 mb-1">{label}</dt>
-                  <dd className="text-sm font-semibold text-gray-900">
-                    {custom ?? (value ?? '—')}
-                  </dd>
+        <SectionCard title={isUnderProcedure ? 'البيانات الأساسية (تحت الإجراء)' : 'البيانات الأساسية'}>
+
+          {isUnderProcedure ? (
+            /* ── تحت الإجراء ── */
+            <>
+              <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-5 mb-5">
+                {([
+                  { label: 'اسم العميل',       value: client.name },
+                  { label: 'رقم الهاتف',        value: client.phone },
+                  { label: 'المؤسسة',           value: client.organization?.name },
+                  { label: 'رقم الجواز',        value: client.passport },
+                  { label: 'رقم الحدود',        value: client.boardNumber },
+                  { label: 'رقم التأشيرة',      value: client.visaNumber },
+                  { label: 'الخطوة الحالية',    value: currentStep },
+                  { label: 'كرت العمل',         value: client.cardType },
+                  { label: 'طريقة الدفع',       value: client.paymentType },
+                  {
+                    label: 'المبلغ الإجمالي',
+                    value: client.amount != null
+                      ? `${client.amount.toLocaleString('ar-SA')} ر.س`
+                      : null,
+                  },
+                  {
+                    label: 'المبلغ المدفوع',
+                    value: `${paidAmount.toLocaleString('ar-SA')} ر.س`,
+                  },
+                ] as Array<{ label: string; value?: string | null }>)
+                  .map(({ label, value }) => (
+                    <div key={label}>
+                      <dt className="text-xs font-medium text-gray-400 mb-1">{label}</dt>
+                      <dd className="text-sm font-semibold text-gray-900">{value ?? '—'}</dd>
+                    </div>
+                  ))}
+              </dl>
+
+              {/* المتبقي */}
+              <div className="bg-sky-50 border border-sky-100 rounded-xl px-4 py-3">
+                <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
+                <p className="text-lg font-bold text-sky-700">
+                  {remaining.toLocaleString('ar-SA')} ر.س
+                </p>
+              </div>
+            </>
+          ) : (
+            /* ── مكتمل (لديه إقامة) ── */
+            <>
+              <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-5 mb-5">
+                {([
+                  { label: 'اسم العميل',  value: client.name },
+                  { label: 'رقم الهاتف', value: client.phone },
+                  { label: 'المؤسسة',    value: client.organization?.name },
+                  { label: 'رقم الإقامة', value: client.iqamaNumber },
+                  {
+                    label: 'تاريخ انتهاء الإقامة',
+                    custom: <IqamaBadge dateStr={client.iqamaEndDate} />,
+                    value: formatBothDates(client.iqamaEndDate),
+                  },
+                  { label: 'كرت العمل',  value: client.cardType },
+                  { label: 'طريقة الدفع', value: client.paymentType },
+                  {
+                    label: isMonthly ? 'القسط الشهري' : 'المبلغ الإجمالي',
+                    value: client.amount != null
+                      ? `${client.amount.toLocaleString('ar-SA')} ر.س`
+                      : null,
+                  },
+                ] as Array<{ label: string; value?: string | null; custom?: ReactNode }>)
+                  .map(({ label, value, custom }) => (
+                    <div key={label}>
+                      <dt className="text-xs font-medium text-gray-400 mb-1">{label}</dt>
+                      <dd className="text-sm font-semibold text-gray-900">
+                        {custom ?? (value ?? '—')}
+                      </dd>
+                    </div>
+                  ))}
+              </dl>
+
+              {/* صندوق المدفوع/المتبقي أو يوم الاستلام */}
+              {isMonthly ? (
+                <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4">
+                  <div>
+                    <p className="text-xs text-gray-400 mb-0.5">تاريخ الدفعة القادمة</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {client.payments.map((p) => p.nextPaymentDate).filter(Boolean).at(-1)?.slice(0, 10) ?? '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-0.5">يوم الاستلام في الشهر</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {client.boardNumber || (client.payments.map((p) => p.nextPaymentDate).filter(Boolean).at(-1)?.slice(8, 10) ?? '—')}
+                    </p>
+                  </div>
                 </div>
-              ))}
-          </dl>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4">
+                  <div>
+                    <p className="text-xs text-gray-400 mb-0.5">المبلغ المدفوع</p>
+                    <p className="text-base font-bold text-emerald-600">
+                      {paidAmount.toLocaleString('ar-SA')} ر.س
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
+                    <p className="text-base font-bold text-sky-700">
+                      {remaining.toLocaleString('ar-SA')} ر.س
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
 
           {client.notes && (
             <div className="mt-5 pt-5 border-t border-gray-100">
