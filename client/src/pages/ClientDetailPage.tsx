@@ -78,7 +78,7 @@ function formatBothDates(iso: string | null | undefined): string {
       year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC',
     })
     .replace(/\//g, '-')
-  return `${hijri} / ${iso.slice(0, 10)}`
+  return `${hijri} هـ / ${iso.slice(0, 10)}`
 }
 
 function clientToForm(c: ClientDetail): ClientFormData {
@@ -101,13 +101,18 @@ function clientToForm(c: ClientDetail): ClientFormData {
   }
 }
 
+function scrollToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
 const inputCls =
   'w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm ' +
   'focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 focus:bg-white transition-colors min-h-11'
+const labelCls = 'block text-xs font-medium text-gray-500 mb-1.5'
 
-// ─── Delete confirm inline ────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function DeleteConfirm({
   onConfirm, onCancel, isPending,
@@ -127,21 +132,17 @@ function DeleteConfirm({
   )
 }
 
-// ─── Iqama status badge ───────────────────────────────────────────────────────
-
 function IqamaBadge({ dateStr }: { dateStr: string | null }) {
   const s = iqamaStatus(dateStr)
-  if (!dateStr) return <span className="text-sm text-gray-400">—</span>
-
+  if (!dateStr) return <span className="text-sm font-semibold text-gray-900">—</span>
   const badgeCls = s.cls.includes('red')
     ? 'bg-red-100 text-red-700 border border-red-200'
     : s.cls.includes('amber')
     ? 'bg-amber-100 text-amber-700 border border-amber-200'
     : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-
   return (
     <div className="flex flex-col gap-1">
-      <span className={s.cls + ' text-sm font-medium'}>{s.label}</span>
+      <span className="text-sm font-semibold text-gray-900">{formatBothDates(dateStr)}</span>
       {s.extra && (
         <span className={`inline-flex self-start rounded-full px-2 py-0.5 text-xs font-semibold ${badgeCls}`}>
           {s.extra}
@@ -151,11 +152,18 @@ function IqamaBadge({ dateStr }: { dateStr: string | null }) {
   )
 }
 
-// ─── Section card wrapper ─────────────────────────────────────────────────────
-
-function SectionCard({ title, children }: { title: string; children: ReactNode }) {
+function InfoField({ label, value, custom }: { label: string; value?: string | null; custom?: ReactNode }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div>
+      <p className="text-xs text-gray-400 mb-0.5">{label}</p>
+      {custom ?? <p className="text-sm font-semibold text-gray-900">{value ?? '—'}</p>}
+    </div>
+  )
+}
+
+function SectionCard({ title, children, id }: { title: string; children: ReactNode; id?: string }) {
+  return (
+    <div id={id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
         <h3 className="text-sm font-semibold text-sky-700">{title}</h3>
       </div>
@@ -199,7 +207,7 @@ export default function ClientDetailPage() {
     staleTime: 5 * 60 * 1000,
   })
 
-  // ── edit state ───────────────────────────────────────────────────────────
+  // ── state ────────────────────────────────────────────────────────────────
 
   const [showEdit, setShowEdit] = useState(false)
   const [editForm, setEditForm] = useState<ClientFormData>({
@@ -211,39 +219,27 @@ export default function ClientDetailPage() {
   const [editErrors, setEditErrors] = useState<Record<string, string>>({})
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({})
   const [payErrors, setPayErrors] = useState<Record<string, string>>({})
-
-  function openEdit() {
-    if (!client) return
-    setEditForm(clientToForm(client))
-    setEditErrors({})
-    setShowEdit(true)
-  }
-
-  // ── delete client ────────────────────────────────────────────────────────
-
   const [showDeleteClient, setShowDeleteClient] = useState(false)
-
-  // ── steps state ──────────────────────────────────────────────────────────
-
   const [stepId, setStepId] = useState('')
   const [stepDate, setStepDate] = useState('')
   const [deleteStepId, setDeleteStepId] = useState<number | null>(null)
-
-  // ── payments state ───────────────────────────────────────────────────────
-
   const [payAmount, setPayAmount] = useState('')
   const [payDate, setPayDate] = useState('')
   const [payIsDone, setPayIsDone] = useState(true)
   const [payNotes, setPayNotes] = useState('')
   const [deletePaymentId, setDeletePaymentId] = useState<number | null>(null)
 
+  // إصدار الإقامة
+  const [showIssueIqama, setShowIssueIqama] = useState(false)
+  const [issueNumber, setIssueNumber] = useState('')
+  const [issueEndDate, setIssueEndDate] = useState('')
+  const [issueAttempted, setIssueAttempted] = useState(false)
+
   // ── mutations ────────────────────────────────────────────────────────────
 
   const updateClient = useMutation({
     mutationFn: (body: ReturnType<typeof buildClientPayload>) =>
-      apiFetch<ClientDetail>(`/api/clients/${clientId}`, {
-        method: 'PUT', body: JSON.stringify(body),
-      }),
+      apiFetch<ClientDetail>(`/api/clients/${clientId}`, { method: 'PUT', body: JSON.stringify(body) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client', clientId] })
       qc.invalidateQueries({ queryKey: ['clients'] })
@@ -265,38 +261,27 @@ export default function ClientDetailPage() {
       apiFetch<unknown>('/api/client-steps', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client', clientId] })
-      setStepId('')
-      setStepDate('')
+      setStepId(''); setStepDate('')
     },
   })
 
   const deleteStep = useMutation({
-    mutationFn: (id: number) =>
-      apiFetch<unknown>(`/api/client-steps/${id}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['client', clientId] })
-      setDeleteStepId(null)
-    },
+    mutationFn: (id: number) => apiFetch<unknown>(`/api/client-steps/${id}`, { method: 'DELETE' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['client', clientId] }); setDeleteStepId(null) },
   })
 
   const addPayment = useMutation({
-    mutationFn: (body: {
-      clientId: number; amount?: number; nextPaymentDate?: string;
-      isDone: boolean; notes?: string;
-    }) => apiFetch<unknown>('/api/client-payments', { method: 'POST', body: JSON.stringify(body) }),
+    mutationFn: (body: { clientId: number; amount?: number; nextPaymentDate?: string; isDone: boolean; notes?: string }) =>
+      apiFetch<unknown>('/api/client-payments', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client', clientId] })
       qc.invalidateQueries({ queryKey: ['stats'] })
-      setPayAmount('')
-      setPayDate('')
-      setPayIsDone(true)
-      setPayNotes('')
+      setPayAmount(''); setPayDate(''); setPayIsDone(true); setPayNotes('')
     },
   })
 
   const deletePayment = useMutation({
-    mutationFn: (id: number) =>
-      apiFetch<unknown>(`/api/client-payments/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: number) => apiFetch<unknown>(`/api/client-payments/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client', clientId] })
       qc.invalidateQueries({ queryKey: ['stats'] })
@@ -304,7 +289,25 @@ export default function ClientDetailPage() {
     },
   })
 
+  const issueIqama = useMutation({
+    mutationFn: (body: { iqamaNumber: string; iqamaEndDate: string }) =>
+      apiFetch<unknown>(`/api/clients/${clientId}`, { method: 'PUT', body: JSON.stringify(body) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client', clientId] })
+      qc.invalidateQueries({ queryKey: ['clients'] })
+      setShowIssueIqama(false)
+      setIssueNumber(''); setIssueEndDate(''); setIssueAttempted(false)
+    },
+  })
+
   // ── handlers ─────────────────────────────────────────────────────────────
+
+  function openEdit() {
+    if (!client) return
+    setEditForm(clientToForm(client))
+    setEditErrors({})
+    setShowEdit(true)
+  }
 
   function handleEdit(e: React.FormEvent) {
     e.preventDefault()
@@ -336,6 +339,13 @@ export default function ClientDetailPage() {
     })
   }
 
+  function handleIssueIqama(e: React.FormEvent) {
+    e.preventDefault()
+    setIssueAttempted(true)
+    if (!issueNumber || !issueEndDate) return
+    issueIqama.mutate({ iqamaNumber: issueNumber, iqamaEndDate: issueEndDate })
+  }
+
   // ── loading / error states ────────────────────────────────────────────────
 
   if (isLoading) {
@@ -343,7 +353,6 @@ export default function ClientDetailPage() {
       <div className="min-h-screen bg-gray-50/80">
         <Navbar />
         <main className="mx-auto max-w-5xl px-4 py-6 space-y-4 page-enter">
-          {/* header skeleton */}
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-gray-200 animate-pulse" />
             <div className="h-6 w-48 rounded-lg bg-gray-200 animate-pulse" />
@@ -379,8 +388,7 @@ export default function ClientDetailPage() {
           </div>
           <p className="text-gray-600 font-medium">تعذّر تحميل بيانات العميل</p>
           <button onClick={() => navigate('/clients')}
-            className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold
-                       px-5 py-2.5 transition-colors">
+            className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
             العودة للعملاء
           </button>
         </div>
@@ -388,15 +396,15 @@ export default function ClientDetailPage() {
     )
   }
 
-  // ── derived values (mirrors ClientsPage modal logic) ─────────────────────
+  // ── derived values ────────────────────────────────────────────────────────
 
-  const isUnderProcedure = !client?.iqamaNumber
-  const isMonthly = client?.paymentType === 'شهري'
-  const paidAmount = client?.payments
+  const isUnderProcedure = !client.iqamaNumber
+  const isMonthly = client.paymentType === 'شهري'
+  const paidAmount = client.payments
     .filter((p) => p.isDone)
-    .reduce((sum, p) => sum + (p.amount ?? 0), 0) ?? 0
-  const remaining = (client?.amount ?? 0) - paidAmount
-  const currentStep = client?.steps[0]?.step?.name ?? '—'
+    .reduce((sum, p) => sum + (p.amount ?? 0), 0)
+  const remaining = (client.amount ?? 0) - paidAmount
+  const currentStep = client.steps[0]?.step?.name ?? '—'
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -429,12 +437,10 @@ export default function ClientDetailPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={openEdit}
+            <button onClick={openEdit}
               className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white
                          hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2.5 min-h-10
-                         transition-colors shadow-sm"
-            >
+                         transition-colors shadow-sm">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round"
                   d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -452,12 +458,10 @@ export default function ClientDetailPage() {
                 />
               </div>
             ) : (
-              <button
-                onClick={() => setShowDeleteClient(true)}
+              <button onClick={() => setShowDeleteClient(true)}
                 className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-white
                            hover:bg-red-50 text-red-600 text-sm font-medium px-4 py-2.5 min-h-10
-                           transition-colors shadow-sm"
-              >
+                           transition-colors shadow-sm">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round"
                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -468,86 +472,76 @@ export default function ClientDetailPage() {
           </div>
         </div>
 
-        {/* ── Info card ── */}
-        <SectionCard title={isUnderProcedure ? 'البيانات الأساسية (تحت الإجراء)' : 'البيانات الأساسية'}>
+        {/* ── Info card — نفس تصميم modal التفاصيل ── */}
+        <SectionCard title={isUnderProcedure ? 'تفاصيل عميل (تحت الإجراء)' : 'تفاصيل عميل'}>
 
           {isUnderProcedure ? (
-            /* ── تحت الإجراء ── */
+            /* ─ تحت الإجراء ─ */
             <>
-              <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-5 mb-5">
-                {([
-                  { label: 'اسم العميل',       value: client.name },
-                  { label: 'رقم الهاتف',        value: client.phone },
-                  { label: 'المؤسسة',           value: client.organization?.name },
-                  { label: 'رقم الجواز',        value: client.passport },
-                  { label: 'رقم الحدود',        value: client.boardNumber },
-                  { label: 'رقم التأشيرة',      value: client.visaNumber },
-                  { label: 'الخطوة الحالية',    value: currentStep },
-                  { label: 'كرت العمل',         value: client.cardType },
-                  { label: 'طريقة الدفع',       value: client.paymentType },
-                  {
-                    label: 'المبلغ الإجمالي',
-                    value: client.amount != null
-                      ? `${client.amount.toLocaleString('ar-SA')} ر.س`
-                      : null,
-                  },
-                  {
-                    label: 'المبلغ المدفوع',
-                    value: `${paidAmount.toLocaleString('ar-SA')} ر.س`,
-                  },
-                ] as Array<{ label: string; value?: string | null }>)
-                  .map(({ label, value }) => (
-                    <div key={label}>
-                      <dt className="text-xs font-medium text-gray-400 mb-1">{label}</dt>
-                      <dd className="text-sm font-semibold text-gray-900">{value ?? '—'}</dd>
-                    </div>
-                  ))}
-              </dl>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4 mb-5">
+                <InfoField label="اسم العميل"       value={client.name} />
+                <InfoField label="رقم الهاتف"        value={client.phone} />
+                <InfoField label="المؤسسة"           value={client.organization?.name} />
+                <InfoField label="رقم الجواز"        value={client.passport} />
+                <InfoField label="رقم الحدود"        value={client.boardNumber} />
+                <InfoField label="رقم التأشيرة"      value={client.visaNumber} />
+                <InfoField label="الخطوة الحالية"    value={currentStep} />
+                <InfoField label="كرت العمل"         value={client.cardType} />
+                <InfoField label="تاريخ الدفعة القادمة" value={client.nextPaymentDate?.slice(0, 10)} />
+                <InfoField label="طريقة الدفع"       value={client.paymentType} />
+                <InfoField label="المبلغ الإجمالي"
+                  value={client.amount != null ? client.amount.toLocaleString('ar-SA') : null} />
+                <InfoField label="المبلغ المدفوع"
+                  value={paidAmount.toLocaleString('ar-SA')} />
+              </div>
 
               {/* المتبقي */}
-              <div className="bg-sky-50 border border-sky-100 rounded-xl px-4 py-3">
+              <div className="bg-sky-50 border border-sky-100 rounded-xl px-4 py-3 mb-5">
                 <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
-                <p className="text-lg font-bold text-sky-700">
-                  {remaining.toLocaleString('ar-SA')} ر.س
-                </p>
+                <p className="text-lg font-bold text-sky-700">{remaining.toLocaleString('ar-SA')}</p>
+              </div>
+
+              {/* أزرار الإجراءات */}
+              <div className="flex flex-wrap gap-2.5">
+                <button
+                  onClick={() => scrollToSection('steps-section')}
+                  className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
+                  الخطوات
+                </button>
+                <button
+                  onClick={() => scrollToSection('payments-section')}
+                  className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
+                  الدفعيات
+                </button>
+                <button
+                  onClick={() => setShowIssueIqama(true)}
+                  className="rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
+                  إصدار الإقامة
+                </button>
               </div>
             </>
           ) : (
-            /* ── مكتمل (لديه إقامة) ── */
+            /* ─ مكتمل (لديه إقامة) ─ */
             <>
-              <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-5 mb-5">
-                {([
-                  { label: 'اسم العميل',  value: client.name },
-                  { label: 'رقم الهاتف', value: client.phone },
-                  { label: 'المؤسسة',    value: client.organization?.name },
-                  { label: 'رقم الإقامة', value: client.iqamaNumber },
-                  {
-                    label: 'تاريخ انتهاء الإقامة',
-                    custom: <IqamaBadge dateStr={client.iqamaEndDate} />,
-                    value: formatBothDates(client.iqamaEndDate),
-                  },
-                  { label: 'كرت العمل',  value: client.cardType },
-                  { label: 'طريقة الدفع', value: client.paymentType },
-                  {
-                    label: isMonthly ? 'القسط الشهري' : 'المبلغ الإجمالي',
-                    value: client.amount != null
-                      ? `${client.amount.toLocaleString('ar-SA')} ر.س`
-                      : null,
-                  },
-                ] as Array<{ label: string; value?: string | null; custom?: ReactNode }>)
-                  .map(({ label, value, custom }) => (
-                    <div key={label}>
-                      <dt className="text-xs font-medium text-gray-400 mb-1">{label}</dt>
-                      <dd className="text-sm font-semibold text-gray-900">
-                        {custom ?? (value ?? '—')}
-                      </dd>
-                    </div>
-                  ))}
-              </dl>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4 mb-5">
+                <InfoField label="اسم العميل"  value={client.name} />
+                <InfoField label="رقم الهاتف"  value={client.phone} />
+                <InfoField label="المؤسسة"     value={client.organization?.name} />
+                <InfoField label="رقم الإقامة" value={client.iqamaNumber} />
+                <InfoField label="تاريخ انتهاء الإقامة"
+                  custom={<IqamaBadge dateStr={client.iqamaEndDate} />} />
+                <InfoField label="كرت العمل"   value={client.cardType} />
+                <InfoField label="تاريخ الدفعة القادمة" value={client.nextPaymentDate?.slice(0, 10)} />
+                <InfoField label="طريقة الدفع" value={client.paymentType} />
+                <InfoField
+                  label={isMonthly ? 'القسط الشهري' : 'المبلغ الإجمالي'}
+                  value={client.amount != null ? client.amount.toLocaleString('ar-SA') : null}
+                />
+              </div>
 
-              {/* صندوق المدفوع/المتبقي أو يوم الاستلام */}
+              {/* صندوق المدفوع / المتبقي أو يوم الاستلام */}
               {isMonthly ? (
-                <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4">
+                <div className="grid grid-cols-2 gap-4 mb-5">
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">تاريخ الدفعة القادمة</p>
                     <p className="text-sm font-semibold text-gray-900">
@@ -557,39 +551,44 @@ export default function ClientDetailPage() {
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">يوم الاستلام في الشهر</p>
                     <p className="text-sm font-semibold text-gray-900">
-                      {client.boardNumber || (client.payments.map((p) => p.nextPaymentDate).filter(Boolean).at(-1)?.slice(8, 10) ?? '—')}
+                      {client.boardNumber ||
+                        (client.payments.map((p) => p.nextPaymentDate).filter(Boolean).at(-1)?.slice(8, 10) ?? '—')}
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4">
+                <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 mb-5">
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">المبلغ المدفوع</p>
-                    <p className="text-base font-bold text-emerald-600">
-                      {paidAmount.toLocaleString('ar-SA')} ر.س
-                    </p>
+                    <p className="text-base font-bold text-emerald-600">{paidAmount.toLocaleString('ar-SA')}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
-                    <p className="text-base font-bold text-sky-700">
-                      {remaining.toLocaleString('ar-SA')} ر.س
-                    </p>
+                    <p className="text-base font-bold text-sky-700">{remaining.toLocaleString('ar-SA')}</p>
                   </div>
                 </div>
               )}
+
+              {/* زر الدفعيات */}
+              <button
+                onClick={() => scrollToSection('payments-section')}
+                className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-6 py-2.5 transition-colors">
+                {isMonthly ? 'الدفعيات' : 'عرض الدفعيات'}
+              </button>
             </>
           )}
 
+          {/* ملاحظات */}
           {client.notes && (
             <div className="mt-5 pt-5 border-t border-gray-100">
-              <dt className="text-xs font-medium text-gray-400 mb-1.5">ملاحظات</dt>
-              <dd className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{client.notes}</dd>
+              <p className="text-xs font-medium text-gray-400 mb-1.5">ملاحظات</p>
+              <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{client.notes}</p>
             </div>
           )}
         </SectionCard>
 
-        {/* ── Service steps card ── */}
-        <SectionCard title="خطوات الخدمة">
+        {/* ── خطوات الخدمة ── */}
+        <SectionCard title="خطوات الخدمة" id="steps-section">
           {client.steps.length === 0 ? (
             <div className="flex flex-col items-center py-6 text-center">
               <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-3">
@@ -604,8 +603,7 @@ export default function ClientDetailPage() {
             <ul className="space-y-2 mb-5">
               {client.steps.map((s) => (
                 <li key={s.id}
-                  className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3
-                             border border-gray-100">
+                  className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
                   <div className="flex items-center gap-3">
                     {s.step?.order != null && (
                       <span className="shrink-0 inline-flex items-center justify-center w-7 h-7
@@ -642,16 +640,13 @@ export default function ClientDetailPage() {
 
           {client.serviceId ? (
             <>
-              <form onSubmit={handleAddStep}
-                className="flex flex-col gap-2.5 border-t border-gray-100 pt-5">
+              <form onSubmit={handleAddStep} className="flex flex-col gap-2.5 border-t border-gray-100 pt-5">
                 <div className="flex flex-wrap gap-2.5">
                   <div className="flex-1 min-w-40">
                     <select value={stepId} onChange={(e) => setStepId(e.target.value)}
                       className={`w-full rounded-xl border bg-gray-50 px-3 py-2.5 text-sm
                                  focus:outline-none focus:ring-2 focus:bg-white min-h-11
-                                 ${stepErrors.stepId
-                                   ? 'border-red-400 focus:ring-red-400'
-                                   : 'border-gray-300 focus:ring-sky-500'}`}>
+                                 ${stepErrors.stepId ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-sky-500'}`}>
                       <option value="">— اختر الخطوة —</option>
                       {serviceSteps.map((st) => (
                         <option key={st.id} value={st.id}>
@@ -665,9 +660,7 @@ export default function ClientDetailPage() {
                     <input type="date" value={stepDate} onChange={(e) => setStepDate(e.target.value)}
                       className={`rounded-xl border bg-gray-50 px-3 py-2.5 text-sm
                                  focus:outline-none focus:ring-2 focus:bg-white min-h-11
-                                 ${stepErrors.stepDate
-                                   ? 'border-red-400 focus:ring-red-400'
-                                   : 'border-gray-300 focus:ring-sky-500'}`} />
+                                 ${stepErrors.stepDate ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-sky-500'}`} />
                     {stepErrors.stepDate && <p className="mt-1 text-xs text-red-500">{stepErrors.stepDate}</p>}
                   </div>
                   <button type="submit" disabled={addStep.isPending}
@@ -690,8 +683,8 @@ export default function ClientDetailPage() {
           )}
         </SectionCard>
 
-        {/* ── Payments card ── */}
-        <SectionCard title="الدفعات">
+        {/* ── الدفعات ── */}
+        <SectionCard title="الدفعات" id="payments-section">
           {client.payments.length === 0 ? (
             <div className="flex flex-col items-center py-6 text-center">
               <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-3">
@@ -706,8 +699,7 @@ export default function ClientDetailPage() {
             <ul className="space-y-2 mb-5">
               {client.payments.map((p) => (
                 <li key={p.id}
-                  className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3
-                             border border-gray-100">
+                  className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
                   <div className="flex items-start gap-3">
                     <span className={`shrink-0 mt-0.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                       p.isDone
@@ -727,9 +719,7 @@ export default function ClientDetailPage() {
                           الدفعة التالية: {formatDate(p.nextPaymentDate)}
                         </p>
                       )}
-                      {p.notes && (
-                        <p className="text-xs text-gray-400 mt-0.5">{p.notes}</p>
-                      )}
+                      {p.notes && <p className="text-xs text-gray-400 mt-0.5">{p.notes}</p>}
                     </div>
                   </div>
                   {deletePaymentId === p.id ? (
@@ -752,28 +742,26 @@ export default function ClientDetailPage() {
             </ul>
           )}
 
-          {/* Add payment form */}
           <form onSubmit={handleAddPayment} className="border-t border-gray-100 pt-5 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">المبلغ (ر.س)</label>
+                <label className={labelCls}>المبلغ (ر.س)</label>
                 <input type="number" min={0} value={payAmount}
                   onChange={(e) => setPayAmount(e.target.value)} placeholder="0.00"
                   className={`${inputCls}${payErrors.amount ? ' border-red-400! focus:ring-red-400!' : ''}`} />
                 {payErrors.amount && <p className="mt-1 text-xs text-red-500">{payErrors.amount}</p>}
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">تاريخ الدفعة التالية</label>
+                <label className={labelCls}>تاريخ الدفعة التالية</label>
                 <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)}
                   className={`${inputCls}${payErrors.nextPaymentDate ? ' border-red-400! focus:ring-red-400!' : ''}`} />
                 {payErrors.nextPaymentDate && <p className="mt-1 text-xs text-red-500">{payErrors.nextPaymentDate}</p>}
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">ملاحظات</label>
+              <label className={labelCls}>ملاحظات</label>
               <input type="text" value={payNotes} onChange={(e) => setPayNotes(e.target.value)}
-                placeholder="ملاحظات اختيارية"
-                className={inputCls} />
+                placeholder="ملاحظات اختيارية" className={inputCls} />
             </div>
             <div className="flex items-center justify-between gap-4">
               <label className="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer select-none">
@@ -797,7 +785,53 @@ export default function ClientDetailPage() {
 
       </main>
 
-      {/* ── Edit modal ── */}
+      {/* ── إصدار الإقامة modal ── */}
+      {showIssueIqama && (
+        <Modal title="إصدار رقم إقامة للعميل" onClose={() => { setShowIssueIqama(false); setIssueAttempted(false) }}>
+          <form onSubmit={handleIssueIqama} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>رقم الإقامة</label>
+                <input type="text" value={issueNumber} onChange={(e) => setIssueNumber(e.target.value)}
+                  className={`${inputCls}${issueAttempted && !issueNumber ? ' border-red-400! focus:ring-red-400!' : ''}`} />
+                {issueAttempted && !issueNumber && (
+                  <p className="text-xs text-red-500 mt-1">رقم الإقامة مطلوب</p>
+                )}
+              </div>
+              <div>
+                <label className={labelCls}>تاريخ انتهاء الإقامة</label>
+                <input type="date" value={issueEndDate} onChange={(e) => setIssueEndDate(e.target.value)}
+                  className={`${inputCls}${issueAttempted && !issueEndDate ? ' border-red-400! focus:ring-red-400!' : ''}`} />
+                {issueAttempted && !issueEndDate && (
+                  <p className="text-xs text-red-500 mt-1">التاريخ مطلوب</p>
+                )}
+              </div>
+            </div>
+
+            {issueIqama.isError && (
+              <p className="text-sm text-red-600">
+                {issueIqama.error instanceof Error ? issueIqama.error.message : 'حدث خطأ غير متوقع'}
+              </p>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button type="button"
+                onClick={() => { setShowIssueIqama(false); setIssueAttempted(false) }}
+                className="flex-1 rounded-xl border border-gray-200 bg-white hover:bg-gray-50
+                           text-gray-700 text-sm font-medium py-3 min-h-11 transition-colors">
+                إلغاء
+              </button>
+              <button type="submit" disabled={issueIqama.isPending}
+                className="flex-1 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60
+                           text-white text-sm font-semibold py-3 min-h-11 transition-colors">
+                {issueIqama.isPending ? 'جارٍ الحفظ...' : 'حفظ'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* ── تعديل بيانات العميل modal ── */}
       {showEdit && (
         <Modal title="تعديل بيانات العميل" size="lg" onClose={() => { setShowEdit(false); setEditErrors({}) }}>
           <form onSubmit={handleEdit} className="space-y-4">
@@ -808,13 +842,11 @@ export default function ClientDetailPage() {
               organizations={organizations}
               errors={editErrors}
             />
-
             {updateClient.isError && (
               <p className="text-sm text-red-600">
                 {updateClient.error instanceof Error ? updateClient.error.message : 'حدث خطأ غير متوقع'}
               </p>
             )}
-
             <div className="flex gap-3 pt-1">
               <button type="button" onClick={() => setShowEdit(false)}
                 className="flex-1 rounded-xl border border-gray-200 bg-white hover:bg-gray-50
