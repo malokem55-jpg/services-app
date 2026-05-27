@@ -10,9 +10,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'مكتب الخدمات',
-        short_name: 'مكتب الخدمات',
-        description: 'تطبيق مكتب الخدمات',
+        name: 'كيان',
+        short_name: 'كيان',
+        description: 'تطبيق كيان',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
