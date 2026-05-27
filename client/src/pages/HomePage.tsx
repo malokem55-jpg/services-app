@@ -4,9 +4,8 @@ import { apiFetch } from '../lib/api'
 
 interface Stats {
   clientsCount: number
-  servicesCount: number
   organizationsCount: number
-  pendingPaymentsCount: number
+  usersCount: number
 }
 
 const CARDS = [
@@ -17,20 +16,6 @@ const CARDS = [
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
         <path strokeLinecap="round" strokeLinejoin="round"
           d="M17 20h5v-2a4 4 0 00-5.356-3.712M9 20H4v-2a4 4 0 015.356-3.712M15 7a4 4 0 11-8 0 4 4 0 018 0zm6 3a3 3 0 11-6 0 3 3 0 016 0zM3 10a3 3 0 116 0 3 3 0 01-6 0z" />
-      </svg>
-    ),
-    accent: 'bg-sky-500',
-    iconBg: 'bg-sky-100 text-sky-600',
-    gradient: 'from-sky-50 to-white',
-    border: 'border-sky-100',
-  },
-  {
-    key: 'servicesCount' as const,
-    label: 'الخدمات',
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round"
-          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
       </svg>
     ),
     accent: 'bg-sky-500',
@@ -53,18 +38,18 @@ const CARDS = [
     border: 'border-emerald-100',
   },
   {
-    key: 'pendingPaymentsCount' as const,
-    label: 'الدفعات المعلقة',
+    key: 'usersCount' as const,
+    label: 'المستخدمين',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
         <path strokeLinecap="round" strokeLinejoin="round"
-          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
     ),
-    accent: 'bg-amber-500',
-    iconBg: 'bg-amber-100 text-amber-600',
-    gradient: 'from-amber-50 to-white',
-    border: 'border-amber-100',
+    accent: 'bg-violet-500',
+    iconBg: 'bg-violet-100 text-violet-600',
+    gradient: 'from-violet-50 to-white',
+    border: 'border-violet-100',
   },
 ]
 
@@ -99,7 +84,7 @@ export default function HomePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {CARDS.map(({ key, label, icon, iconBg, gradient, border, accent }) => (
             <div
               key={key}

@@ -2,19 +2,17 @@ import prisma from '../lib/prisma.js';
 
 export interface Stats {
   clientsCount: number;
-  servicesCount: number;
   organizationsCount: number;
-  pendingPaymentsCount: number;
+  usersCount: number;
 }
 
 export async function getStats(): Promise<Stats> {
-  const [clientsCount, servicesCount, organizationsCount, pendingPaymentsCount] =
+  const [clientsCount, organizationsCount, usersCount] =
     await Promise.all([
       prisma.client.count(),
-      prisma.service.count(),
       prisma.organization.count(),
-      prisma.clientPayment.count({ where: { isDone: false } }),
+      prisma.user.count(),
     ]);
 
-  return { clientsCount, servicesCount, organizationsCount, pendingPaymentsCount };
+  return { clientsCount, organizationsCount, usersCount };
 }
