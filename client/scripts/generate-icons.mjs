@@ -4,8 +4,8 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const svgPath = join(__dirname, '../public/favicon.svg')
-const svgBuffer = readFileSync(svgPath)
+const logoPath = join(__dirname, '../public/logo-source.png.jpeg')
+const logoBuffer = readFileSync(logoPath)
 
 const sizes = [
   { size: 192, file: 'public/icons/icon-192x192.png' },
@@ -16,7 +16,7 @@ const sizes = [
 
 for (const { size, file } of sizes) {
   const outPath = join(__dirname, '..', file)
-  await sharp(svgBuffer)
+  await sharp(logoBuffer)
     .resize(size, size)
     .png()
     .toFile(outPath)
