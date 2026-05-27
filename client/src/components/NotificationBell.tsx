@@ -75,9 +75,10 @@ export default function NotificationBell({
       {/* موبايل فقط */}
       {mobileOpen && (
         <>
-          {/* Backdrop — اضغط خارج القائمة لإغلاقها */}
+          {/* Backdrop — اضغط خارج القائمة لإغلاقها (يبدأ من أسفل الناف بار) */}
           <div
-            className="fixed inset-0 z-40 sm:hidden"
+            className="fixed inset-x-0 bottom-0 z-40 sm:hidden"
+            style={{ top: 'calc(env(safe-area-inset-top) + 3.5rem)' }}
             onClick={() => onMobileToggle?.()}
           />
 

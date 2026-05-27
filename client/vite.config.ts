@@ -9,6 +9,10 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+      },
       manifest: {
         name: 'كيان',
         short_name: 'كيان',

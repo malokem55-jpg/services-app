@@ -5,7 +5,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const USERNAME = 'admin';
-const PASSWORD = 'OfficeApp@2026';
+const PASSWORD = 'admin';
 
 async function main() {
   const deleted = await prisma.user.deleteMany({ where: { username: USERNAME } });
