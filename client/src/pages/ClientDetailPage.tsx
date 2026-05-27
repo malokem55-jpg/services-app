@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
@@ -142,7 +143,7 @@ function IqamaBadge({ dateStr }: { dateStr: string | null }) {
 
 // ─── Section card wrapper ─────────────────────────────────────────────────────
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+function SectionCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
@@ -471,7 +472,7 @@ export default function ClientDetailPage() {
               { label: 'كرت العمل', value: client.cardType },
               { label: 'رقم اللوحة', value: client.boardNumber },
               { label: 'رقم التأشيرة', value: client.visaNumber },
-            ] as Array<{ label: string; value?: string | null; custom?: React.ReactNode }>)
+            ] as Array<{ label: string; value?: string | null; custom?: ReactNode }>)
               .map(({ label, value, custom }) => (
                 <div key={label}>
                   <dt className="text-xs font-medium text-gray-400 mb-1">{label}</dt>

@@ -1,10 +1,11 @@
+import type { ReactNode } from 'react'
 // no useState needed — mobile state is managed by parent
 
 interface Props {
   count: number
   badgeColor: string
   title: string
-  children: React.ReactNode
+  children: ReactNode
   ringDelay?: string
   mobileOpen?: boolean
   onMobileToggle?: () => void

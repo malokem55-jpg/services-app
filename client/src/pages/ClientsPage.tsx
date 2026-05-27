@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
@@ -100,7 +101,7 @@ function IqamaBadge({ dateStr }: { dateStr: string | null }) {
 /* ─── Inline modal shell (replicates Modal layout without the component) ─── */
 function InlineModal({
   title, onClose, children, maxWidth = 'sm:max-w-2xl',
-}: { title: string; onClose: () => void; children: React.ReactNode; maxWidth?: string }) {
+}: { title: string; onClose: () => void; children: ReactNode; maxWidth?: string }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
