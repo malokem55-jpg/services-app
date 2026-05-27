@@ -25,11 +25,12 @@ interface OrgFormData {
 interface OrgClientItem {
   id: number
   name: string | null
+  phone: string | null
   iqamaNumber: string | null
   iqamaEndDate: string | null
   cardType: string | null
-  paymentType: string | null
-  steps: Array<{ step: { id: number; name: string | null } | null }>
+  cardValue: number | null
+  organization: { id: number; name: string | null } | null
 }
 
 const EMPTY_FORM: OrgFormData = { name: '', number: '', expiredDate: '' }
@@ -82,7 +83,7 @@ function OrgClientsModal({
       <div
         role="dialog"
         aria-modal="true"
-        className="relative bg-white w-full sm:max-w-2xl
+        className="relative bg-white w-full sm:max-w-5xl
                    rounded-t-3xl sm:rounded-2xl shadow-2xl
                    max-h-[92dvh] overflow-hidden flex flex-col
                    slide-up sm:modal-enter"
@@ -100,7 +101,10 @@ function OrgClientsModal({
           </div>
           <div className="flex items-center gap-2">
             {!isLoading && (
-              <span className="text-xs text-gray-400 font-medium">{clients.length} عميل</span>
+              <span className="inline-flex items-center rounded-full bg-sky-100 text-sky-700
+                               px-2.5 py-0.5 text-xs font-semibold">
+                {clients.length} عميل
+              </span>
             )}
             <button onClick={onClose} aria-label="إغلاق"
               className="w-8 h-8 rounded-lg flex items-center justify-center
@@ -116,8 +120,8 @@ function OrgClientsModal({
         <div className="overflow-y-auto flex-1 px-5 py-4">
           {isLoading ? (
             <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />
               ))}
             </div>
           ) : clients.length === 0 ? (
@@ -131,60 +135,134 @@ function OrgClientsModal({
               <p className="text-gray-500 font-medium text-sm">لا يوجد عملاء في هذه المؤسسة</p>
             </div>
           ) : (
-            <div className="rounded-xl overflow-hidden border border-gray-200">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-sky-600 text-white text-right">
-                    <th className="px-4 py-3 text-xs font-semibold">اسم العميل</th>
-                    <th className="px-4 py-3 text-xs font-semibold hidden sm:table-cell">رقم الإقامة</th>
-                    <th className="px-4 py-3 text-xs font-semibold hidden sm:table-cell">انتهاء الإقامة</th>
-                    <th className="px-4 py-3 text-xs font-semibold">الحالة</th>
-                    <th className="px-4 py-3 w-10" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {clients.map((c) => {
-                    const iqama = iqamaStatus(c.iqamaEndDate)
-                    const badgeCls = c.iqamaEndDate
-                      ? (iqama.cls.includes('red')
-                        ? 'bg-red-100 text-red-700 border border-red-200'
-                        : iqama.cls.includes('amber')
-                        ? 'bg-amber-100 text-amber-700 border border-amber-200'
-                        : 'bg-emerald-100 text-emerald-700 border border-emerald-200')
-                      : 'bg-sky-100 text-sky-700 border border-sky-200'
-
-                    return (
-                      <tr
-                        key={c.id}
-                        className="border-t border-gray-100 hover:bg-sky-50/40 cursor-pointer transition-colors"
-                        onClick={() => { navigate(`/clients/${c.id}`); onClose() }}
-                      >
-                        <td className="px-4 py-3 font-semibold text-gray-900">{c.name ?? '—'}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-gray-500 tracking-wide hidden sm:table-cell">
-                          {c.iqamaNumber ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-500 hidden sm:table-cell">
-                          {c.iqamaEndDate ? c.iqamaEndDate.slice(0, 10) : '—'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeCls}`}>
-                            {c.iqamaNumber
-                              ? (iqama.extra ?? 'ساري')
-                              : 'تحت الإجراء'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <svg className="w-4 h-4 text-gray-300 inline-block" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </td>
+            <>
+              {/* ── Desktop table ── */}
+              <div className="hidden sm:block rounded-xl overflow-hidden border border-gray-200">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-sky-600 text-white text-right">
+                        <th className="px-3 py-3 text-xs font-semibold">اسم العميل</th>
+                        <th className="px-3 py-3 text-xs font-semibold">رقم الهاتف</th>
+                        <th className="px-3 py-3 text-xs font-semibold">رقم الإقامة</th>
+                        <th className="px-3 py-3 text-xs font-semibold">تاريخ إنتهاء الإقامة</th>
+                        <th className="px-3 py-3 text-xs font-semibold">كرت العمل</th>
+                        <th className="px-3 py-3 text-xs font-semibold text-center">قيمة كرت العمل</th>
+                        <th className="px-3 py-3 text-xs font-semibold">المؤسسة</th>
+                        <th className="px-3 py-3 w-8" />
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {clients.map((c) => {
+                        const iqama = iqamaStatus(c.iqamaEndDate)
+                        const endDateCls = iqama.cls.includes('red')
+                          ? 'text-red-600 font-semibold'
+                          : iqama.cls.includes('amber')
+                          ? 'text-amber-600 font-semibold'
+                          : 'text-gray-600'
+
+                        return (
+                          <tr
+                            key={c.id}
+                            className="border-t border-gray-100 hover:bg-sky-50/40 cursor-pointer transition-colors"
+                            onClick={() => { navigate(`/clients/${c.id}`); onClose() }}
+                          >
+                            <td className="px-3 py-3 font-semibold text-gray-900 whitespace-nowrap">
+                              {c.name ?? '—'}
+                            </td>
+                            <td className="px-3 py-3 text-gray-600 font-mono text-xs whitespace-nowrap">
+                              {c.phone ?? '—'}
+                            </td>
+                            <td className="px-3 py-3 font-mono text-xs text-gray-500 tracking-wide whitespace-nowrap">
+                              {c.iqamaNumber ? c.iqamaNumber : (
+                                <span className="inline-flex items-center rounded-full bg-sky-100 text-sky-700
+                                                 px-2 py-0.5 text-xs font-semibold">
+                                  تحت الإجراء
+                                </span>
+                              )}
+                            </td>
+                            <td className={`px-3 py-3 text-xs whitespace-nowrap ${endDateCls}`}>
+                              {c.iqamaEndDate ? c.iqamaEndDate.slice(0, 10) : '—'}
+                            </td>
+                            <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">
+                              {c.cardType ?? '—'}
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              {c.cardValue != null && c.cardValue > 0 ? (
+                                <span className="inline-flex items-center justify-center rounded-full
+                                                 bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-semibold">
+                                  {c.cardValue % 1 === 0
+                                    ? c.cardValue
+                                    : c.cardValue.toFixed(2).replace(/\.?0+$/, '')}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">
+                              {c.organization?.name ?? '—'}
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              <svg className="w-3.5 h-3.5 text-gray-300 inline-block" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                              </svg>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ── Mobile cards ── */}
+              <div className="sm:hidden space-y-3">
+                {clients.map((c) => {
+                  const iqama = iqamaStatus(c.iqamaEndDate)
+                  const badgeCls = c.iqamaEndDate
+                    ? (iqama.cls.includes('red')
+                      ? 'bg-red-100 text-red-700'
+                      : iqama.cls.includes('amber')
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-emerald-100 text-emerald-700')
+                    : 'bg-sky-100 text-sky-700'
+
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => { navigate(`/clients/${c.id}`); onClose() }}
+                      className="bg-gray-50 rounded-xl border border-gray-200 p-3.5
+                                 active:bg-gray-100 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <p className="font-semibold text-gray-900 text-sm">{c.name ?? '—'}</p>
+                        <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${badgeCls}`}>
+                          {c.iqamaNumber ? (iqama.extra ?? 'ساري') : 'تحت الإجراء'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-500">
+                        {c.phone && <span className="font-mono">{c.phone}</span>}
+                        {c.iqamaNumber && <span className="font-mono">{c.iqamaNumber}</span>}
+                        {c.iqamaEndDate && (
+                          <span className={iqama.cls.includes('red') ? 'text-red-600' : iqama.cls.includes('amber') ? 'text-amber-600' : ''}>
+                            {c.iqamaEndDate.slice(0, 10)}
+                          </span>
+                        )}
+                        {c.cardType && c.cardType !== 'بدون' && (
+                          <span>كرت: {c.cardType}</span>
+                        )}
+                        {c.cardValue != null && c.cardValue > 0 && (
+                          <span className="text-emerald-600 font-medium">
+                            قيمة: {c.cardValue % 1 === 0 ? c.cardValue : c.cardValue.toFixed(2).replace(/\.?0+$/, '')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -342,18 +420,17 @@ export default function OrganizationsPage() {
           ) : (
             filteredOrgs.map((org) => (
               <div key={org.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-4 pt-4 pb-3">
+                {/* ↓ الضغط على هذا القسم يفتح قائمة العملاء */}
+                <div
+                  className="px-4 pt-4 pb-3 cursor-pointer active:bg-gray-50 transition-colors"
+                  onClick={() => setClientsModal({ orgId: org.id, orgName: org.name ?? '—' })}
+                >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <p className="font-semibold text-gray-900 text-sm">{org.name ?? '—'}</p>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setClientsModal({ orgId: org.id, orgName: org.name ?? '—' }) }}
-                        className="inline-flex items-center rounded-full bg-sky-100 hover:bg-sky-200
-                                   text-sky-700 px-2 py-0.5 text-xs font-semibold transition-colors cursor-pointer"
-                      >
-                        {org._count.clients} فرد
-                      </button>
-                    </div>
+                    <span className="inline-flex items-center rounded-full bg-sky-100
+                                     text-sky-700 px-2 py-0.5 text-xs font-semibold shrink-0">
+                      {org._count.clients} فرد
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-500">
                     {org.number && <span className="font-mono">{org.number}</span>}
@@ -452,18 +529,18 @@ export default function OrganizationsPage() {
                     </tr>
                   )
                   : filteredOrgs.map((org) => (
-                    <tr key={org.id} className="border-b border-gray-100 hover:bg-gray-50/60 transition-colors">
+                    /* ↓ الضغط على الصف كله يفتح قائمة العملاء */
+                    <tr
+                      key={org.id}
+                      className="border-b border-gray-100 hover:bg-sky-50/60 cursor-pointer transition-colors"
+                      onClick={() => setClientsModal({ orgId: org.id, orgName: org.name ?? '—' })}
+                    >
                       <td className="px-4 py-3.5 font-semibold text-gray-900">{org.name ?? '—'}</td>
-                      <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => setClientsModal({ orgId: org.id, orgName: org.name ?? '—' })}
-                          title="عرض العملاء"
-                          className="inline-flex items-center justify-center min-w-7 h-7 rounded-full
-                                     bg-sky-100 hover:bg-sky-200 text-xs font-semibold text-sky-700
-                                     px-2 transition-colors cursor-pointer"
-                        >
+                      <td className="px-4 py-3.5 text-center">
+                        <span className="inline-flex items-center justify-center min-w-7 h-7 rounded-full
+                                         bg-sky-100 text-xs font-semibold text-sky-700 px-2">
                           {org._count.clients}
-                        </button>
+                        </span>
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <span className="inline-flex items-center justify-center h-7 rounded-full
@@ -477,7 +554,7 @@ export default function OrganizationsPage() {
                       <td className="px-4 py-3.5 text-gray-600 text-sm whitespace-nowrap">
                         {formatDate(org.expiredDate)}
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                         {deleteConfirmId === org.id ? (
                           <div className="flex items-center gap-2 justify-end">
                             <span className="text-xs text-red-600 font-medium whitespace-nowrap">تأكيد الحذف؟</span>
@@ -494,7 +571,7 @@ export default function OrganizationsPage() {
                           </div>
                         ) : (
                           <div className="flex items-center gap-1 justify-end">
-                            <button onClick={() => openEdit(org)} aria-label="تعديل"
+                            <button onClick={(e) => { e.stopPropagation(); openEdit(org) }} aria-label="تعديل"
                               className="rounded-lg p-1.5 text-gray-400 hover:text-sky-600
                                          hover:bg-sky-50 transition-colors">
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -502,7 +579,7 @@ export default function OrganizationsPage() {
                                   d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
                             </button>
-                            <button onClick={() => setDeleteConfirmId(org.id)} aria-label="حذف"
+                            <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(org.id) }} aria-label="حذف"
                               className="rounded-lg p-1.5 text-gray-400 hover:text-red-600
                                          hover:bg-red-50 transition-colors">
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

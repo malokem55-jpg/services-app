@@ -56,6 +56,7 @@ export async function listClients(search?: string, organizationId?: number) {
       passport: true,
       boardNumber: true,
       cardType: true,
+      cardValue: true,
       paymentType: true,
       nextPaymentDate: true,
       amount: true,
