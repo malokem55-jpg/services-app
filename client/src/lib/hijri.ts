@@ -3,12 +3,14 @@
  * (the official calendar of Saudi Arabia).
  */
 
-/** Convert a Gregorian date string (YYYY-MM-DD) to Hijri components. */
+/** Convert a Gregorian date string (YYYY-MM-DD or full ISO) to Hijri components. */
 export function gregorianToHijri(
   dateStr: string,
 ): { year: number; month: number; day: number } | null {
   if (!dateStr) return null
-  const date = new Date(dateStr + 'T00:00:00Z')
+  // Normalise: take only the YYYY-MM-DD part so full ISO strings don't break the constructor
+  const normalized = dateStr.slice(0, 10)
+  const date = new Date(normalized + 'T00:00:00Z')
   if (isNaN(date.getTime())) return null
 
   const parts = new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura', {
@@ -79,10 +81,13 @@ export function hijriToGregorian(
   ].join('-')
 }
 
-/** Format a Gregorian date string as "1445-08-15 هـ / 2024-03-25" */
+/** Format a Gregorian date string (YYYY-MM-DD or full ISO) as "1445-08-15 هـ / 2024-03-25" */
 export function formatBothDates(iso: string | null | undefined): string {
   if (!iso) return '—'
-  const hijri = new Date(iso + 'T00:00:00Z')
+  // Normalise: slice to YYYY-MM-DD so full ISO strings (e.g. "2025-03-25T00:00:00.000Z")
+  // don't produce "Invalid Date" when appending T00:00:00Z again
+  const dateStr = iso.slice(0, 10)
+  const hijri = new Date(dateStr + 'T00:00:00Z')
     .toLocaleDateString('ar-SA-u-ca-islamic-nu-latn', {
       year: 'numeric',
       month: '2-digit',
@@ -90,7 +95,7 @@ export function formatBothDates(iso: string | null | undefined): string {
       timeZone: 'UTC',
     })
     .replace(/\//g, '-')
-  return `${hijri} هـ / ${iso.slice(0, 10)}`
+  return `${hijri} هـ / ${dateStr}`
 }
 
 /** Arabic names of the Hijri months (1-indexed). */

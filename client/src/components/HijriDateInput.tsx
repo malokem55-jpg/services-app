@@ -113,7 +113,7 @@ export default function HijriDateInput({
       {mode === 'gregorian' ? (
         <input
           type="date"
-          value={value}
+          value={value ? value.slice(0, 10) : ''}
           onChange={(e) => onChange(e.target.value)}
           className={`w-full ${BASE} ${ring}`}
         />
