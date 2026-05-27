@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
 import { organizationSchema, getErrors } from '../lib/schemas'
+import { iqamaStatus } from '../lib/clientForm'
 import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
 
@@ -18,6 +20,16 @@ interface OrgFormData {
   name: string
   number: string
   expiredDate: string
+}
+
+interface OrgClientItem {
+  id: number
+  name: string | null
+  iqamaNumber: string | null
+  iqamaEndDate: string | null
+  cardType: string | null
+  paymentType: string | null
+  steps: Array<{ step: { id: number; name: string | null } | null }>
 }
 
 const EMPTY_FORM: OrgFormData = { name: '', number: '', expiredDate: '' }
@@ -47,6 +59,139 @@ const inputCls =
   'focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 focus:bg-white transition-colors min-h-11'
 const labelCls = 'block text-xs font-semibold text-gray-600 mb-1.5'
 
+/* ─── Clients of org modal ─────────────────────────────────────────────────── */
+function OrgClientsModal({
+  orgId, orgName, onClose,
+}: { orgId: number; orgName: string; onClose: () => void }) {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  const { data: clients = [], isLoading } = useQuery<OrgClientItem[]>({
+    queryKey: ['clients', { organizationId: orgId }],
+    queryFn: () => apiFetch<OrgClientItem[]>(`/api/clients?organizationId=${orgId}`),
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative bg-white w-full sm:max-w-2xl
+                   rounded-t-3xl sm:rounded-2xl shadow-2xl
+                   max-h-[92dvh] overflow-hidden flex flex-col
+                   slide-up sm:modal-enter"
+      >
+        {/* drag handle (mobile) */}
+        <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">
+          <div className="w-10 h-1 rounded-full bg-gray-200" />
+        </div>
+
+        {/* header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">عملاء المؤسسة</h2>
+            <p className="text-xs text-sky-600 font-medium mt-0.5">{orgName}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {!isLoading && (
+              <span className="text-xs text-gray-400 font-medium">{clients.length} عميل</span>
+            )}
+            <button onClick={onClose} aria-label="إغلاق"
+              className="w-8 h-8 rounded-lg flex items-center justify-center
+                         text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* body */}
+        <div className="overflow-y-auto flex-1 px-5 py-4">
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : clients.length === 0 ? (
+            <div className="flex flex-col items-center py-12 text-center">
+              <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                <svg className="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round"
+                    d="M17 20h5v-2a4 4 0 00-5.356-3.712M9 20H4v-2a4 4 0 015.356-3.712M15 7a4 4 0 11-8 0 4 4 0 018 0zm6 3a3 3 0 11-6 0 3 3 0 016 0zM3 10a3 3 0 116 0 3 3 0 01-6 0z" />
+                </svg>
+              </div>
+              <p className="text-gray-500 font-medium text-sm">لا يوجد عملاء في هذه المؤسسة</p>
+            </div>
+          ) : (
+            <div className="rounded-xl overflow-hidden border border-gray-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-sky-600 text-white text-right">
+                    <th className="px-4 py-3 text-xs font-semibold">اسم العميل</th>
+                    <th className="px-4 py-3 text-xs font-semibold hidden sm:table-cell">رقم الإقامة</th>
+                    <th className="px-4 py-3 text-xs font-semibold hidden sm:table-cell">انتهاء الإقامة</th>
+                    <th className="px-4 py-3 text-xs font-semibold">الحالة</th>
+                    <th className="px-4 py-3 w-10" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {clients.map((c) => {
+                    const iqama = iqamaStatus(c.iqamaEndDate)
+                    const badgeCls = c.iqamaEndDate
+                      ? (iqama.cls.includes('red')
+                        ? 'bg-red-100 text-red-700 border border-red-200'
+                        : iqama.cls.includes('amber')
+                        ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                        : 'bg-emerald-100 text-emerald-700 border border-emerald-200')
+                      : 'bg-sky-100 text-sky-700 border border-sky-200'
+
+                    return (
+                      <tr
+                        key={c.id}
+                        className="border-t border-gray-100 hover:bg-sky-50/40 cursor-pointer transition-colors"
+                        onClick={() => { navigate(`/clients/${c.id}`); onClose() }}
+                      >
+                        <td className="px-4 py-3 font-semibold text-gray-900">{c.name ?? '—'}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-gray-500 tracking-wide hidden sm:table-cell">
+                          {c.iqamaNumber ?? '—'}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500 hidden sm:table-cell">
+                          {c.iqamaEndDate ? c.iqamaEndDate.slice(0, 10) : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeCls}`}>
+                            {c.iqamaNumber
+                              ? (iqama.extra ?? 'ساري')
+                              : 'تحت الإجراء'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <svg className="w-4 h-4 text-gray-300 inline-block" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function OrganizationsPage() {
   const qc = useQueryClient()
   const [modal, setModal] = useState<{ open: boolean; org: OrgItem | null }>({
@@ -56,6 +201,7 @@ export default function OrganizationsPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
+  const [clientsModal, setClientsModal] = useState<{ orgId: number; orgName: string } | null>(null)
 
   const { data: orgs = [], isLoading, isError } = useQuery<OrgItem[]>({
     queryKey: ['organizations'],
@@ -200,10 +346,13 @@ export default function OrganizationsPage() {
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <p className="font-semibold text-gray-900 text-sm">{org.name ?? '—'}</p>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="inline-flex items-center rounded-full bg-sky-100 text-sky-700
-                                       px-2 py-0.5 text-xs font-semibold">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setClientsModal({ orgId: org.id, orgName: org.name ?? '—' }) }}
+                        className="inline-flex items-center rounded-full bg-sky-100 hover:bg-sky-200
+                                   text-sky-700 px-2 py-0.5 text-xs font-semibold transition-colors cursor-pointer"
+                      >
                         {org._count.clients} فرد
-                      </span>
+                      </button>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-500">
@@ -305,11 +454,16 @@ export default function OrganizationsPage() {
                   : filteredOrgs.map((org) => (
                     <tr key={org.id} className="border-b border-gray-100 hover:bg-gray-50/60 transition-colors">
                       <td className="px-4 py-3.5 font-semibold text-gray-900">{org.name ?? '—'}</td>
-                      <td className="px-4 py-3.5 text-center">
-                        <span className="inline-flex items-center justify-center min-w-7 h-7 rounded-full
-                                         bg-gray-100 text-xs font-semibold text-gray-600 px-2">
+                      <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => setClientsModal({ orgId: org.id, orgName: org.name ?? '—' })}
+                          title="عرض العملاء"
+                          className="inline-flex items-center justify-center min-w-7 h-7 rounded-full
+                                     bg-sky-100 hover:bg-sky-200 text-xs font-semibold text-sky-700
+                                     px-2 transition-colors cursor-pointer"
+                        >
                           {org._count.clients}
-                        </span>
+                        </button>
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <span className="inline-flex items-center justify-center h-7 rounded-full
@@ -366,6 +520,15 @@ export default function OrganizationsPage() {
           </div>
         </div>
       </main>
+
+      {/* Org Clients Modal */}
+      {clientsModal && (
+        <OrgClientsModal
+          orgId={clientsModal.orgId}
+          orgName={clientsModal.orgName}
+          onClose={() => setClientsModal(null)}
+        />
+      )}
 
       {/* Add / Edit Modal */}
       {modal.open && (

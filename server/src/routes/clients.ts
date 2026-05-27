@@ -40,7 +40,9 @@ const clientBodySchema = z.object({
 router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : undefined;
-    const clients = await listClients(search || undefined);
+    const orgId = typeof req.query.organizationId === 'string' ? parseInt(req.query.organizationId, 10) : undefined;
+    const organizationId = orgId && !isNaN(orgId) ? orgId : undefined;
+    const clients = await listClients(search || undefined, organizationId);
     res.json(clients);
   } catch (err) {
     next(err);

@@ -32,15 +32,18 @@ export type ClientCreateInput = {
   lastStepId?: number;
 };
 
-export async function listClients(search?: string) {
-  const where: Prisma.ClientWhereInput = search
-    ? {
-        OR: [
-          { name: { contains: search } },
-          { iqamaNumber: { contains: search } },
-        ],
-      }
-    : {};
+export async function listClients(search?: string, organizationId?: number) {
+  const where: Prisma.ClientWhereInput = {
+    ...(organizationId ? { organizationId } : {}),
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search } },
+            { iqamaNumber: { contains: search } },
+          ],
+        }
+      : {}),
+  };
 
   return prisma.client.findMany({
     where,
