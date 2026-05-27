@@ -470,7 +470,10 @@ export default function ClientDetailPage() {
                   : null,
               },
               { label: 'كرت العمل', value: client.cardType },
-              { label: 'رقم اللوحة', value: client.boardNumber },
+              {
+                label: client.paymentType === 'شهري' ? 'يوم الاستلام' : 'رقم الحدود',
+                value: client.boardNumber,
+              },
               { label: 'رقم التأشيرة', value: client.visaNumber },
             ] as Array<{ label: string; value?: string | null; custom?: ReactNode }>)
               .map(({ label, value, custom }) => (
