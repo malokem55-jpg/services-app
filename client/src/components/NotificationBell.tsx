@@ -74,22 +74,44 @@ export default function NotificationBell({
 
       {/* موبايل فقط */}
       {mobileOpen && (
-        <div
-          dir="rtl"
-          className="fixed top-16 inset-x-2 max-h-[70vh] bg-white rounded-xl shadow-2xl
-                     border border-gray-100 z-50 overflow-hidden flex flex-col sm:hidden"
-        >
-          <div className="px-4 py-3 border-b border-gray-100 shrink-0">
-            <h3 className="font-bold text-gray-800 text-sm">{title}</h3>
-          </div>
-          {count === 0 ? (
-            <p className="text-center text-gray-400 text-sm py-8">لا توجد تنبيهات</p>
-          ) : (
-            <div className="overflow-y-auto divide-y divide-gray-100">
-              {children}
+        <>
+          {/* Backdrop — اضغط خارج القائمة لإغلاقها */}
+          <div
+            className="fixed inset-0 z-40 sm:hidden"
+            onClick={() => onMobileToggle?.()}
+          />
+
+          {/* Panel — تحت شريط التنقل مباشرة مع مراعاة safe-area للآيفون */}
+          <div
+            dir="rtl"
+            className="fixed inset-x-2 max-h-[65vh] bg-white rounded-xl shadow-2xl
+                       border border-gray-100 z-50 overflow-hidden flex flex-col sm:hidden"
+            style={{ top: 'calc(env(safe-area-inset-top) + 3.75rem)' }}
+          >
+            {/* Header مع زر إغلاق */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
+              <h3 className="font-bold text-gray-800 text-sm">{title}</h3>
+              <button
+                onClick={() => onMobileToggle?.()}
+                className="w-7 h-7 flex items-center justify-center rounded-lg
+                           text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                aria-label="إغلاق"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-          )}
-        </div>
+
+            {count === 0 ? (
+              <p className="text-center text-gray-400 text-sm py-8">لا توجد تنبيهات</p>
+            ) : (
+              <div className="overflow-y-auto divide-y divide-gray-100">
+                {children}
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   )
