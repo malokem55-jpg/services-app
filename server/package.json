@@ -13,7 +13,8 @@
     "reset:user": "tsx scripts/reset-password.ts",
     "seed:services": "tsx scripts/seed-services.ts",
     "seed:steps": "tsx scripts/seed-steps.ts",
-    "migrate:data": "tsx scripts/migrate-data.ts"
+    "migrate:data": "tsx scripts/migrate-data.ts",
+    "export:railway": "tsx scripts/export-to-railway.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.8.2",
