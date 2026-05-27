@@ -14,9 +14,11 @@ import {
   iqamaStatus,
 } from '../lib/clientForm'
 import { clientSchema, clientStepSchema, getErrors } from '../lib/schemas'
+import { formatBothDates } from '../lib/hijri'
 import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
 import ClientFormFields from '../components/ClientFormFields'
+import HijriDateInput from '../components/HijriDateInput'
 
 interface ClientListItem {
   id: number
@@ -60,16 +62,6 @@ interface ClientDetail {
   }>
 }
 
-function formatBothDates(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const hijri = new Date(iso)
-    .toLocaleDateString('ar-SA-u-ca-islamic-nu-latn', {
-      year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC',
-    })
-    .replace(/\//g, '-')
-  return `${hijri} / ${iso.slice(0, 10)}`
-}
-
 /* ─── shared input style ─────────────────────────────────────────────────── */
 const inputCls =
   'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm ' +
@@ -88,7 +80,7 @@ function IqamaBadge({ dateStr }: { dateStr: string | null }) {
 
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-gray-600">{s.label}</span>
+      <span className="text-xs text-gray-600 whitespace-nowrap">{formatBothDates(dateStr)}</span>
       {s.extra && (
         <span className={`inline-flex items-center self-start rounded-full px-2 py-0.5 text-xs font-semibold ${badgeCls}`}>
           {s.extra}
@@ -603,9 +595,9 @@ export default function ClientsPage() {
                       {c.cardType && c.cardType !== 'بدون' && (
                         <span>كرت: {c.cardType}</span>
                       )}
-                      {iqama.label !== '—' && (
-                        <span className={iqama.cls.includes('red') ? 'text-red-600' : iqama.cls.includes('amber') ? 'text-amber-600' : 'text-gray-500'}>
-                          {iqama.label}
+                      {c.iqamaEndDate && (
+                        <span className={`col-span-2 ${iqama.cls.includes('red') ? 'text-red-600' : iqama.cls.includes('amber') ? 'text-amber-600' : 'text-gray-500'}`}>
+                          {formatBothDates(c.iqamaEndDate)}
                         </span>
                       )}
                     </div>
@@ -1061,8 +1053,12 @@ export default function ClientsPage() {
               </div>
               <div>
                 <label className={labelCls}>تاريخ انتهاء الإقامة</label>
-                <input type="date" value={issueEndDate} onChange={(e) => setIssueEndDate(e.target.value)}
-                  className={`${fldCls} ${issueSubmitAttempted && !issueEndDate ? 'border-red-400 focus:ring-red-400' : ''}`} />
+                <HijriDateInput
+                  value={issueEndDate}
+                  onChange={setIssueEndDate}
+                  defaultMode="hijri"
+                  hasError={issueSubmitAttempted && !issueEndDate}
+                />
                 {issueSubmitAttempted && !issueEndDate && (
                   <p className="text-xs text-red-500 mt-1">التاريخ مطلوب</p>
                 )}
@@ -1101,10 +1097,14 @@ export default function ClientsPage() {
           >
             <form onSubmit={handleRenewIqama}>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-                <div>
+                <div className="sm:col-span-3">
                   <label className={labelCls}>تاريخ انتهاء الإقامة</label>
-                  <input type="date" value={renewEndDate} onChange={(e) => setRenewEndDate(e.target.value)}
-                    className={`${fldCls} ${renewSubmitAttempted && !renewEndDate ? 'border-red-400 focus:ring-red-400' : ''}`} />
+                  <HijriDateInput
+                    value={renewEndDate}
+                    onChange={setRenewEndDate}
+                    defaultMode="hijri"
+                    hasError={renewSubmitAttempted && !renewEndDate}
+                  />
                   {renewSubmitAttempted && !renewEndDate && <p className="text-xs text-red-500 mt-1">مطلوب</p>}
                 </div>
                 <div>

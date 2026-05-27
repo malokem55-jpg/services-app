@@ -1,5 +1,6 @@
 import type { ClientFormData, ServiceOption, OrgOption, ServiceStepOption, StepFormEntry } from '../lib/clientForm'
 import { CARD_TYPE_OPTIONS } from '../lib/clientForm'
+import HijriDateInput from './HijriDateInput'
 
 interface Props {
   form: ClientFormData
@@ -85,8 +86,12 @@ export default function ClientFormFields({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className={labelCls}>تاريخ انتهاء الإقامة</label>
-                  <input type="date" value={form.iqamaEndDate} onChange={(e) => onChange('iqamaEndDate', e.target.value)}
-                    className={ic('iqamaEndDate')} />
+                  <HijriDateInput
+                    value={form.iqamaEndDate}
+                    onChange={(v) => onChange('iqamaEndDate', v)}
+                    defaultMode="hijri"
+                    hasError={!!errors.iqamaEndDate}
+                  />
                   <FieldError msg={errors.iqamaEndDate} />
                 </div>
                 <div>

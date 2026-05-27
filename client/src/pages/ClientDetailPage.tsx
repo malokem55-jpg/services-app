@@ -10,10 +10,12 @@ import {
   buildClientPayload,
   iqamaStatus,
 } from '../lib/clientForm'
+import { formatBothDates } from '../lib/hijri'
 import { clientSchema, clientStepSchema, clientPaymentSchema, getErrors } from '../lib/schemas'
 import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
 import ClientFormFields from '../components/ClientFormFields'
+import HijriDateInput from '../components/HijriDateInput'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -71,15 +73,6 @@ function formatDate(iso: string | null | undefined) {
   })
 }
 
-function formatBothDates(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const hijri = new Date(iso)
-    .toLocaleDateString('ar-SA-u-ca-islamic-nu-latn', {
-      year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC',
-    })
-    .replace(/\//g, '-')
-  return `${hijri} هـ / ${iso.slice(0, 10)}`
-}
 
 function clientToForm(c: ClientDetail): ClientFormData {
   return {
@@ -800,8 +793,12 @@ export default function ClientDetailPage() {
               </div>
               <div>
                 <label className={labelCls}>تاريخ انتهاء الإقامة</label>
-                <input type="date" value={issueEndDate} onChange={(e) => setIssueEndDate(e.target.value)}
-                  className={`${inputCls}${issueAttempted && !issueEndDate ? ' border-red-400! focus:ring-red-400!' : ''}`} />
+                <HijriDateInput
+                  value={issueEndDate}
+                  onChange={setIssueEndDate}
+                  defaultMode="hijri"
+                  hasError={issueAttempted && !issueEndDate}
+                />
                 {issueAttempted && !issueEndDate && (
                   <p className="text-xs text-red-500 mt-1">التاريخ مطلوب</p>
                 )}
