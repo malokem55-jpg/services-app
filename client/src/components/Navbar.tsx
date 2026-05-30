@@ -259,7 +259,7 @@ export default function Navbar() {
           />
 
           {/* Drawer panel — slides from right (RTL start side) */}
-          <div className="absolute inset-y-0 start-0 w-72 bg-white shadow-2xl flex flex-col drawer-enter"
+          <div className="absolute inset-y-0 inset-s-0 w-72 bg-white shadow-2xl flex flex-col drawer-enter"
             style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
 
             {/* Drawer header */}

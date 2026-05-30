@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import { apiFetch } from '../lib/api'
 
@@ -12,6 +13,7 @@ const CARDS = [
   {
     key: 'clientsCount' as const,
     label: 'العملاء',
+    href: '/clients',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
         <path strokeLinecap="round" strokeLinejoin="round"
@@ -26,6 +28,7 @@ const CARDS = [
   {
     key: 'organizationsCount' as const,
     label: 'المؤسسات',
+    href: '/organizations',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
         <path strokeLinecap="round" strokeLinejoin="round"
@@ -40,6 +43,7 @@ const CARDS = [
   {
     key: 'usersCount' as const,
     label: 'المستخدمين',
+    href: undefined,
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
         <path strokeLinecap="round" strokeLinejoin="round"
@@ -54,6 +58,7 @@ const CARDS = [
 ]
 
 export default function HomePage() {
+  const navigate = useNavigate()
   const { data, isLoading, isError } = useQuery<Stats>({
     queryKey: ['stats'],
     queryFn: () => apiFetch<Stats>('/api/stats'),
@@ -85,11 +90,12 @@ export default function HomePage() {
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {CARDS.map(({ key, label, icon, iconBg, gradient, border, accent }) => (
+          {CARDS.map(({ key, label, icon, iconBg, gradient, border, accent, href }) => (
             <div
               key={key}
+              onClick={() => href && navigate(href)}
               className={`bg-linear-to-br ${gradient} rounded-2xl border ${border} shadow-sm
-                          overflow-hidden relative`}
+                          overflow-hidden relative${href ? ' cursor-pointer hover:shadow-md transition-shadow' : ''}`}
             >
               {/* Top accent bar */}
               <div className={`h-1 w-full ${accent}`} />
