@@ -7,11 +7,24 @@ import {
   getIqamaExpiryUrgentAlerts,
 } from './notifications.service.js';
 
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL!,
-  process.env.VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!,
-);
+let vapidInitialized = false;
+
+function getWebPush(): typeof webpush | null {
+  if (vapidInitialized) return webpush;
+
+  const email = process.env.VAPID_EMAIL;
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+
+  if (!email || !publicKey || !privateKey) {
+    console.warn('[push] VAPID env vars missing — push notifications disabled');
+    return null;
+  }
+
+  webpush.setVapidDetails(email, publicKey, privateKey);
+  vapidInitialized = true;
+  return webpush;
+}
 
 export async function saveSubscription(subscription: {
   endpoint: string;
@@ -33,13 +46,16 @@ export async function deleteSubscription(endpoint: string) {
 }
 
 async function sendToAll(payload: object) {
+  const wp = getWebPush();
+  if (!wp) return;
+
   const subscriptions = await prisma.pushSubscription.findMany();
   const body = JSON.stringify(payload);
 
   await Promise.allSettled(
     subscriptions.map(async (sub) => {
       try {
-        await webpush.sendNotification(
+        await wp.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           body,
         );
@@ -78,6 +94,8 @@ async function markSent(alertType: string, referenceId: number, referenceDate: D
 }
 
 export async function runPushNotificationCheck() {
+  if (!getWebPush()) return;
+
   const [monthlyPayments, customPayments, iqamaExpirySoon, iqamaExpired] = await Promise.all([
     getMonthlyPaymentAlerts(),
     getCustomPaymentAlerts(),
