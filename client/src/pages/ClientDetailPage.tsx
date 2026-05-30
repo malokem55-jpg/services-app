@@ -64,15 +64,6 @@ interface ServiceStep {
   order: number | null
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatDate(iso: string | null | undefined) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('ar-SA', {
-    year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC',
-  })
-}
-
 
 function clientToForm(c: ClientDetail): ClientFormData {
   return {
