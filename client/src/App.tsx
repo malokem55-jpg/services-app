@@ -6,6 +6,7 @@ import ClientDetailPage from './pages/ClientDetailPage'
 import ServicesPage from './pages/ServicesPage'
 import OrganizationsPage from './pages/OrganizationsPage'
 import ProfilePage from './pages/ProfilePage'
+import NotificationSettingsPage from './pages/NotificationSettingsPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
         <Route path="/services" element={<ServicesPage />} />
         <Route path="/organizations" element={<OrganizationsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/notification-settings" element={<NotificationSettingsPage />} />
       </Route>
     </Routes>
   )

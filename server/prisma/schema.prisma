@@ -140,6 +140,14 @@ model PushSubscription {
   @@map("push_subscriptions")
 }
 
+model NotificationSetting {
+  id         Int @id @default(autoincrement())
+  cronHour   Int @map("cron_hour")
+  cronMinute Int @map("cron_minute")
+
+  @@map("notification_settings")
+}
+
 model SentPushNotification {
   id            Int      @id @default(autoincrement())
   alertType     String   @map("alert_type")

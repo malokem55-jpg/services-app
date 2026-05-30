@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { to: '/clients', label: 'العملاء', end: false },
   { to: '/organizations', label: 'المؤسسات', end: false },
   { to: '/services', label: 'الخدمات', end: false },
+  { to: '/notification-settings', label: 'ضبط الإشعارات', end: false },
 ]
 
 function fmtDate(s: string | null | undefined): string {
