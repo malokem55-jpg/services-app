@@ -34,6 +34,12 @@ interface ClientPayment {
   createdAt: string | null
 }
 
+interface ServiceStep {
+  id: number
+  name: string | null
+  order: number | null
+}
+
 interface ClientDetail {
   id: number
   name: string | null
@@ -58,13 +64,6 @@ interface ClientDetail {
   payments: ClientPayment[]
 }
 
-interface ServiceStep {
-  id: number
-  name: string | null
-  order: number | null
-}
-
-
 function clientToForm(c: ClientDetail): ClientFormData {
   return {
     name: c.name ?? '',
@@ -83,10 +82,6 @@ function clientToForm(c: ClientDetail): ClientFormData {
     notes: c.notes ?? '',
     nextPaymentDate: c.nextPaymentDate ?? '',
   }
-}
-
-function scrollToSection(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
@@ -174,8 +169,7 @@ export default function ClientDetailPage() {
 
   const { data: serviceSteps = [] } = useQuery<ServiceStep[]>({
     queryKey: ['service-steps', client?.serviceId ?? 0],
-    queryFn: () =>
-      apiFetch<ServiceStep[]>(`/api/service-steps?serviceId=${client!.serviceId}`),
+    queryFn: () => apiFetch<ServiceStep[]>(`/api/service-steps?serviceId=${client!.serviceId}`),
     enabled: !!client?.serviceId,
   })
 
@@ -201,16 +195,16 @@ export default function ClientDetailPage() {
     receivedAmount: '', notes: '', nextPaymentDate: '',
   })
   const [editErrors, setEditErrors] = useState<Record<string, string>>({})
-  const [stepErrors, setStepErrors] = useState<Record<string, string>>({})
-  const [payErrors, setPayErrors] = useState<Record<string, string>>({})
   const [showDeleteClient, setShowDeleteClient] = useState(false)
+  const [showSteps, setShowSteps] = useState(false)
+  const [showPayments, setShowPayments] = useState(false)
   const [stepId, setStepId] = useState('')
   const [stepDate, setStepDate] = useState('')
+  const [stepErrors, setStepErrors] = useState<Record<string, string>>({})
   const [deleteStepId, setDeleteStepId] = useState<number | null>(null)
   const [payAmount, setPayAmount] = useState('')
-  const [payDate, setPayDate] = useState('')
-  const [payIsDone, setPayIsDone] = useState(true)
   const [payNotes, setPayNotes] = useState('')
+  const [payErrors, setPayErrors] = useState<Record<string, string>>({})
   const [deletePaymentId, setDeletePaymentId] = useState<number | null>(null)
 
   // إصدار الإقامة
@@ -255,12 +249,12 @@ export default function ClientDetailPage() {
   })
 
   const addPayment = useMutation({
-    mutationFn: (body: { clientId: number; amount?: number; nextPaymentDate?: string; isDone: boolean; notes?: string }) =>
+    mutationFn: (body: { clientId: number; amount?: number; isDone: boolean; notes?: string }) =>
       apiFetch<unknown>('/api/client-payments', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client', clientId] })
       qc.invalidateQueries({ queryKey: ['stats'] })
-      setPayAmount(''); setPayDate(''); setPayIsDone(true); setPayNotes('')
+      setPayAmount(''); setPayNotes('')
     },
   })
 
@@ -311,16 +305,10 @@ export default function ClientDetailPage() {
 
   function handleAddPayment(e: React.FormEvent) {
     e.preventDefault()
-    const errs = getErrors(clientPaymentSchema, { amount: payAmount, nextPaymentDate: payDate })
+    const errs = getErrors(clientPaymentSchema, { amount: payAmount })
     setPayErrors(errs)
     if (Object.keys(errs).length > 0) return
-    addPayment.mutate({
-      clientId,
-      amount: payAmount ? Number(payAmount) : undefined,
-      nextPaymentDate: payDate || undefined,
-      isDone: payIsDone,
-      notes: payNotes || undefined,
-    })
+    addPayment.mutate({ clientId, amount: payAmount ? Number(payAmount) : undefined, isDone: true, notes: payNotes || undefined })
   }
 
   function handleIssueIqama(e: React.FormEvent) {
@@ -488,12 +476,12 @@ export default function ClientDetailPage() {
               {/* أزرار الإجراءات */}
               <div className="flex flex-wrap gap-2.5">
                 <button
-                  onClick={() => scrollToSection('steps-section')}
+                  onClick={() => setShowSteps(true)}
                   className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
                   الخطوات
                 </button>
                 <button
-                  onClick={() => scrollToSection('payments-section')}
+                  onClick={() => setShowPayments(true)}
                   className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
                   الدفعيات
                 </button>
@@ -553,12 +541,19 @@ export default function ClientDetailPage() {
                 </div>
               )}
 
-              {/* زر الدفعيات */}
-              <button
-                onClick={() => scrollToSection('payments-section')}
-                className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-6 py-2.5 transition-colors">
-                {isMonthly ? 'الدفعيات' : 'عرض الدفعيات'}
-              </button>
+              {/* أزرار الخطوات والدفعيات */}
+              <div className="flex flex-wrap gap-2.5 mt-1">
+                <button
+                  onClick={() => setShowSteps(true)}
+                  className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
+                  الخطوات
+                </button>
+                <button
+                  onClick={() => setShowPayments(true)}
+                  className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
+                  {isMonthly ? 'الدفعيات' : 'عرض الدفعيات'}
+                </button>
+              </div>
             </>
           )}
 
@@ -571,9 +566,12 @@ export default function ClientDetailPage() {
           )}
         </SectionCard>
 
-        {/* ── خطوات الخدمة ── */}
-        <SectionCard title="خطوات الخدمة" id="steps-section">
-          {/* فورم الإضافة فوق الجدول */}
+
+      </main>
+
+      {/* ── نافذة خطوات الخدمة ── */}
+      {showSteps && (
+        <Modal title="خطوات الخدمة" size="lg" onClose={() => setShowSteps(false)}>
           {client.serviceId ? (
             <form onSubmit={handleAddStep} className="mb-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
@@ -609,12 +607,8 @@ export default function ClientDetailPage() {
               )}
             </form>
           ) : (
-            <p className="text-xs text-gray-400 mb-4">
-              لا توجد خدمة مرتبطة بهذا العميل لإضافة خطوات
-            </p>
+            <p className="text-xs text-gray-400 mb-4">لا توجد خدمة مرتبطة بهذا العميل لإضافة خطوات</p>
           )}
-
-          {/* جدول الخطوات */}
           <div className="rounded-xl overflow-hidden border border-gray-200">
             <table className="w-full text-sm">
               <thead>
@@ -661,11 +655,12 @@ export default function ClientDetailPage() {
               </tbody>
             </table>
           </div>
-        </SectionCard>
+        </Modal>
+      )}
 
-        {/* ── الدفعات ── */}
-        <SectionCard title="الدفعات" id="payments-section">
-          {/* فورم تسجيل دفعة — للسنوي فقط عندما يوجد متبقي */}
+      {/* ── نافذة الدفعات ── */}
+      {showPayments && (
+        <Modal title="الدفعات" size="lg" onClose={() => setShowPayments(false)}>
           {!isMonthly && remaining > 0 && (
             <form onSubmit={handleAddPayment}
               className="mb-5 p-4 bg-gray-50 rounded-xl border border-gray-200">
@@ -702,15 +697,12 @@ export default function ClientDetailPage() {
               )}
             </form>
           )}
-
           {!isMonthly && remaining <= 0 && client.payments.length > 0 && (
             <div className="mb-5 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3
                             text-sm text-emerald-700 text-center font-medium">
               تم استلام المبلغ الإجمالي كاملاً
             </div>
           )}
-
-          {/* جدول الدفعات */}
           <div className="rounded-xl overflow-hidden border border-gray-200">
             <table className="w-full text-sm">
               <thead>
@@ -761,9 +753,8 @@ export default function ClientDetailPage() {
               </tbody>
             </table>
           </div>
-        </SectionCard>
-
-      </main>
+        </Modal>
+      )}
 
       {/* ── إصدار الإقامة modal ── */}
       {showIssueIqama && (
