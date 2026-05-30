@@ -85,16 +85,9 @@ export function hijriToGregorian(
 export function formatBothDates(iso: string | null | undefined): string {
   if (!iso) return '—'
   const dateStr = iso.slice(0, 10)
-  const hijri = new Date(dateStr + 'T00:00:00Z')
-    .toLocaleDateString('en-US-u-ca-islamic-umalqura-nu-latn', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      timeZone: 'UTC',
-    })
-  // en-US gives MM/DD/YYYY — rearrange to YYYY-MM-DD
-  const [m, d, y] = hijri.split('/')
-  const hijriStr = `${y}-${m}-${d}`
+  const h = gregorianToHijri(dateStr)
+  if (!h) return dateStr
+  const hijriStr = `${h.year}-${String(h.month).padStart(2, '0')}-${String(h.day).padStart(2, '0')}`
   return `${dateStr} / ${hijriStr}`
 }
 
