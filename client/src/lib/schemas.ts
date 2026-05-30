@@ -33,11 +33,18 @@ export function clientSchema(isIqama: boolean, isAdd = false) {
   }
 
   // Edit form (isAdd = false): require iqamaEndDate only when iqamaNumber is entered
+  //                            require boardNumber when paymentType is 'شهري'
   if (!isAdd) {
-    return base.refine(
-      (d) => !d.iqamaNumber || !!d.iqamaEndDate,
-      { message: 'تاريخ انتهاء الإقامة مطلوب عند إدخال رقم الإقامة', path: ['iqamaEndDate'] },
-    ) as z.ZodTypeAny
+    return base
+      .extend({ boardNumber: z.string().optional() })
+      .superRefine((d, ctx) => {
+        if (d.iqamaNumber && !d.iqamaEndDate) {
+          ctx.addIssue({ code: 'custom', message: 'تاريخ انتهاء الإقامة مطلوب عند إدخال رقم الإقامة', path: ['iqamaEndDate'] })
+        }
+        if (d.paymentType === 'شهري' && !d.boardNumber) {
+          ctx.addIssue({ code: 'custom', message: 'يوم الاستلام مطلوب', path: ['boardNumber'] })
+        }
+      }) as z.ZodTypeAny
   }
 
   // Add form (isAdd = true, non-iqama):
