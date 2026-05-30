@@ -582,198 +582,194 @@ export default function ClientDetailPage() {
 
         {/* ── خطوات الخدمة ── */}
         <SectionCard title="خطوات الخدمة" id="steps-section">
-          {client.steps.length === 0 ? (
-            <div className="flex flex-col items-center py-6 text-center">
-              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round"
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              </div>
-              <p className="text-sm text-gray-400">لم تُسجَّل خطوات بعد</p>
-            </div>
-          ) : (
-            <ul className="space-y-2 mb-5">
-              {client.steps.map((s) => (
-                <li key={s.id}
-                  className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
-                  <div className="flex items-center gap-3">
-                    {s.step?.order != null && (
-                      <span className="shrink-0 inline-flex items-center justify-center w-7 h-7
-                                       rounded-full bg-sky-100 text-sky-700 text-xs font-bold">
-                        {s.step.order}
-                      </span>
-                    )}
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{s.step?.name ?? '—'}</p>
-                      {s.stepDate && (
-                        <p className="text-xs text-gray-400 mt-0.5">{formatDate(s.stepDate)}</p>
-                      )}
-                    </div>
-                  </div>
-                  {deleteStepId === s.id ? (
-                    <DeleteConfirm
-                      onConfirm={() => deleteStep.mutate(s.id)}
-                      onCancel={() => setDeleteStepId(null)}
-                      isPending={deleteStep.isPending}
-                    />
-                  ) : (
-                    <button onClick={() => setDeleteStepId(s.id)} aria-label="حذف الخطوة"
-                      className="rounded-lg p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-
+          {/* فورم الإضافة فوق الجدول */}
           {client.serviceId ? (
-            <>
-              <form onSubmit={handleAddStep} className="flex flex-col gap-2.5 border-t border-gray-100 pt-5">
-                <div className="flex flex-wrap gap-2.5">
-                  <div className="flex-1 min-w-40">
-                    <select value={stepId} onChange={(e) => setStepId(e.target.value)}
-                      className={`w-full rounded-xl border bg-gray-50 px-3 py-2.5 text-sm
-                                 focus:outline-none focus:ring-2 focus:bg-white min-h-11
-                                 ${stepErrors.stepId ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-sky-500'}`}>
-                      <option value="">— اختر الخطوة —</option>
-                      {serviceSteps.map((st) => (
-                        <option key={st.id} value={st.id}>
-                          {st.order != null ? `${st.order}. ` : ''}{st.name}
-                        </option>
-                      ))}
-                    </select>
-                    {stepErrors.stepId && <p className="mt-1 text-xs text-red-500">{stepErrors.stepId}</p>}
-                  </div>
-                  <div>
-                    <input type="date" value={stepDate} onChange={(e) => setStepDate(e.target.value)}
-                      className={`rounded-xl border bg-gray-50 px-3 py-2.5 text-sm
-                                 focus:outline-none focus:ring-2 focus:bg-white min-h-11
-                                 ${stepErrors.stepDate ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-sky-500'}`} />
-                    {stepErrors.stepDate && <p className="mt-1 text-xs text-red-500">{stepErrors.stepDate}</p>}
-                  </div>
-                  <button type="submit" disabled={addStep.isPending}
-                    className="rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
-                               text-white text-sm font-semibold px-5 py-2.5 min-h-11 transition-colors self-start">
-                    {addStep.isPending ? '...' : 'إضافة'}
-                  </button>
+            <form onSubmit={handleAddStep} className="mb-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className={labelCls}>الخطوة</label>
+                  <select value={stepId} onChange={(e) => setStepId(e.target.value)}
+                    className={`${inputCls}${stepErrors.stepId ? ' border-red-400! focus:ring-red-400!' : ''}`}>
+                    <option value="">اختر الخطوة...</option>
+                    {serviceSteps.map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {st.order != null ? `${st.order}. ` : ''}{st.name}
+                      </option>
+                    ))}
+                  </select>
+                  {stepErrors.stepId && <p className="mt-1 text-xs text-red-500">{stepErrors.stepId}</p>}
                 </div>
-              </form>
+                <div>
+                  <label className={labelCls}>التاريخ</label>
+                  <input type="date" value={stepDate} onChange={(e) => setStepDate(e.target.value)}
+                    className={`${inputCls}${stepErrors.stepDate ? ' border-red-400! focus:ring-red-400!' : ''}`} />
+                  {stepErrors.stepDate && <p className="mt-1 text-xs text-red-500">{stepErrors.stepDate}</p>}
+                </div>
+              </div>
+              <button type="submit" disabled={addStep.isPending}
+                className="rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
+                           text-white text-sm font-semibold px-8 py-2.5 transition-colors">
+                {addStep.isPending ? '...' : 'إضافة'}
+              </button>
               {addStep.isError && (
                 <p className="text-xs text-red-600 mt-2">
                   {addStep.error instanceof Error ? addStep.error.message : 'حدث خطأ'}
                 </p>
               )}
-            </>
+            </form>
           ) : (
-            <p className="text-xs text-gray-400 border-t border-gray-100 pt-4 mt-2">
+            <p className="text-xs text-gray-400 mb-4">
               لا توجد خدمة مرتبطة بهذا العميل لإضافة خطوات
             </p>
           )}
+
+          {/* جدول الخطوات */}
+          <div className="rounded-xl overflow-hidden border border-gray-200">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-sky-600 text-white text-right">
+                  <th className="px-4 py-3 text-xs font-semibold">الخطوة</th>
+                  <th className="px-4 py-3 text-xs font-semibold">رقم الخطوة</th>
+                  <th className="px-4 py-3 text-xs font-semibold">التاريخ</th>
+                  <th className="px-4 py-3 w-14" />
+                </tr>
+              </thead>
+              <tbody>
+                {client.steps.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">
+                      لا توجد خطوات مسجلة
+                    </td>
+                  </tr>
+                ) : (
+                  client.steps.map((s) => (
+                    <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{s.step?.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-gray-500">{s.step?.order ?? '—'}</td>
+                      <td className="px-4 py-3 text-gray-500">{s.stepDate ? s.stepDate.slice(0, 10) : '—'}</td>
+                      <td className="px-4 py-3 text-center">
+                        {deleteStepId === s.id ? (
+                          <DeleteConfirm
+                            onConfirm={() => deleteStep.mutate(s.id)}
+                            onCancel={() => setDeleteStepId(null)}
+                            isPending={deleteStep.isPending}
+                          />
+                        ) : (
+                          <button onClick={() => setDeleteStepId(s.id)} aria-label="حذف الخطوة"
+                            className="rounded-lg p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
 
         {/* ── الدفعات ── */}
         <SectionCard title="الدفعات" id="payments-section">
-          {client.payments.length === 0 ? (
-            <div className="flex flex-col items-center py-6 text-center">
-              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round"
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+          {/* فورم تسجيل دفعة — للسنوي فقط عندما يوجد متبقي */}
+          {!isMonthly && remaining > 0 && (
+            <form onSubmit={handleAddPayment}
+              className="mb-5 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <p className="text-xs font-semibold text-gray-600 mb-3">
+                تسجيل دفعة (المتبقي: {remaining.toLocaleString('ar-SA')} ر.س)
+              </p>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className={labelCls}>المبلغ المستلم (ر.س)</label>
+                  <input type="number" min={1} max={remaining} value={payAmount}
+                    onChange={(e) => {
+                      const val = Number(e.target.value)
+                      setPayAmount(val > remaining ? String(remaining) : e.target.value)
+                    }}
+                    className={`${inputCls}${payErrors.amount ? ' border-red-400! focus:ring-red-400!' : ''}`} />
+                  {payErrors.amount && <p className="mt-1 text-xs text-red-500">{payErrors.amount}</p>}
+                </div>
+                <div>
+                  <label className={labelCls}>ملاحظات</label>
+                  <input type="text" value={payNotes} onChange={(e) => setPayNotes(e.target.value)}
+                    placeholder="ملاحظات اختيارية" className={inputCls} />
+                </div>
               </div>
-              <p className="text-sm text-gray-400">لم تُسجَّل دفعات بعد</p>
-            </div>
-          ) : (
-            <ul className="space-y-2 mb-5">
-              {client.payments.map((p) => (
-                <li key={p.id}
-                  className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
-                  <div className="flex items-start gap-3">
-                    <span className={`shrink-0 mt-0.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      p.isDone
-                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                        : 'bg-amber-100 text-amber-700 border border-amber-200'
-                    }`}>
-                      {p.isDone ? 'مكتملة' : 'معلقة'}
-                    </span>
-                    <div>
-                      {p.amount != null && (
-                        <p className="text-sm font-bold text-gray-900">
-                          {p.amount.toLocaleString('ar-SA')} ر.س
-                        </p>
-                      )}
-                      {p.nextPaymentDate && (
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          الدفعة التالية: {formatDate(p.nextPaymentDate)}
-                        </p>
-                      )}
-                      {p.notes && <p className="text-xs text-gray-400 mt-0.5">{p.notes}</p>}
-                    </div>
-                  </div>
-                  {deletePaymentId === p.id ? (
-                    <DeleteConfirm
-                      onConfirm={() => deletePayment.mutate(p.id)}
-                      onCancel={() => setDeletePaymentId(null)}
-                      isPending={deletePayment.isPending}
-                    />
-                  ) : (
-                    <button onClick={() => setDeletePaymentId(p.id)} aria-label="حذف الدفعة"
-                      className="rounded-lg p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
+              <button type="submit"
+                disabled={addPayment.isPending || !payAmount || Number(payAmount) <= 0}
+                className="rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
+                           text-white text-sm font-semibold px-8 py-2.5 transition-colors">
+                {addPayment.isPending ? '...' : 'حفظ'}
+              </button>
+              {addPayment.isError && (
+                <p className="text-xs text-red-600 mt-2">
+                  {addPayment.error instanceof Error ? addPayment.error.message : 'حدث خطأ'}
+                </p>
+              )}
+            </form>
           )}
 
-          <form onSubmit={handleAddPayment} className="border-t border-gray-100 pt-5 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelCls}>المبلغ (ر.س)</label>
-                <input type="number" min={0} value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)} placeholder="0.00"
-                  className={`${inputCls}${payErrors.amount ? ' border-red-400! focus:ring-red-400!' : ''}`} />
-                {payErrors.amount && <p className="mt-1 text-xs text-red-500">{payErrors.amount}</p>}
-              </div>
-              <div>
-                <label className={labelCls}>تاريخ الدفعة التالية</label>
-                <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)}
-                  className={`${inputCls}${payErrors.nextPaymentDate ? ' border-red-400! focus:ring-red-400!' : ''}`} />
-                {payErrors.nextPaymentDate && <p className="mt-1 text-xs text-red-500">{payErrors.nextPaymentDate}</p>}
-              </div>
+          {!isMonthly && remaining <= 0 && client.payments.length > 0 && (
+            <div className="mb-5 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3
+                            text-sm text-emerald-700 text-center font-medium">
+              تم استلام المبلغ الإجمالي كاملاً
             </div>
-            <div>
-              <label className={labelCls}>ملاحظات</label>
-              <input type="text" value={payNotes} onChange={(e) => setPayNotes(e.target.value)}
-                placeholder="ملاحظات اختيارية" className={inputCls} />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <label className="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer select-none">
-                <input type="checkbox" checked={payIsDone} onChange={(e) => setPayIsDone(e.target.checked)}
-                  className="w-4 h-4 rounded accent-sky-500" />
-                تم استلام الدفعة
-              </label>
-              <button type="submit" disabled={addPayment.isPending}
-                className="rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
-                           text-white text-sm font-semibold px-5 py-2.5 min-h-11 transition-colors">
-                {addPayment.isPending ? '...' : 'تسجيل دفعة'}
-              </button>
-            </div>
-            {addPayment.isError && (
-              <p className="text-xs text-red-600">
-                {addPayment.error instanceof Error ? addPayment.error.message : 'حدث خطأ'}
-              </p>
-            )}
-          </form>
+          )}
+
+          {/* جدول الدفعات */}
+          <div className="rounded-xl overflow-hidden border border-gray-200">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-sky-600 text-white text-right">
+                  <th className="px-4 py-3 text-xs font-semibold">المبلغ</th>
+                  <th className="px-4 py-3 text-xs font-semibold">التاريخ</th>
+                  <th className="px-4 py-3 text-xs font-semibold">ملاحظات</th>
+                  <th className="px-4 py-3 w-14" />
+                </tr>
+              </thead>
+              <tbody>
+                {client.payments.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">
+                      لا توجد دفعات مسجلة
+                    </td>
+                  </tr>
+                ) : (
+                  client.payments.map((p) => (
+                    <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-semibold text-gray-900">
+                        {p.amount != null ? `${p.amount.toLocaleString('ar-SA')} ر.س` : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">
+                        {p.createdAt ? p.createdAt.slice(0, 10) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">{p.notes ?? ''}</td>
+                      <td className="px-4 py-3 text-center">
+                        {deletePaymentId === p.id ? (
+                          <DeleteConfirm
+                            onConfirm={() => deletePayment.mutate(p.id)}
+                            onCancel={() => setDeletePaymentId(null)}
+                            isPending={deletePayment.isPending}
+                          />
+                        ) : (
+                          <button onClick={() => setDeletePaymentId(p.id)} aria-label="حذف الدفعة"
+                            className="rounded-lg p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
 
       </main>
