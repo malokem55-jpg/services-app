@@ -20,8 +20,9 @@ export function gregorianToHijri(
     timeZone: 'UTC',
   }).formatToParts(date)
 
+  // Strip any non-digit characters (e.g. " AH", " هـ") before parsing
   const get = (type: string) =>
-    parseInt(parts.find((p) => p.type === type)?.value ?? '0')
+    parseInt((parts.find((p) => p.type === type)?.value ?? '0').replace(/\D/g, ''), 10)
 
   return { year: get('year'), month: get('month'), day: get('day') }
 }
