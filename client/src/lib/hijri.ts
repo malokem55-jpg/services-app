@@ -81,21 +81,21 @@ export function hijriToGregorian(
   ].join('-')
 }
 
-/** Format a Gregorian date string (YYYY-MM-DD or full ISO) as "1445-08-15 هـ / 2024-03-25" */
+/** Format a Gregorian date string (YYYY-MM-DD or full ISO) as "2026-06-10 / 1447-12-24" */
 export function formatBothDates(iso: string | null | undefined): string {
   if (!iso) return '—'
-  // Normalise: slice to YYYY-MM-DD so full ISO strings (e.g. "2025-03-25T00:00:00.000Z")
-  // don't produce "Invalid Date" when appending T00:00:00Z again
   const dateStr = iso.slice(0, 10)
   const hijri = new Date(dateStr + 'T00:00:00Z')
-    .toLocaleDateString('ar-SA-u-ca-islamic-nu-latn', {
+    .toLocaleDateString('en-US-u-ca-islamic-umalqura-nu-latn', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       timeZone: 'UTC',
     })
-    .replace(/\//g, '-')
-  return `${hijri} هـ / ${dateStr}`
+  // en-US gives MM/DD/YYYY — rearrange to YYYY-MM-DD
+  const [m, d, y] = hijri.split('/')
+  const hijriStr = `${y}-${m}-${d}`
+  return `${dateStr} / ${hijriStr}`
 }
 
 /** Arabic names of the Hijri months (1-indexed). */
