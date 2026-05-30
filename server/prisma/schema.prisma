@@ -129,3 +129,24 @@ model ClientPaymentMonthly {
 
   @@map("client_payment_monthlies")
 }
+
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  endpoint  String   @unique @db.VarChar(500)
+  p256dh    String   @db.Text
+  auth      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("push_subscriptions")
+}
+
+model SentPushNotification {
+  id            Int      @id @default(autoincrement())
+  alertType     String   @map("alert_type")
+  referenceId   Int      @map("reference_id")
+  referenceDate DateTime @map("reference_date") @db.Date
+  sentAt        DateTime @default(now()) @map("sent_at")
+
+  @@unique([alertType, referenceId, referenceDate])
+  @@map("sent_push_notifications")
+}
