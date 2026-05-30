@@ -1,9 +1,9 @@
 import cron from 'node-cron';
 import { runPushNotificationCheck } from '../services/push.service.js';
 
-// runs every day at 8:00 AM
+// runs every day at 3:40 PM
 export function startPushCron() {
-  cron.schedule('0 8 * * *', async () => {
+  cron.schedule('40 15 * * *', async () => {
     try {
       await runPushNotificationCheck();
     } catch (err) {
