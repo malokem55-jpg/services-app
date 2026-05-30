@@ -43,5 +43,5 @@ app.use(errorHandler);
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
-  startPushCron();
+  startPushCron().catch((err) => console.error('[push] Failed to start cron:', err));
 });

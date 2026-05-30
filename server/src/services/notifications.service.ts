@@ -41,7 +41,7 @@ export async function getCustomPaymentAlerts() {
 
   return prisma.client.findMany({
     where: {
-      nextPaymentDate: { not: null, lt: in10Days },
+      nextPaymentDate: { not: null, gte: today, lt: in10Days },
     },
     include: {
       service: { select: { name: true } },
