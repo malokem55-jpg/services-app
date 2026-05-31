@@ -9,6 +9,7 @@ import {
   updateClient,
   deleteClient,
 } from '../services/clients.service.js';
+import { runPushNotificationCheck } from '../services/push.service.js';
 
 const router = Router();
 
@@ -82,6 +83,12 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
   try {
     const client = await createClient(parsed.data);
     res.status(201).json(client);
+
+    if (parsed.data.iqamaEndDate !== undefined) {
+      runPushNotificationCheck().catch((err) =>
+        console.error('[push] background check failed after client create:', err),
+      );
+    }
   } catch (err) {
     next(err);
   }
@@ -111,6 +118,13 @@ router.put('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
 
     const client = await updateClient(id, parsed.data);
     res.json(client);
+
+    // Trigger push check in background if iqama-related fields changed
+    if (parsed.data.iqamaEndDate !== undefined || parsed.data.iqamaNumber !== undefined) {
+      runPushNotificationCheck().catch((err) =>
+        console.error('[push] background check failed after client update:', err),
+      );
+    }
   } catch (err) {
     next(err);
   }
