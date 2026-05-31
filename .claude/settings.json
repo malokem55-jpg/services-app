@@ -40,7 +40,19 @@
       "PowerShell(cd \"d:\\\\Node Projects\\\\services-app\\\\server\"; $env:PRISMA_MIGRATE_SKIP_GENERATE = \"true\"; npx prisma migrate dev --name remove_org_extra_fields --accept-data-loss 2>&1)",
       "PowerShell(Get-ChildItem -Path \"d:\\\\Node Projects\\\\services-app\" -Force | Select-Object Name, @{Name='Type';Expression={if\\($_.PSIsContainer\\){'Folder'}else{'File'}}} | Format-Table -AutoSize)",
       "Bash(dir \"d:\\\\Node Projects\\\\services-app\\\\server\\\\src\")",
-      "Bash(xargs wc -l)"
+      "Bash(xargs wc -l)",
+      "Bash(git commit -m ' *)",
+      "Bash(mysql -h 127.0.0.1 -P 3307 -u root -prootpassword servicesofficeapp -e \"SELECT COUNT\\(*\\) as total_clients, COUNT\\(iqama_end_date\\) as clients_with_iqama FROM clients;\")",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root -proot servicesofficeapp -e \"SELECT COUNT\\(*\\) as total_clients, COUNT\\(iqama_end_date\\) as clients_with_iqama FROM clients;\")",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root -proot servicesOfficeApp -e \"SELECT COUNT\\(*\\) as total_clients, COUNT\\(iqama_end_date\\) as clients_with_iqama FROM clients;\")",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root -proot servicesofficeapp -e \"SELECT MIN\\(iqama_end_date\\) as min_date, MAX\\(iqama_end_date\\) as max_date FROM clients;\")",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root -proot servicesofficeapp -e \"UPDATE clients SET iqama_end_date = DATE_ADD\\(CURDATE\\(\\), INTERVAL 1 YEAR\\) WHERE iqama_end_date IS NOT NULL; SELECT ROW_COUNT\\(\\) as updated_rows;\")",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root -proot servicesofficeapp -e \"SELECT MIN\\(iqama_end_date\\) as min_date, MAX\\(iqama_end_date\\) as max_date, COUNT\\(*\\) as total FROM clients WHERE iqama_end_date IS NOT NULL;\")",
+      "Bash(mysql -h zephyr.proxy.rlwy.net -P 19293 -u root -pOPOVmHylWriuQLbCwaZbmLTbRvNjoieR railway -e \"SELECT COUNT\\(*\\) as total, COUNT\\(iqama_end_date\\) as with_iqama, MIN\\(iqama_end_date\\) as min_date, MAX\\(iqama_end_date\\) as max_date FROM clients;\")",
+      "Bash(mysql -h zephyr.proxy.rlwy.net -P 19293 -u root -pOPOVmHylWriuQLbCwaZbmLTbRvNjoieR railway -e \"UPDATE clients SET iqama_end_date = DATE_ADD\\(CURDATE\\(\\), INTERVAL 1 YEAR\\) WHERE iqama_end_date IS NOT NULL; SELECT ROW_COUNT\\(\\) as updated_rows;\")",
+      "Bash(mysql -h zephyr.proxy.rlwy.net -P 19293 -u root -pOPOVmHylWriuQLbCwaZbmLTbRvNjoieR railway -e \"SELECT MIN\\(iqama_end_date\\) as min_date, MAX\\(iqama_end_date\\) as max_date FROM clients WHERE iqama_end_date IS NOT NULL;\")",
+      "Bash(Get-ChildItem -Path \"d:\\\\Node Projects\\\\services-app\" -Directory)",
+      "Bash(Select-Object Name)"
     ],
     "additionalDirectories": [
       "d:\\Node Projects\\services-app\\client-temp"
