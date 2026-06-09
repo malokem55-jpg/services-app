@@ -16,6 +16,7 @@ import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
 import ClientFormFields from '../components/ClientFormFields'
 import HijriDateInput from '../components/HijriDateInput'
+import MonthlyPaymentsPanel from '../components/MonthlyPaymentsPanel'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -660,7 +661,10 @@ export default function ClientDetailPage() {
 
       {/* ── نافذة الدفعات ── */}
       {showPayments && (
-        <Modal title="الدفعات" size="lg" onClose={() => setShowPayments(false)}>
+        <Modal title={isMonthly ? 'الدفعيات الشهرية' : 'الدفعات'} size="lg" onClose={() => setShowPayments(false)}>
+          {isMonthly && (
+            <MonthlyPaymentsPanel clientId={clientId} monthlyAmount={client.amount} />
+          )}
           {!isMonthly && remaining > 0 && (
             <form onSubmit={handleAddPayment}
               className="mb-5 p-4 bg-gray-50 rounded-xl border border-gray-200">
@@ -703,6 +707,7 @@ export default function ClientDetailPage() {
               تم استلام المبلغ الإجمالي كاملاً
             </div>
           )}
+          {!isMonthly && (
           <div className="rounded-xl overflow-hidden border border-gray-200">
             <table className="w-full text-sm">
               <thead>
@@ -753,6 +758,7 @@ export default function ClientDetailPage() {
               </tbody>
             </table>
           </div>
+          )}
         </Modal>
       )}
 

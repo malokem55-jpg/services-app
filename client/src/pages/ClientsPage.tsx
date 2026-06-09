@@ -19,6 +19,7 @@ import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
 import ClientFormFields from '../components/ClientFormFields'
 import HijriDateInput from '../components/HijriDateInput'
+import MonthlyPaymentsPanel from '../components/MonthlyPaymentsPanel'
 
 interface ClientListItem {
   id: number
@@ -936,6 +937,9 @@ export default function ClientsPage() {
         const isMonthlyPay = detailClient.paymentType === 'شهري'
         return (
           <InlineModal title={isMonthlyPay ? 'الدفعيات الشهرية' : 'الدفعيات السنوية'} onClose={closeDetail}>
+            {isMonthlyPay && (
+              <MonthlyPaymentsPanel clientId={detailClient.id} monthlyAmount={detailClient.amount} />
+            )}
             {!isMonthlyPay && remaining > 0 && (
               <form onSubmit={handleAddPayment} className="mb-5 p-4 bg-gray-50 rounded-xl border border-gray-200">
                 <p className="text-xs font-semibold text-gray-600 mb-3">
@@ -972,6 +976,7 @@ export default function ClientsPage() {
               </div>
             )}
 
+            {!isMonthlyPay && (
             <div className="rounded-xl overflow-hidden border border-gray-200">
               <table className="w-full text-sm">
                 <thead>
@@ -1026,6 +1031,7 @@ export default function ClientsPage() {
                 </tbody>
               </table>
             </div>
+            )}
 
             <div className="mt-5 pt-4 border-t border-gray-100">
               <button onClick={() => setModalView('detail')}

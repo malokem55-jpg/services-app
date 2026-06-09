@@ -14,6 +14,12 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       ...init?.headers,
     },
   })
+  if (res.status === 401 && token) {
+    // الجلسة منتهية: احذف التوكن وارجع لصفحة الدخول
+    localStorage.removeItem('token')
+    window.location.replace('/login')
+    throw new Error('انتهت الجلسة، يرجى تسجيل الدخول من جديد')
+  }
   if (!res.ok) {
     let message = `خطأ ${res.status}`
     try {

@@ -52,7 +52,9 @@
       "Bash(mysql -h zephyr.proxy.rlwy.net -P 19293 -u root -pOPOVmHylWriuQLbCwaZbmLTbRvNjoieR railway -e \"UPDATE clients SET iqama_end_date = DATE_ADD\\(CURDATE\\(\\), INTERVAL 1 YEAR\\) WHERE iqama_end_date IS NOT NULL; SELECT ROW_COUNT\\(\\) as updated_rows;\")",
       "Bash(mysql -h zephyr.proxy.rlwy.net -P 19293 -u root -pOPOVmHylWriuQLbCwaZbmLTbRvNjoieR railway -e \"SELECT MIN\\(iqama_end_date\\) as min_date, MAX\\(iqama_end_date\\) as max_date FROM clients WHERE iqama_end_date IS NOT NULL;\")",
       "Bash(Get-ChildItem -Path \"d:\\\\Node Projects\\\\services-app\" -Directory)",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "Bash(git add *)",
+      "Bash(git push *)"
     ],
     "additionalDirectories": [
       "d:\\Node Projects\\services-app\\client-temp"

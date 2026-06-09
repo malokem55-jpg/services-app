@@ -75,3 +75,70 @@ export async function updateClientPaymentMonthly(
 export async function deleteClientPaymentMonthly(id: number) {
   return prisma.clientPaymentMonthly.delete({ where: { id } });
 }
+
+export type PayClientPaymentMonthlyInput = {
+  receivedAmount: number;
+  notes?: string;
+};
+
+function addMonths(date: Date, months: number): Date {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  return d;
+}
+
+/**
+ * تسديد دفعية شهرية: يسجّل المبلغ المستلم، وإن كان أقل من مبلغ الدفعية
+ * يُرحَّل الفرق ويُضاف إلى الدفعية الشهرية القادمة التي تُنشأ تلقائياً.
+ */
+export async function payClientPaymentMonthly(id: number, data: PayClientPaymentMonthlyInput) {
+  return prisma.$transaction(async (tx) => {
+    const record = await tx.clientPaymentMonthly.findUnique({
+      where: { id },
+      include: { client: { select: { id: true, amount: true, iqamaEndDate: true } } },
+    });
+    if (!record) return null;
+
+    const due = record.amount ?? 0;
+    const carryOver = due - data.receivedAmount;
+
+    const paid = await tx.clientPaymentMonthly.update({
+      where: { id },
+      data: {
+        receivedAmount: data.receivedAmount,
+        status: 'paid',
+        ...(data.notes !== undefined && { notes: data.notes }),
+        updatedAt: new Date(),
+      },
+    });
+
+    // الدفعية القادمة = القسط الشهري الأساسي + الفرق المرحَّل
+    const baseAmount = record.client?.amount ?? due;
+    const nextDueDate = addMonths(record.receivedDate ?? new Date(), 1);
+
+    const next = await tx.clientPaymentMonthly.create({
+      data: {
+        clientId: record.clientId,
+        iqamaEndDate: record.client?.iqamaEndDate ?? record.iqamaEndDate,
+        month: nextDueDate.toISOString().slice(0, 7),
+        receivedDate: nextDueDate,
+        amount: baseAmount + carryOver,
+        status: 'un-paid',
+        notes: carryOver > 0
+          ? `يشمل مبلغ مرحّل (${carryOver}) من دفعية ${record.month ?? ''}`.trim()
+          : undefined,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    if (record.clientId) {
+      await tx.client.update({
+        where: { id: record.clientId },
+        data: { nextPaymentDate: nextDueDate, updatedAt: new Date() },
+      });
+    }
+
+    return { paid, next };
+  });
+}
