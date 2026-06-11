@@ -373,6 +373,47 @@ export default function PlatformCredentialsTab() {
         ) : (
           visiblePlatforms.map((p) => <PlatformSettingsCard key={p.key} platform={p} />)
         )}
+
+        {/* تحميل إضافة المتصفح — صف سفلي ضمن نفس الكرت */}
+        <div className="border-t border-gray-100 bg-gray-50/40 px-5 py-3
+                        flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+              <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-800">إضافة المتصفح</p>
+              <p className="text-xs text-gray-400 truncate">
+                تُثبَّت مرة واحدة لكل جهاز لتعمل التعبئة التلقائية
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 ms-auto">
+            <button
+              type="button"
+              onClick={() => setShowExtensionHelp(true)}
+              className="rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:text-sky-600
+                         text-gray-600 text-xs font-semibold px-3 py-2 transition-colors"
+            >
+              الإرشادات
+            </button>
+            <a
+              href="/extension.zip"
+              download
+              className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500 hover:bg-sky-600
+                         text-white text-xs font-semibold px-3.5 py-2 shadow-sm shadow-sky-500/20 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              تحميل
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* بيانات دخول المؤسسات */}
@@ -466,47 +507,6 @@ export default function PlatformCredentialsTab() {
             </table>
           </div>
         )}
-      </div>
-
-      {/* إضافة المتصفح: شريط مضغوط — التحميل مباشر والإرشادات في نافذة */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3
-                      flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
-            <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
-            </svg>
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-800">إضافة المتصفح</p>
-            <p className="text-xs text-gray-400 truncate">
-              تُثبَّت مرة واحدة لكل جهاز لتعمل التعبئة التلقائية
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0 ms-auto">
-          <button
-            type="button"
-            onClick={() => setShowExtensionHelp(true)}
-            className="rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:text-sky-600
-                       text-gray-600 text-xs font-semibold px-3 py-2 transition-colors"
-          >
-            الإرشادات
-          </button>
-          <a
-            href="/extension.zip"
-            download
-            className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500 hover:bg-sky-600
-                       text-white text-xs font-semibold px-3.5 py-2 shadow-sm shadow-sky-500/20 transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            تحميل
-          </a>
-        </div>
       </div>
 
       {/* نافذة إرشادات تثبيت الإضافة */}
