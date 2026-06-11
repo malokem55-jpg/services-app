@@ -29,7 +29,7 @@ export default function ServicesPage() {
       <main className="mx-auto max-w-5xl px-4 py-6 page-enter">
 
         <div className="mb-5">
-          <h2 className="text-xl font-bold text-gray-900">الخدمات</h2>
+          <h2 className="text-xl font-bold text-gray-900">الخطوات</h2>
           <p className="text-sm text-gray-500 mt-0.5">إدارة خدمات المكتب وخطواتها</p>
         </div>
 

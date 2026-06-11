@@ -9,6 +9,7 @@ import {
   type OrgOption,
   type ServiceStepOption,
   type StepFormEntry,
+  type ArrivalPlaceOption,
   EMPTY_CLIENT_FORM,
   buildClientPayload,
   iqamaStatus,
@@ -20,6 +21,8 @@ import Modal from '../components/Modal'
 import ClientFormFields from '../components/ClientFormFields'
 import HijriDateInput from '../components/HijriDateInput'
 import MonthlyPaymentsPanel from '../components/MonthlyPaymentsPanel'
+import ClientCardIssuancesModal from '../components/ClientCardIssuancesModal'
+import { useUiSettings } from '../hooks/useUiSettings'
 
 interface ClientListItem {
   id: number
@@ -48,6 +51,7 @@ interface ClientDetail {
   nextPaymentDate: string | null
   service: { id: number; name: string | null } | null
   organization: { id: number; name: string | null } | null
+  arrivalPlace: { id: number; name: string } | null
   steps: Array<{
     id: number
     stepDate: string | null
@@ -60,6 +64,11 @@ interface ClientDetail {
     nextPaymentDate: string | null
     notes: string | null
     createdAt: string | null
+  }>
+  paymentMonthlies: Array<{
+    id: number
+    receivedDate: string | null
+    status: string | null
   }>
 }
 
@@ -140,10 +149,16 @@ export default function ClientsPage() {
   const [iqamaSearch, setIqamaSearch] = useState('')
   const [orgFilter, setOrgFilter] = useState('')
   const [stepFilter, setStepFilter] = useState('')
-  const [clientTypeFilter, setClientTypeFilter] = useState('')
+  // الافتراضي حسب ضبط الصفحات: «المكتملين» إذا كانت صفحة تحت الإجراء مفعّلة
+  // (لأن إدارتهم في صفحتهم المستقلة)، و«كل العملاء» إذا كانت معطّلة
+  const { data: uiSettings } = useUiSettings()
+  const [clientTypeFilterOverride, setClientTypeFilterOverride] = useState<string | null>(null)
+  const clientTypeFilter =
+    clientTypeFilterOverride ?? (uiSettings?.showUnderProcedurePage === false ? '' : 'completed')
   const [showAdd, setShowAdd] = useState(false)
   const [detailId, setDetailId] = useState<number | null>(null)
   const [modalView, setModalView] = useState<'detail' | 'payments' | 'steps' | 'issue-iqama'>('detail')
+  const [showCards, setShowCards] = useState(false)
   const [payAmount, setPayAmount] = useState('')
   const [payNotes, setPayNotes] = useState('')
   const [deletePayId, setDeletePayId] = useState<number | null>(null)
@@ -167,6 +182,7 @@ export default function ClientsPage() {
   function closeDetail() {
     setDetailId(null)
     setModalView('detail')
+    setShowCards(false)
     setPayAmount('')
     setPayNotes('')
     setDeletePayId(null)
@@ -216,6 +232,12 @@ export default function ClientsPage() {
   const { data: organizations = [] } = useQuery<OrgOption[]>({
     queryKey: ['organizations'],
     queryFn: () => apiFetch<OrgOption[]>('/api/organizations'),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: arrivalPlaces = [] } = useQuery<ArrivalPlaceOption[]>({
+    queryKey: ['arrival-places'],
+    queryFn: () => apiFetch<ArrivalPlaceOption[]>('/api/arrival-places'),
     staleTime: 5 * 60 * 1000,
   })
 
@@ -350,13 +372,10 @@ export default function ClientsPage() {
       dayOfMonth?: number
       notes?: string
     }) => {
+      // للعميل الشهري: السيرفر يستكمل جدول الدفعيات تلقائياً حتى تاريخ الانتهاء الجديد
       const clientUpdate: Record<string, unknown> = { iqamaEndDate: body.iqamaEndDate, amount: body.amount }
       if (body.isMonthly && body.dayOfMonth) {
-        const now = new Date()
-        const day = body.dayOfMonth
-        let next = new Date(now.getFullYear(), now.getMonth(), day)
-        if (next <= now) next = new Date(now.getFullYear(), now.getMonth() + 1, day)
-        clientUpdate.nextPaymentDate = next.toISOString().slice(0, 10)
+        clientUpdate.boardNumber = String(body.dayOfMonth)
       }
       await apiFetch<unknown>(`/api/clients/${body.clientId}`, {
         method: 'PUT',
@@ -371,6 +390,9 @@ export default function ClientsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clients'] })
+      qc.invalidateQueries({ queryKey: ['client', renewalId] })
+      qc.invalidateQueries({ queryKey: ['client-payment-monthlies'] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
       qc.invalidateQueries({ queryKey: ['stats'] })
       closeRenewal()
     },
@@ -441,6 +463,11 @@ export default function ClientsPage() {
     .reduce((sum, p) => sum + (p.amount ?? 0), 0) ?? 0
   const remaining = (detailClient?.amount ?? 0) - paidAmount
   const isMonthly = detailClient?.paymentType === 'شهري'
+  // للعميل الشهري: الدفعة القادمة هي أقرب دفعية مستحقة من جدول الأقساط
+  const nextMonthlyDue = (detailClient?.paymentMonthlies ?? [])
+    .filter((m) => m.status !== 'paid' && m.receivedDate)
+    .map((m) => (m.receivedDate as string).slice(0, 10))
+    .sort()[0] ?? null
   const currentStep = detailClient?.steps[0]?.step?.name ?? '—'
 
   /* ─── Shared form field style ── */
@@ -516,8 +543,8 @@ export default function ClientsPage() {
             ))}
           </select>
 
-          <select value={clientTypeFilter} onChange={(e) => setClientTypeFilter(e.target.value)} className={inputCls}>
-            <option value="">كل العملاء</option>
+          <select value={clientTypeFilter} onChange={(e) => setClientTypeFilterOverride(e.target.value)} className={inputCls}>
+            <option value="">الكل</option>
             <option value="under-procedure">تحت الإجراء</option>
             <option value="completed">المكتملين</option>
           </select>
@@ -571,7 +598,7 @@ export default function ClientsPage() {
                   key={c.id}
                   className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden
                              active:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/clients/${c.id}`)}
+                  onClick={() => navigate(`/clients/${c.id}`, { state: { from: '/clients' } })}
                 >
                   <div className="px-4 pt-4 pb-3">
                     <div className="flex items-start justify-between gap-2 mb-2">
@@ -688,7 +715,7 @@ export default function ClientsPage() {
                       <tr
                         key={c.id}
                         className="border-b border-gray-100 hover:bg-sky-50/40 cursor-pointer transition-colors"
-                        onClick={() => navigate(`/clients/${c.id}`)}
+                        onClick={() => navigate(`/clients/${c.id}`, { state: { from: '/clients' } })}
                       >
                         <td className="px-4 py-3.5 font-semibold text-gray-900">{c.name ?? '—'}</td>
                         <td className="px-4 py-3.5 font-mono text-xs text-gray-500 tracking-wide">
@@ -763,12 +790,12 @@ export default function ClientsPage() {
                       { label: 'رقم الجواز', val: detailClient.passport },
                       { label: 'رقم الحدود', val: detailClient.boardNumber },
                       { label: 'رقم التأشيرة', val: detailClient.visaNumber },
+                      { label: 'جهة القدوم', val: detailClient.arrivalPlace?.name },
                       { label: 'الخطوة الحالية', val: currentStep },
-                      { label: 'كرت العمل', val: detailClient.cardType },
-                      { label: 'تاريخ الدفعة القادمة', val: detailClient.nextPaymentDate?.slice(0, 10) },
+                      { label: 'تاريخ الدفعة القادمة', val: isMonthly ? nextMonthlyDue : detailClient.nextPaymentDate?.slice(0, 10) },
                       { label: 'طريقة الدفع', val: detailClient.paymentType },
-                      { label: 'المبلغ الإجمالي', val: detailClient.amount != null ? detailClient.amount.toLocaleString('ar-SA') : null },
-                      { label: 'المبلغ المدفوع', val: paidAmount.toLocaleString('ar-SA') },
+                      { label: 'المبلغ الإجمالي', val: detailClient.amount != null ? detailClient.amount.toLocaleString('en-US') : null },
+                      { label: 'المبلغ المدفوع', val: paidAmount.toLocaleString('en-US') },
                     ].map(({ label, val }) => (
                       <div key={label}>
                         <p className="text-xs text-gray-400 mb-0.5">{label}</p>
@@ -778,7 +805,7 @@ export default function ClientsPage() {
                   </div>
                   <div className="bg-sky-50 border border-sky-100 rounded-xl px-4 py-3 mb-5">
                     <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
-                    <p className="text-lg font-bold text-sky-700">{remaining.toLocaleString('ar-SA')}</p>
+                    <p className="text-lg font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
                   </div>
                   <div className="flex flex-wrap gap-2.5">
                     <button onClick={() => setModalView('steps')}
@@ -805,9 +832,9 @@ export default function ClientsPage() {
                       { label: 'رقم الإقامة', val: detailClient.iqamaNumber },
                       { label: 'تاريخ انتهاء الإقامة', val: formatBothDates(detailClient.iqamaEndDate) },
                       { label: 'كرت العمل', val: detailClient.cardType },
-                      { label: 'تاريخ الدفعة القادمة', val: detailClient.nextPaymentDate?.slice(0, 10) },
+                      { label: 'تاريخ الدفعة القادمة', val: isMonthly ? nextMonthlyDue : detailClient.nextPaymentDate?.slice(0, 10) },
                       { label: 'طريقة الدفع', val: detailClient.paymentType },
-                      { label: isMonthly ? 'القسط الشهري' : 'المبلغ الإجمالي', val: detailClient.amount != null ? detailClient.amount.toLocaleString('ar-SA') : null },
+                      { label: isMonthly ? 'القسط الشهري' : 'المبلغ الإجمالي', val: detailClient.amount != null ? detailClient.amount.toLocaleString('en-US') : null },
                     ].map(({ label, val }) => (
                       <div key={label}>
                         <p className="text-xs text-gray-400 mb-0.5">{label}</p>
@@ -821,13 +848,13 @@ export default function ClientsPage() {
                       <div>
                         <p className="text-xs text-gray-400 mb-0.5">تاريخ الدفعة القادمة</p>
                         <p className="text-sm font-semibold text-gray-900">
-                          {detailClient.payments.map((p) => p.nextPaymentDate).filter(Boolean).at(-1)?.slice(0, 10) ?? '—'}
+                          {nextMonthlyDue ?? '—'}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 mb-0.5">يوم الاستلام في الشهر</p>
                         <p className="text-sm font-semibold text-gray-900">
-                          {detailClient.payments.map((p) => p.nextPaymentDate).filter(Boolean).at(-1)?.slice(8, 10) ?? '—'}
+                          {detailClient.boardNumber || '—'}
                         </p>
                       </div>
                     </div>
@@ -835,19 +862,25 @@ export default function ClientsPage() {
                     <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 mb-5">
                       <div>
                         <p className="text-xs text-gray-400 mb-0.5">المبلغ المدفوع</p>
-                        <p className="text-base font-bold text-emerald-600">{paidAmount.toLocaleString('ar-SA')}</p>
+                        <p className="text-base font-bold text-emerald-600">{paidAmount.toLocaleString('en-US')}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
-                        <p className="text-base font-bold text-sky-700">{remaining.toLocaleString('ar-SA')}</p>
+                        <p className="text-base font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
                       </div>
                     </div>
                   )}
 
-                  <button onClick={() => setModalView('payments')}
-                    className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-6 py-2.5 transition-colors">
-                    {isMonthly ? 'الدفعيات' : 'عرض الدفعيات'}
-                  </button>
+                  <div className="flex flex-wrap gap-2.5">
+                    <button onClick={() => setModalView('payments')}
+                      className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-6 py-2.5 transition-colors">
+                      {isMonthly ? 'الدفعيات' : 'عرض الدفعيات'}
+                    </button>
+                    <button onClick={() => setShowCards(true)}
+                      className="rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold px-6 py-2.5 transition-colors">
+                      كرت العمل
+                    </button>
+                  </div>
                 </>
               )}
 
@@ -861,6 +894,16 @@ export default function ClientsPage() {
             </>
           ) : null}
         </InlineModal>
+      )}
+
+      {/* ─── Card issuances modal ─────────────────────────────────────────────── */}
+      {showCards && detailClient && (
+        <ClientCardIssuancesModal
+          clientId={detailClient.id}
+          organizationId={detailClient.organization?.id ?? null}
+          organizationName={detailClient.organization?.name ?? null}
+          onClose={() => setShowCards(false)}
+        />
       )}
 
       {/* ─── Steps modal ──────────────────────────────────────────────────────── */}
@@ -936,14 +979,15 @@ export default function ClientsPage() {
       {detailId !== null && modalView === 'payments' && detailClient && (() => {
         const isMonthlyPay = detailClient.paymentType === 'شهري'
         return (
-          <InlineModal title={isMonthlyPay ? 'الدفعيات الشهرية' : 'الدفعيات السنوية'} onClose={closeDetail}>
+          <InlineModal title={isMonthlyPay ? 'الدفعيات الشهرية' : 'الدفعيات السنوية'} onClose={closeDetail}
+            maxWidth={isMonthlyPay ? 'sm:max-w-4xl' : 'sm:max-w-2xl'}>
             {isMonthlyPay && (
               <MonthlyPaymentsPanel clientId={detailClient.id} monthlyAmount={detailClient.amount} />
             )}
             {!isMonthlyPay && remaining > 0 && (
               <form onSubmit={handleAddPayment} className="mb-5 p-4 bg-gray-50 rounded-xl border border-gray-200">
                 <p className="text-xs font-semibold text-gray-600 mb-3">
-                  تسجيل دفعة (المتبقي: {remaining.toLocaleString('ar-SA')})
+                  تسجيل دفعة (المتبقي: {remaining.toLocaleString('en-US')})
                 </p>
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div>
@@ -998,7 +1042,7 @@ export default function ClientsPage() {
                     detailClient.payments.map((p) => (
                       <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
                         <td className="px-4 py-3 font-semibold text-gray-900">
-                          {p.amount != null ? p.amount.toLocaleString('ar-SA') : '—'}
+                          {p.amount != null ? p.amount.toLocaleString('en-US') : '—'}
                         </td>
                         <td className="px-4 py-3 text-gray-500">{p.createdAt ? p.createdAt.slice(0, 10) : '—'}</td>
                         <td className="px-4 py-3 text-gray-400 text-xs">{p.notes ?? ''}</td>
@@ -1181,6 +1225,7 @@ export default function ClientsPage() {
               stepEntries={stepEntries}
               onStepChange={handleStepChange}
               errors={addErrors}
+              arrivalPlaces={arrivalPlaces}
             />
 
             {createClient.isError && (

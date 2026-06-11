@@ -8,6 +8,8 @@ export interface MonthlyPaymentAlert {
   id: number
   receivedDate: string | null
   amount: number | null
+  carriedOverAmount: number | null
+  carriedFromMonth: string | null
   month: string | null
   client: {
     name: string | null

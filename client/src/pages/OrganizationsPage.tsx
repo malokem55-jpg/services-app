@@ -3,16 +3,26 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
 import { organizationSchema, getErrors } from '../lib/schemas'
-import { iqamaStatus } from '../lib/clientForm'
+import { iqamaStatus, cardTypeValue, formatYears } from '../lib/clientForm'
+import { openLoginWithExtension } from '../lib/loginExtension'
+import {
+  useLoginPlatforms,
+  useCredentialSummaries,
+  PLATFORM_LABELS,
+  VISIBLE_PLATFORMS,
+  type LoginPlatform,
+} from '../hooks/useLoginPlatforms'
 import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
+import OrgCardIssuancesModal from '../components/OrgCardIssuancesModal'
 
 interface OrgItem {
   id: number
   name: string | null
   number: string | null
   expiredDate: string | null
-  cardTotal: number
+  cardsWithdrawn: number
+  cardsRemaining: number
   _count: { clients: number }
 }
 
@@ -29,7 +39,6 @@ interface OrgClientItem {
   iqamaNumber: string | null
   iqamaEndDate: string | null
   cardType: string | null
-  cardValue: number | null
   organization: { id: number; name: string | null } | null
 }
 
@@ -42,7 +51,7 @@ function toInputDate(iso: string | null | undefined): string {
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('ar-SA', {
+  return new Date(iso).toLocaleDateString('ar-SA-u-nu-latn', {
     year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC',
   })
 }
@@ -155,6 +164,7 @@ function OrgClientsModal({
                     <tbody>
                       {clients.map((c) => {
                         const iqama = iqamaStatus(c.iqamaEndDate)
+                        const cardVal = cardTypeValue(c.cardType)
                         const endDateCls = iqama.cls.includes('red')
                           ? 'text-red-600 font-semibold'
                           : iqama.cls.includes('amber')
@@ -188,16 +198,10 @@ function OrgClientsModal({
                               {c.cardType ?? '—'}
                             </td>
                             <td className="px-3 py-3 text-center">
-                              {c.cardValue != null && c.cardValue > 0 ? (
-                                <span className="inline-flex items-center justify-center rounded-full
-                                                 bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-semibold">
-                                  {c.cardValue % 1 === 0
-                                    ? c.cardValue
-                                    : c.cardValue.toFixed(2).replace(/\.?0+$/, '')}
-                                </span>
-                              ) : (
-                                <span className="text-gray-400 text-xs">—</span>
-                              )}
+                              <span className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold
+                                ${cardVal > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                                {formatYears(cardVal)}
+                              </span>
                             </td>
                             <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">
                               {c.organization?.name ?? '—'}
@@ -220,6 +224,7 @@ function OrgClientsModal({
               <div className="sm:hidden space-y-3">
                 {clients.map((c) => {
                   const iqama = iqamaStatus(c.iqamaEndDate)
+                  const cardVal = cardTypeValue(c.cardType)
                   const badgeCls = c.iqamaEndDate
                     ? (iqama.cls.includes('red')
                       ? 'bg-red-100 text-red-700'
@@ -252,11 +257,9 @@ function OrgClientsModal({
                         {c.cardType && c.cardType !== 'بدون' && (
                           <span>كرت: {c.cardType}</span>
                         )}
-                        {c.cardValue != null && c.cardValue > 0 && (
-                          <span className="text-emerald-600 font-medium">
-                            قيمة: {c.cardValue % 1 === 0 ? c.cardValue : c.cardValue.toFixed(2).replace(/\.?0+$/, '')}
-                          </span>
-                        )}
+                        <span className={cardVal > 0 ? 'text-emerald-600 font-medium' : 'text-gray-400'}>
+                          قيمة: {formatYears(cardVal)}
+                        </span>
                       </div>
                     </div>
                   )
@@ -280,10 +283,98 @@ export default function OrganizationsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [clientsModal, setClientsModal] = useState<{ orgId: number; orgName: string } | null>(null)
+  const [cardsModal, setCardsModal] = useState<{ orgId: number; orgName: string } | null>(null)
+  const [showNewYear, setShowNewYear] = useState(false)
 
   const { data: orgs = [], isLoading, isError } = useQuery<OrgItem[]>({
     queryKey: ['organizations'],
     queryFn: () => apiFetch<OrgItem[]>('/api/organizations'),
+  })
+
+  // منصات الدخول الخارجية المفعّلة (مقيم / الغرفة) — تعطيل المنصة يخفي عمودها
+  const { data: platforms = [] } = useLoginPlatforms()
+  const { data: credSummaries = [] } = useCredentialSummaries()
+  const enabledPlatforms = platforms.filter((p) => p.enabled && VISIBLE_PLATFORMS.includes(p.key))
+  const [loginNotice, setLoginNotice] = useState<string | null>(null)
+  const [loginPendingKey, setLoginPendingKey] = useState<string | null>(null)
+  const [confirmLogin, setConfirmLogin] = useState<{ org: OrgItem; platform: LoginPlatform } | null>(null)
+
+  useEffect(() => {
+    if (!loginNotice) return
+    const t = setTimeout(() => setLoginNotice(null), 6000)
+    return () => clearTimeout(t)
+  }, [loginNotice])
+
+  function hasCreds(orgId: number, platformKey: string) {
+    return credSummaries.some((s) => s.organizationId === orgId && s.platform === platformKey)
+  }
+
+  async function handlePlatformLogin(org: OrgItem, platform: LoginPlatform) {
+    if (!platform.loginUrl) {
+      setConfirmLogin(null)
+      setLoginNotice(`رابط صفحة دخول ${PLATFORM_LABELS[platform.key]} غير مضبوط — اضبطه من الملف الشخصي`)
+      return
+    }
+    const pendingKey = `${org.id}-${platform.key}`
+    setLoginPendingKey(pendingKey)
+    try {
+      const cred = await apiFetch<{ username: string; password: string }>(
+        `/api/org-credentials/${org.id}/${platform.key}`,
+      )
+      const filled = await openLoginWithExtension({
+        url: platform.loginUrl,
+        username: cred.username,
+        password: cred.password,
+      })
+      if (!filled) {
+        setLoginNotice('إضافة المتصفح غير مثبتة — فُتحت صفحة الدخول بدون تعبئة تلقائية')
+      }
+    } catch (e) {
+      setLoginNotice(e instanceof Error ? e.message : 'حدث خطأ غير متوقع')
+    } finally {
+      setLoginPendingKey(null)
+      setConfirmLogin(null)
+    }
+  }
+
+  function renderLoginButton(org: OrgItem, platform: LoginPlatform, fullWidth = false) {
+    const saved = hasCreds(org.id, platform.key)
+    if (!saved) {
+      return (
+        <button
+          disabled
+          className={`${fullWidth ? 'w-full flex' : 'inline-flex'} items-center justify-center rounded-lg px-3 py-1.5
+                      text-xs font-medium border border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed`}
+        >
+          لم تسجل بيانات الدخول
+        </button>
+      )
+    }
+    return (
+      <button
+        onClick={() => setConfirmLogin({ org, platform })}
+        className={`${fullWidth ? 'w-full flex' : 'inline-flex'} items-center justify-center gap-1.5 rounded-lg px-3 py-1.5
+                    text-xs font-semibold border border-sky-200 bg-sky-50 text-sky-700
+                    hover:bg-sky-100 transition-colors`}
+      >
+        <svg className="w-3.5 h-3.5 inline-block me-1" fill="none" viewBox="0 0 24 24"
+          stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round"
+            d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+        </svg>
+        دخول {PLATFORM_LABELS[platform.key]}
+      </button>
+    )
+  }
+
+  const grantCards = useMutation({
+    mutationFn: () =>
+      apiFetch<{ lastGrantAt: string }>('/api/card-issuances/grant', { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['card-issuances'] })
+      qc.invalidateQueries({ queryKey: ['organizations'] })
+      setShowNewYear(false)
+    },
   })
 
   const filteredOrgs = useMemo(() => {
@@ -364,17 +455,31 @@ export default function OrganizationsPage() {
               </p>
             )}
           </div>
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-1.5 bg-sky-500 hover:bg-sky-600 active:bg-sky-700
-                       text-white text-sm font-semibold rounded-xl px-4 py-2.5 min-h-11
-                       shadow-sm shadow-sky-500/20 transition-all"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            إضافة مؤسسة
-          </button>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <button
+              onClick={() => setShowNewYear(true)}
+              className="flex items-center gap-1.5 bg-white border border-amber-300 hover:bg-amber-50
+                         text-amber-700 text-sm font-semibold rounded-xl px-4 py-2.5 min-h-11
+                         shadow-sm transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              بدء سنة هجرية جديدة
+            </button>
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-1.5 bg-sky-500 hover:bg-sky-600 active:bg-sky-700
+                         text-white text-sm font-semibold rounded-xl px-4 py-2.5 min-h-11
+                         shadow-sm shadow-sky-500/20 transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              إضافة مؤسسة
+            </button>
+          </div>
         </div>
 
         {/* Search */}
@@ -393,6 +498,19 @@ export default function OrganizationsPage() {
         {isError && (
           <div role="alert" className="mb-5 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
             تعذّر تحميل المؤسسات، حاول تحديث الصفحة.
+          </div>
+        )}
+
+        {loginNotice && (
+          <div role="status"
+            className="mb-5 flex items-center justify-between gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+            <p className="text-sm text-amber-800">{loginNotice}</p>
+            <button onClick={() => setLoginNotice(null)} aria-label="إغلاق التنبيه"
+              className="shrink-0 text-amber-500 hover:text-amber-700 transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         )}
 
@@ -435,13 +553,21 @@ export default function OrganizationsPage() {
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-500">
                     {org.number && <span className="font-mono">{org.number}</span>}
                     {org.expiredDate && <span>{formatDate(org.expiredDate)}</span>}
-                    {org.cardTotal > 0 && (
-                      <span className="text-sky-600 font-medium">
-                        كروت: {org.cardTotal % 1 === 0 ? org.cardTotal : org.cardTotal.toFixed(2).replace(/\.?0+$/, '')}
-                      </span>
-                    )}
+                    <span className="text-amber-600 font-medium">
+                      مسحوبة: {formatYears(org.cardsWithdrawn)}
+                    </span>
+                    <span className={org.cardsRemaining <= 0 ? 'text-red-600 font-medium' : 'text-emerald-600 font-medium'}>
+                      متبقية: {formatYears(org.cardsRemaining)}
+                    </span>
                   </div>
                 </div>
+                {enabledPlatforms.length > 0 && (
+                  <div className="px-4 pb-3 space-y-2">
+                    {enabledPlatforms.map((p) => (
+                      <div key={p.key}>{renderLoginButton(org, p, true)}</div>
+                    ))}
+                  </div>
+                )}
                 <div className="flex border-t border-gray-100">
                   {deleteConfirmId === org.id ? (
                     <div className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4">
@@ -457,6 +583,16 @@ export default function OrganizationsPage() {
                     </div>
                   ) : (
                     <>
+                      <button onClick={() => setCardsModal({ orgId: org.id, orgName: org.name ?? '—' })}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium
+                                   text-emerald-600 hover:bg-emerald-50 transition-colors">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round"
+                            d="M3 10h18M7 15h2m4 0h4M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        الكروت
+                      </button>
+                      <div className="w-px bg-gray-100" />
                       <button onClick={() => openEdit(org)}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium
                                    text-sky-600 hover:bg-sky-50 transition-colors">
@@ -492,19 +628,25 @@ export default function OrganizationsPage() {
                 <tr className="border-b border-sky-100 bg-sky-50 text-right">
                   <th className="px-4 py-3 text-xs font-semibold text-sky-700">اسم المؤسسة</th>
                   <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center w-20">الأفراد</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center">كروت العمل</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center">الكروت المسحوبة</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center">الكروت المتبقية</th>
                   <th className="px-4 py-3 text-xs font-semibold text-sky-700">رقم السجل</th>
                   <th className="px-4 py-3 text-xs font-semibold text-sky-700">انتهاء السجل</th>
-                  <th className="px-4 py-3 w-28" />
+                  {enabledPlatforms.map((p) => (
+                    <th key={p.key} className="px-4 py-3 text-xs font-semibold text-sky-700 text-center">
+                      تسجيل الدخول لـ{PLATFORM_LABELS[p.key]}
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 w-32" />
                 </tr>
               </thead>
               <tbody>
                 {isLoading
                   ? Array.from({ length: 5 }).map((_, i) => (
                       <tr key={i} className="border-b border-gray-100">
-                        {Array.from({ length: 5 }).map((__, j) => (
+                        {Array.from({ length: 6 }).map((__, j) => (
                           <td key={j} className="px-4 py-3.5">
-                            <div className="h-4 bg-gray-100 rounded animate-pulse" style={{ width: `${55 + j * 15}%` }} />
+                            <div className="h-4 bg-gray-100 rounded animate-pulse" style={{ width: `${55 + j * 10}%` }} />
                           </td>
                         ))}
                         <td />
@@ -513,7 +655,7 @@ export default function OrganizationsPage() {
                   : filteredOrgs.length === 0
                   ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-16 text-center">
+                      <td colSpan={7 + enabledPlatforms.length} className="px-4 py-16 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
                             <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -542,10 +684,17 @@ export default function OrganizationsPage() {
                           {org._count.clients}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-center">
+                      {/* خليتا الكروت محايدتان: النقر لا يفتح نافذة العملاء — سجل الكروت من أيقونته فقط */}
+                      <td className="px-4 py-3.5 text-center cursor-default" onClick={(e) => e.stopPropagation()}>
                         <span className="inline-flex items-center justify-center h-7 rounded-full
-                                         bg-sky-100 text-xs font-semibold text-sky-700 px-2.5">
-                          {org.cardTotal % 1 === 0 ? org.cardTotal : org.cardTotal.toFixed(2).replace(/\.?0+$/, '')}
+                                         bg-amber-100 text-xs font-semibold text-amber-700 px-2.5">
+                          {formatYears(org.cardsWithdrawn)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center cursor-default" onClick={(e) => e.stopPropagation()}>
+                        <span className={`inline-flex items-center justify-center h-7 rounded-full px-2.5 text-xs font-semibold
+                          ${org.cardsRemaining <= 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {formatYears(org.cardsRemaining)}
                         </span>
                       </td>
                       <td className="px-4 py-3.5 font-mono text-xs text-gray-500 tracking-wide">
@@ -554,6 +703,12 @@ export default function OrganizationsPage() {
                       <td className="px-4 py-3.5 text-gray-600 text-sm whitespace-nowrap">
                         {formatDate(org.expiredDate)}
                       </td>
+                      {enabledPlatforms.map((p) => (
+                        <td key={p.key} className="px-4 py-3.5 text-center cursor-default whitespace-nowrap"
+                          onClick={(e) => e.stopPropagation()}>
+                          {renderLoginButton(org, p)}
+                        </td>
+                      ))}
                       <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                         {deleteConfirmId === org.id ? (
                           <div className="flex items-center gap-2 justify-end">
@@ -571,6 +726,15 @@ export default function OrganizationsPage() {
                           </div>
                         ) : (
                           <div className="flex items-center gap-1 justify-end">
+                            <button onClick={(e) => { e.stopPropagation(); setCardsModal({ orgId: org.id, orgName: org.name ?? '—' }) }}
+                              aria-label="سجل الكروت"
+                              className="rounded-lg p-1.5 text-gray-400 hover:text-emerald-600
+                                         hover:bg-emerald-50 transition-colors">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round"
+                                  d="M3 10h18M7 15h2m4 0h4M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                            </button>
                             <button onClick={(e) => { e.stopPropagation(); openEdit(org) }} aria-label="تعديل"
                               className="rounded-lg p-1.5 text-gray-400 hover:text-sky-600
                                          hover:bg-sky-50 transition-colors">
@@ -605,6 +769,112 @@ export default function OrganizationsPage() {
           orgName={clientsModal.orgName}
           onClose={() => setClientsModal(null)}
         />
+      )}
+
+      {/* Org Card Issuances Modal */}
+      {cardsModal && (
+        <OrgCardIssuancesModal
+          orgId={cardsModal.orgId}
+          orgName={cardsModal.orgName}
+          onClose={() => setCardsModal(null)}
+        />
+      )}
+
+      {/* Platform Login Confirm Modal */}
+      {confirmLogin && (() => {
+        const { org, platform } = confirmLogin
+        const pending = loginPendingKey === `${org.id}-${platform.key}`
+        const username = credSummaries.find(
+          (s) => s.organizationId === org.id && s.platform === platform.key,
+        )?.username
+        return (
+          <Modal title="تأكيد تسجيل الدخول" size="sm" onClose={() => { if (!pending) setConfirmLogin(null) }}>
+            <div className="space-y-4">
+              {/* أيقونة + وصف */}
+              <div className="flex items-center gap-3">
+                <div className="shrink-0 w-9 h-9 rounded-xl bg-sky-500 flex items-center justify-center
+                                shadow-sm shadow-sky-500/30">
+                  <svg className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  سيتم فتح صفحة دخول منصة{' '}
+                  <span className="font-bold text-gray-900">{PLATFORM_LABELS[platform.key]}</span>
+                  {' '}وتعبئة بيانات الدخول تلقائيًا
+                </p>
+              </div>
+
+              {/* تفاصيل العملية */}
+              <dl className="rounded-xl border border-gray-200/80 bg-gray-50/70 divide-y divide-gray-100 shadow-xs">
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <dt className="text-xs font-semibold text-gray-500">المنصة</dt>
+                  <dd className="text-sm font-bold text-sky-700">{PLATFORM_LABELS[platform.key]}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <dt className="text-xs font-semibold text-gray-500">المؤسسة</dt>
+                  <dd className="text-sm font-bold text-gray-900 truncate">{org.name ?? '—'}</dd>
+                </div>
+                {username && (
+                  <div className="flex items-center justify-between gap-3 px-4 py-3">
+                    <dt className="text-xs font-semibold text-gray-500">اسم المستخدم</dt>
+                    <dd className="text-sm font-semibold text-gray-700 font-mono tracking-wide truncate" dir="ltr">
+                      {username}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setConfirmLogin(null)} disabled={pending}
+                  className="flex-1 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-60
+                             text-gray-700 text-sm font-medium py-2.5 min-h-11 transition-colors">
+                  إلغاء
+                </button>
+                <button type="button" onClick={() => handlePlatformLogin(org, platform)} disabled={pending}
+                  className="flex-1 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
+                             text-white text-sm font-semibold py-2.5 min-h-11 transition-colors
+                             shadow-sm shadow-sky-500/20">
+                  {pending ? 'جارٍ الفتح...' : 'تأكيد'}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )
+      })()}
+
+      {/* Grant New Cards Confirm Modal */}
+      {showNewYear && (
+        <Modal title="بدء سنة هجرية جديدة" onClose={() => setShowNewYear(false)}>
+          <div className="space-y-4">
+            <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+              <p className="text-sm text-amber-800 leading-relaxed">
+                سنة هجرية جديدة وستُمنح كل المؤسسات رصيد <span className="font-bold">4 كروت</span> جديدة فورًا.
+              </p>
+            </div>
+
+            {grantCards.isError && (
+              <p className="text-sm text-red-600">
+                {grantCards.error instanceof Error ? grantCards.error.message : 'حدث خطأ غير متوقع'}
+              </p>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button type="button" onClick={() => setShowNewYear(false)}
+                className="flex-1 rounded-xl border border-gray-200 bg-white hover:bg-gray-50
+                           text-gray-700 text-sm font-medium py-3 min-h-11 transition-colors">
+                إلغاء
+              </button>
+              <button type="button" onClick={() => grantCards.mutate()} disabled={grantCards.isPending}
+                className="flex-1 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60
+                           text-white text-sm font-semibold py-3 min-h-11 transition-colors">
+                {grantCards.isPending ? 'جارٍ المنح...' : 'تأكيد'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Add / Edit Modal */}

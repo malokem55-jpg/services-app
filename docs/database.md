@@ -13,7 +13,7 @@ System users for login. No roles.
 The central table. Holds client, iqama, passport, and visa data.
 - id, name, phone, passport, board_number, visa_number
 - iqama_number, iqama_end_date
-- card_type, card_value, notes, payment_type, next_payment_date, amount
+- card_type, notes, payment_type, next_payment_date, amount
 - service_id   -> services.id    (a client belongs to one service)
 - organization_id -> organizations.id (a client may have one organization)
 - last_step_id, created_at, updated_at
@@ -50,6 +50,20 @@ Monthly payment records for clients.
 ### organizations
 Sponsoring organizations linked to clients.
 - id, name, number, expired_date, type, capacity, owner, phone
+- created_at, updated_at
+
+### login_platforms
+External login platforms (muqeem / chamber). Login URL is user-editable;
+disabling a platform hides its login column on the organizations page.
+- id, key (unique), enabled, login_url
+
+### organization_credentials
+Per-organization credentials for an external platform. Password is stored
+encrypted (AES-256-GCM, key in CREDENTIALS_ENCRYPTION_KEY env var) because
+the feature requires retrieving it for autofill via the Chrome extension.
+- id, platform, username, password_enc
+- organization_id -> organizations.id (cascade on delete)
+- unique (organization_id, platform)
 - created_at, updated_at
 
 ## Relationships Summary

@@ -116,14 +116,14 @@ async function main() {
       await target.query(
         `INSERT IGNORE INTO clients
            (id, name, phone, passport, board_number, visa_number,
-            iqama_number, iqama_end_date, card_type, card_value,
+            iqama_number, iqama_end_date, card_type,
             notes, payment_type, next_payment_date, amount,
             service_id, organization_id, last_step_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           r.id, r.name, r.phone, r.passport,
           r.board_number, r.visa_number, r.iqama_number, r.iqama_end_date,
-          r.card_type, r.card_value, r.notes, r.payment_type,
+          r.card_type, r.notes, r.payment_type,
           r.next_payment_date, r.amount,
           r.service_id, r.organization_id, r.last_step_id,
           r.created_at, r.updated_at,

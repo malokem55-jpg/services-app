@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
 import {
   type ClientFormData,
-  type ServiceOption,
   type OrgOption,
+  type ArrivalPlaceOption,
   buildClientPayload,
   iqamaStatus,
 } from '../lib/clientForm'
@@ -14,7 +14,8 @@ import { formatBothDates } from '../lib/hijri'
 import { clientSchema, clientStepSchema, clientPaymentSchema, getErrors } from '../lib/schemas'
 import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
-import ClientFormFields from '../components/ClientFormFields'
+import ClientEditFormFields from '../components/ClientEditFormFields'
+import ClientCardIssuancesModal from '../components/ClientCardIssuancesModal'
 import HijriDateInput from '../components/HijriDateInput'
 import MonthlyPaymentsPanel from '../components/MonthlyPaymentsPanel'
 
@@ -35,6 +36,14 @@ interface ClientPayment {
   createdAt: string | null
 }
 
+interface ClientPaymentMonthly {
+  id: number
+  receivedDate: string | null
+  status: string | null
+  amount: number | null
+  carriedOverAmount: number | null
+}
+
 interface ServiceStep {
   id: number
   name: string | null
@@ -51,7 +60,6 @@ interface ClientDetail {
   iqamaNumber: string | null
   iqamaEndDate: string | null
   cardType: string | null
-  cardValue: number | null
   notes: string | null
   paymentType: string | null
   nextPaymentDate: string | null
@@ -59,10 +67,13 @@ interface ClientDetail {
   serviceId: number | null
   organizationId: number | null
   lastStepId: number | null
+  arrivalPlaceId: number | null
   service: { id: number; name: string | null } | null
   organization: { id: number; name: string | null } | null
+  arrivalPlace: { id: number; name: string } | null
   steps: ClientStep[]
   payments: ClientPayment[]
+  paymentMonthlies: ClientPaymentMonthly[]
 }
 
 function clientToForm(c: ClientDetail): ClientFormData {
@@ -82,6 +93,7 @@ function clientToForm(c: ClientDetail): ClientFormData {
     receivedAmount: '',
     notes: c.notes ?? '',
     nextPaymentDate: c.nextPaymentDate ?? '',
+    arrivalPlaceId: c.arrivalPlaceId != null ? String(c.arrivalPlaceId) : '',
   }
 }
 
@@ -160,6 +172,16 @@ export default function ClientDetailPage() {
   const qc = useQueryClient()
   const clientId = Number(id)
 
+  // الصفحة المصدر تمررها الصفحات في state عند فتح التفاصيل — تُستخدم للرجوع ولتمييز الشريط
+  const location = useLocation()
+  const sourcePage = (location.state as { from?: string } | null)?.from
+
+  // الرجوع للصفحة التي فُتحت منها التفاصيل، وعند الفتح المباشر (لا تاريخ تنقّل) نعود لصفحة العملاء
+  function goBack() {
+    if (window.history.state && window.history.state.idx > 0) navigate(-1)
+    else navigate(sourcePage ?? '/clients')
+  }
+
   // ── queries ──────────────────────────────────────────────────────────────
 
   const { data: client, isLoading, isError } = useQuery<ClientDetail>({
@@ -174,15 +196,17 @@ export default function ClientDetailPage() {
     enabled: !!client?.serviceId,
   })
 
-  const { data: services = [] } = useQuery<ServiceOption[]>({
-    queryKey: ['services'],
-    queryFn: () => apiFetch<ServiceOption[]>('/api/services'),
-    staleTime: 5 * 60 * 1000,
-  })
-
   const { data: organizations = [] } = useQuery<OrgOption[]>({
     queryKey: ['organizations'],
     queryFn: () => apiFetch<OrgOption[]>('/api/organizations'),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // جهة القدوم خاصية عميل تحت الإجراء فقط — لا تُجلب القائمة لعميل مكتمل
+  const { data: arrivalPlaces = [] } = useQuery<ArrivalPlaceOption[]>({
+    queryKey: ['arrival-places'],
+    queryFn: () => apiFetch<ArrivalPlaceOption[]>('/api/arrival-places'),
+    enabled: !!client && !client.iqamaNumber,
     staleTime: 5 * 60 * 1000,
   })
 
@@ -193,12 +217,13 @@ export default function ClientDetailPage() {
     name: '', phone: '', passport: '', iqamaNumber: '',
     iqamaEndDate: '', cardType: 'بدون', paymentType: '', amount: '',
     serviceId: '', organizationId: '', boardNumber: '', visaNumber: '',
-    receivedAmount: '', notes: '', nextPaymentDate: '',
+    receivedAmount: '', notes: '', nextPaymentDate: '', arrivalPlaceId: '',
   })
   const [editErrors, setEditErrors] = useState<Record<string, string>>({})
   const [showDeleteClient, setShowDeleteClient] = useState(false)
   const [showSteps, setShowSteps] = useState(false)
   const [showPayments, setShowPayments] = useState(false)
+  const [showCards, setShowCards] = useState(false)
   const [stepId, setStepId] = useState('')
   const [stepDate, setStepDate] = useState('')
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({})
@@ -222,6 +247,10 @@ export default function ClientDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client', clientId] })
       qc.invalidateQueries({ queryKey: ['clients'] })
+      // التحويل إلى شهري يحذف الدفعات ويولّد جدول دفعيات جديداً على السيرفر
+      qc.invalidateQueries({ queryKey: ['client-payment-monthlies', clientId] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['stats'] })
       setShowEdit(false)
     },
   })
@@ -231,6 +260,7 @@ export default function ClientDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clients'] })
       qc.invalidateQueries({ queryKey: ['stats'] })
+      qc.invalidateQueries({ queryKey: ['deleted-client-dues'] })
       navigate('/clients')
     },
   })
@@ -291,6 +321,17 @@ export default function ClientDetailPage() {
   function handleEdit(e: React.FormEvent) {
     e.preventDefault()
     const errs = getErrors(clientSchema(false), editForm)
+    // التحويل من شهري إلى سنوي: المبلغ المستلم وتاريخ الدفعة القادمة إلزاميان
+    if (client?.paymentType === 'شهري' && editForm.paymentType === 'سنوي') {
+      if (!editForm.receivedAmount) {
+        errs.receivedAmount = 'المبلغ المستلم مطلوب'
+      } else if (Number(editForm.receivedAmount) > Number(editForm.amount)) {
+        errs.receivedAmount = 'المبلغ المستلم لا يتجاوز المبلغ الإجمالي'
+      }
+      if (!editForm.nextPaymentDate) {
+        errs.nextPaymentDate = 'تاريخ الدفعة القادمة مطلوب'
+      }
+    }
     setEditErrors(errs)
     if (Object.keys(errs).length > 0) return
     updateClient.mutate(buildClientPayload(editForm))
@@ -360,9 +401,9 @@ export default function ClientDetailPage() {
             </svg>
           </div>
           <p className="text-gray-600 font-medium">تعذّر تحميل بيانات العميل</p>
-          <button onClick={() => navigate('/clients')}
+          <button onClick={goBack}
             className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
-            العودة للعملاء
+            العودة
           </button>
         </div>
       </div>
@@ -373,11 +414,26 @@ export default function ClientDetailPage() {
 
   const isUnderProcedure = !client.iqamaNumber
   const isMonthly = client.paymentType === 'شهري'
+  // للعميل الشهري: الدفعة القادمة هي أقرب دفعية مستحقة من جدول الأقساط
+  const nextMonthlyDue = (client.paymentMonthlies ?? [])
+    .filter((m) => m.status !== 'paid' && m.receivedDate)
+    .map((m) => (m.receivedDate as string).slice(0, 10))
+    .sort()[0] ?? null
   const paidAmount = client.payments
     .filter((p) => p.isDone)
     .reduce((sum, p) => sum + (p.amount ?? 0), 0)
   const remaining = (client.amount ?? 0) - paidAmount
   const currentStep = client.steps[0]?.step?.name ?? '—'
+  // الدين المستحق لحظة الحذف — نفس حساب الخادم: المتأخر + المرحّل للشهري، والمتبقي للسنوي
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const outstandingDebt = isMonthly
+    ? (client.paymentMonthlies ?? []).reduce((sum, m) => {
+        if (m.status === 'paid' || !m.receivedDate) return sum
+        return m.receivedDate.slice(0, 10) <= todayStr
+          ? sum + (m.amount ?? 0)
+          : sum + (m.carriedOverAmount ?? 0)
+      }, 0)
+    : Math.max(remaining, 0)
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -390,7 +446,7 @@ export default function ClientDetailPage() {
         {/* ── Page header ── */}
         <div className="flex items-center gap-3 flex-wrap">
           <button
-            onClick={() => navigate('/clients')}
+            onClick={goBack}
             className="rounded-xl p-2 text-gray-400 hover:text-gray-700 hover:bg-white
                        border border-transparent hover:border-gray-200 transition-all"
             aria-label="العودة"
@@ -422,13 +478,22 @@ export default function ClientDetailPage() {
             </button>
 
             {showDeleteClient ? (
-              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-                <span className="text-xs text-red-700 font-medium whitespace-nowrap">تأكيد حذف العميل؟</span>
-                <DeleteConfirm
-                  onConfirm={() => deleteClient.mutate()}
-                  onCancel={() => setShowDeleteClient(false)}
-                  isPending={deleteClient.isPending}
-                />
+              <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-red-700 font-medium whitespace-nowrap">تأكيد حذف العميل؟</span>
+                  <DeleteConfirm
+                    onConfirm={() => deleteClient.mutate()}
+                    onCancel={() => setShowDeleteClient(false)}
+                    isPending={deleteClient.isPending}
+                  />
+                </div>
+                {outstandingDebt > 0 && (
+                  <p className="text-xs text-red-600 max-w-60">
+                    تنبيه: عليه مستحقات غير مسدّدة بمبلغ{' '}
+                    <span className="font-bold">{outstandingDebt.toLocaleString('en-US')} ر.س</span>
+                    {' '}— ستُحفظ تلقائياً في صفحة ديون المحذوفين
+                  </p>
+                )}
               </div>
             ) : (
               <button onClick={() => setShowDeleteClient(true)}
@@ -458,20 +523,22 @@ export default function ClientDetailPage() {
                 <InfoField label="رقم الجواز"        value={client.passport} />
                 <InfoField label="رقم الحدود"        value={client.boardNumber} />
                 <InfoField label="رقم التأشيرة"      value={client.visaNumber} />
+                <InfoField label="جهة القدوم"        value={client.arrivalPlace?.name} />
                 <InfoField label="الخطوة الحالية"    value={currentStep} />
                 <InfoField label="كرت العمل"         value={client.cardType} />
-                <InfoField label="تاريخ الدفعة القادمة" value={client.nextPaymentDate?.slice(0, 10)} />
+                <InfoField label="تاريخ الدفعة القادمة"
+                  value={isMonthly ? nextMonthlyDue : client.nextPaymentDate?.slice(0, 10)} />
                 <InfoField label="طريقة الدفع"       value={client.paymentType} />
                 <InfoField label="المبلغ الإجمالي"
-                  value={client.amount != null ? client.amount.toLocaleString('ar-SA') : null} />
+                  value={client.amount != null ? client.amount.toLocaleString('en-US') : null} />
                 <InfoField label="المبلغ المدفوع"
-                  value={paidAmount.toLocaleString('ar-SA')} />
+                  value={paidAmount.toLocaleString('en-US')} />
               </div>
 
               {/* المتبقي */}
               <div className="bg-sky-50 border border-sky-100 rounded-xl px-4 py-3 mb-5">
                 <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
-                <p className="text-lg font-bold text-sky-700">{remaining.toLocaleString('ar-SA')}</p>
+                <p className="text-lg font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
               </div>
 
               {/* أزرار الإجراءات */}
@@ -504,11 +571,12 @@ export default function ClientDetailPage() {
                 <InfoField label="تاريخ انتهاء الإقامة"
                   custom={<IqamaBadge dateStr={client.iqamaEndDate} />} />
                 <InfoField label="كرت العمل"   value={client.cardType} />
-                <InfoField label="تاريخ الدفعة القادمة" value={client.nextPaymentDate?.slice(0, 10)} />
+                <InfoField label="تاريخ الدفعة القادمة"
+                  value={isMonthly ? nextMonthlyDue : client.nextPaymentDate?.slice(0, 10)} />
                 <InfoField label="طريقة الدفع" value={client.paymentType} />
                 <InfoField
                   label={isMonthly ? 'القسط الشهري' : 'المبلغ الإجمالي'}
-                  value={client.amount != null ? client.amount.toLocaleString('ar-SA') : null}
+                  value={client.amount != null ? client.amount.toLocaleString('en-US') : null}
                 />
               </div>
 
@@ -518,14 +586,13 @@ export default function ClientDetailPage() {
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">تاريخ الدفعة القادمة</p>
                     <p className="text-sm font-semibold text-gray-900">
-                      {client.payments.map((p) => p.nextPaymentDate).filter(Boolean).at(-1)?.slice(0, 10) ?? '—'}
+                      {nextMonthlyDue ?? '—'}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">يوم الاستلام في الشهر</p>
                     <p className="text-sm font-semibold text-gray-900">
-                      {client.boardNumber ||
-                        (client.payments.map((p) => p.nextPaymentDate).filter(Boolean).at(-1)?.slice(8, 10) ?? '—')}
+                      {client.boardNumber || '—'}
                     </p>
                   </div>
                 </div>
@@ -533,42 +600,45 @@ export default function ClientDetailPage() {
                 <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 mb-5">
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">المبلغ المدفوع</p>
-                    <p className="text-base font-bold text-emerald-600">{paidAmount.toLocaleString('ar-SA')}</p>
+                    <p className="text-base font-bold text-emerald-600">{paidAmount.toLocaleString('en-US')}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
-                    <p className="text-base font-bold text-sky-700">{remaining.toLocaleString('ar-SA')}</p>
+                    <p className="text-base font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
                   </div>
                 </div>
               )}
 
-              {/* أزرار الخطوات والدفعيات */}
+              {/* زر الدفعيات — الخطوات تخص مرحلة تحت الإجراء فقط */}
               <div className="flex flex-wrap gap-2.5 mt-1">
-                <button
-                  onClick={() => setShowSteps(true)}
-                  className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
-                  الخطوات
-                </button>
                 <button
                   onClick={() => setShowPayments(true)}
                   className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
                   {isMonthly ? 'الدفعيات' : 'عرض الدفعيات'}
                 </button>
+                <button
+                  onClick={() => setShowCards(true)}
+                  className="rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
+                  كرت العمل
+                </button>
               </div>
             </>
           )}
 
-          {/* ملاحظات */}
-          {client.notes && (
-            <div className="mt-5 pt-5 border-t border-gray-100">
-              <p className="text-xs font-medium text-gray-400 mb-1.5">ملاحظات</p>
-              <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{client.notes}</p>
-            </div>
-          )}
         </SectionCard>
 
 
       </main>
+
+      {/* ── نافذة كرت العمل ── */}
+      {showCards && (
+        <ClientCardIssuancesModal
+          clientId={client.id}
+          organizationId={client.organization?.id ?? null}
+          organizationName={client.organization?.name ?? null}
+          onClose={() => setShowCards(false)}
+        />
+      )}
 
       {/* ── نافذة خطوات الخدمة ── */}
       {showSteps && (
@@ -661,7 +731,8 @@ export default function ClientDetailPage() {
 
       {/* ── نافذة الدفعات ── */}
       {showPayments && (
-        <Modal title={isMonthly ? 'الدفعيات الشهرية' : 'الدفعات'} size="lg" onClose={() => setShowPayments(false)}>
+        <Modal title={isMonthly ? 'الدفعيات الشهرية' : 'الدفعات'} size={isMonthly ? 'xl' : 'lg'}
+          onClose={() => setShowPayments(false)}>
           {isMonthly && (
             <MonthlyPaymentsPanel clientId={clientId} monthlyAmount={client.amount} />
           )}
@@ -669,7 +740,7 @@ export default function ClientDetailPage() {
             <form onSubmit={handleAddPayment}
               className="mb-5 p-4 bg-gray-50 rounded-xl border border-gray-200">
               <p className="text-xs font-semibold text-gray-600 mb-3">
-                تسجيل دفعة (المتبقي: {remaining.toLocaleString('ar-SA')} ر.س)
+                تسجيل دفعة (المتبقي: {remaining.toLocaleString('en-US')} ر.س)
               </p>
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
@@ -729,7 +800,7 @@ export default function ClientDetailPage() {
                   client.payments.map((p) => (
                     <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-3 font-semibold text-gray-900">
-                        {p.amount != null ? `${p.amount.toLocaleString('ar-SA')} ر.س` : '—'}
+                        {p.amount != null ? `${p.amount.toLocaleString('en-US')} ر.س` : '—'}
                       </td>
                       <td className="px-4 py-3 text-gray-500">
                         {p.createdAt ? p.createdAt.slice(0, 10) : '—'}
@@ -816,12 +887,39 @@ export default function ClientDetailPage() {
       {showEdit && (
         <Modal title="تعديل بيانات العميل" size="lg" onClose={() => { setShowEdit(false); setEditErrors({}) }}>
           <form onSubmit={handleEdit} className="space-y-4">
-            <ClientFormFields
+            <ClientEditFormFields
               form={editForm}
-              onChange={(field, value) => setEditForm((prev) => ({ ...prev, [field]: value }))}
-              services={services}
+              onChange={(field, value) => setEditForm((prev) => {
+                if (field === 'paymentType') {
+                  // الرجوع لطريقة الدفع الأصلية يستعيد القيم الأصلية (تراجع عن التحويل)
+                  if (value === (client.paymentType ?? '')) {
+                    return {
+                      ...prev,
+                      paymentType: value,
+                      amount: client.amount != null ? String(client.amount) : '',
+                      boardNumber: client.boardNumber ?? '',
+                      nextPaymentDate: client.nextPaymentDate ?? '',
+                      receivedAmount: '',
+                    }
+                  }
+                  // التحويل إلى شهري يتطلب إدخال قسط شهري جديد بدل المبلغ السنوي القديم
+                  if (value === 'شهري') {
+                    return { ...prev, paymentType: value, amount: '' }
+                  }
+                  // التحويل إلى سنوي يتطلب إدخال المبلغ الإجمالي والمستلم وتاريخ الدفعة القادمة
+                  if (value === 'سنوي') {
+                    return { ...prev, paymentType: value, amount: '', receivedAmount: '', nextPaymentDate: '' }
+                  }
+                }
+                return { ...prev, [field]: value }
+              })}
               organizations={organizations}
               errors={editErrors}
+              underProcedure={isUnderProcedure}
+              convertingToMonthly={client.paymentType !== 'شهري' && editForm.paymentType === 'شهري'}
+              convertingToYearly={client.paymentType === 'شهري' && editForm.paymentType === 'سنوي'}
+              paidAmount={paidAmount}
+              arrivalPlaces={arrivalPlaces}
             />
             {updateClient.isError && (
               <p className="text-sm text-red-600">

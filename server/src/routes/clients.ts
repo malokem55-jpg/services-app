@@ -26,14 +26,16 @@ const clientBodySchema = z.object({
   iqamaNumber: z.string().optional(),
   iqamaEndDate: z.string().date('iqamaEndDate must be YYYY-MM-DD').optional(),
   cardType: z.string().optional(),
-  cardValue: z.number().nonnegative().optional(),
   notes: z.string().optional(),
   paymentType: z.string().optional(),
   nextPaymentDate: z.string().date('nextPaymentDate must be YYYY-MM-DD').optional(),
   amount: z.number().nonnegative().optional(),
+  receivedAmount: z.number().nonnegative().optional(),
   serviceId: z.number().int().positive().optional(),
   organizationId: z.number().int().positive().optional(),
   lastStepId: z.number().int().positive().optional(),
+  // جهة القدوم اختيارية — null تمسحها عند التعديل
+  arrivalPlaceId: z.number().int().positive().nullable().optional(),
 });
 
 // ─── GET /api/clients ────────────────────────────────────────────────────────

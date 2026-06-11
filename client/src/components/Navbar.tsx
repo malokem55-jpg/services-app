@@ -6,15 +6,19 @@ import Logo from './Logo'
 import NotificationBell from './NotificationBell'
 import { useNotifications } from '../hooks/useNotifications'
 import type { MonthlyPaymentAlert, CustomPaymentAlert, IqamaAlert } from '../hooks/useNotifications'
+import { useUiSettings } from '../hooks/useUiSettings'
 
 interface Me { name: string | null; username: string | null }
 
 const NAV_LINKS = [
   { to: '/', label: 'الرئيسية', end: true },
-  { to: '/clients', label: 'العملاء', end: false },
+  // مطابقة تامة حتى لا يُميَّز "العملاء" تلقائياً في /clients/:id — التمييز هناك يتبع الصفحة المصدر
+  { to: '/clients', label: 'العملاء', end: true },
+  { to: '/under-procedure-clients', label: 'تحت الإجراء', end: false },
   { to: '/organizations', label: 'المؤسسات', end: false },
-  { to: '/services', label: 'الخدمات', end: false },
-  { to: '/notification-settings', label: 'ضبط الإشعارات', end: false },
+  { to: '/services', label: 'الخطوات', end: false },
+  { to: '/deleted-client-dues', label: 'ديون المحذوفين', end: false },
+  { to: '/iqama-alerts-clients', label: 'تنبيهات الإقامات', end: false },
 ]
 
 function fmtDate(s: string | null | undefined): string {
@@ -34,6 +38,9 @@ function MonthlyItem({ item }: { item: MonthlyPaymentAlert }) {
         <p className="mt-0.5">
           بتاريخ ({fmtDate(item.receivedDate)})
           {' '}<span className="font-semibold text-violet-600">المبلغ: {item.amount ?? '—'}</span>
+          {item.carriedOverAmount != null && item.carriedOverAmount > 0 && (
+            <> (منها {item.carriedOverAmount} مرحّلة من دفعية بتاريخ {item.carriedFromMonth ?? '—'})</>
+          )}
         </p>
       </div>
     </div>
@@ -97,6 +104,32 @@ export default function Navbar() {
   })
 
   const { data: notifs } = useNotifications()
+  const { data: uiSettings } = useUiSettings()
+
+  // في صفحة تفاصيل عميل يُميَّز رابط الصفحة المصدر (تمررها الصفحات في state عند الفتح)،
+  // وعند الفتح المباشر دون مصدر يُميَّز "العملاء" افتراضياً
+  const onClientDetail = /^\/clients\/.+/.test(location.pathname)
+  const detailSource = onClientDetail
+    ? ((location.state as { from?: string } | null)?.from ?? '/clients')
+    : null
+
+  // الروابط المرئية حسب الإعدادات — تبقى ظاهرة أثناء التحميل (undefined !== false)
+  // صفحة تنبيهات الإقامات افتراضياً مخفية فتُشترط القيمة الصريحة true
+  const iqamaPageVisible = uiSettings?.showIqamaAlertsPage === true
+  const visibleLinks = NAV_LINKS.filter(({ to }) => {
+    if (to === '/under-procedure-clients') return uiSettings?.showUnderProcedurePage !== false
+    if (to === '/deleted-client-dues') return uiSettings?.showDeletedDuesPage !== false
+    if (to === '/iqama-alerts-clients') return iqamaPageVisible
+    return true
+  })
+
+  // عدد ديون العملاء المحذوفين المعلّقة — شارة على رابط الصفحة ليبقى الدين ظاهراً
+  const { data: deletedDues } = useQuery<{ status: string | null }[]>({
+    queryKey: ['deleted-client-dues'],
+    queryFn: () => apiFetch<{ status: string | null }[]>('/api/deleted-client-dues'),
+    staleTime: 60 * 1000,
+  })
+  const pendingDuesCount = deletedDues?.filter(d => d.status === 'pending').length ?? 0
 
   const initials = me?.name
     ? me.name.trim().split(' ').map((w: string) => w[0]).slice(0, 2).join('')
@@ -125,20 +158,26 @@ export default function Navbar() {
 
             {/* ── Desktop nav links ── */}
             <nav className="hidden md:flex items-center gap-1 flex-1 justify-center" aria-label="التنقل الرئيسي">
-              {NAV_LINKS.map(({ to, label, end }) => (
+              {visibleLinks.map(({ to, label, end }) => (
                 <NavLink
                   key={to}
                   to={to}
                   end={end}
                   className={({ isActive }) =>
                     `text-sm px-4 py-1.5 rounded-lg font-medium transition-all duration-150 ${
-                      isActive
+                      isActive || to === detailSource
                         ? 'bg-white text-sky-700 shadow-sm'
                         : 'text-sky-100 hover:text-white hover:bg-sky-600'
                     }`
                   }
                 >
                   {label}
+                  {to === '/deleted-client-dues' && pendingDuesCount > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-4.5 h-4.5 px-1 ms-1.5
+                                     rounded-full bg-red-500 text-white text-[10px] font-bold align-middle">
+                      {pendingDuesCount}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </nav>
@@ -159,62 +198,87 @@ export default function Navbar() {
                 {initials}
               </button>
 
+              {/* Settings — desktop */}
+              <button
+                onClick={() => navigate('/settings')}
+                aria-label="الإعدادات"
+                className={`hidden sm:flex w-9 h-9 rounded-full items-center justify-center ms-2
+                            transition-all duration-150
+                            ${location.pathname === '/settings'
+                              ? 'bg-white text-sky-700'
+                              : 'text-sky-100 hover:text-white hover:bg-sky-600'}`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+
               {/* Divider — desktop */}
               <span className="hidden sm:block h-5 w-px bg-sky-500/50 mx-3" />
 
               {/* Notification bells */}
               <div className="flex items-center gap-1">
-                <NotificationBell
-                  count={notifs?.customPayments.length ?? 0}
-                  badgeColor="bg-red-500"
-                  title="تنبيهات الدفعيات المخصصة"
-                  ringDelay="0s"
-                  mobileOpen={openBell === 'custom'}
-                  onMobileToggle={() => toggleBell('custom')}
-                >
-                  {notifs?.customPayments.map(item => (
-                    <CustomPaymentItem key={item.id} item={item} />
-                  ))}
-                </NotificationBell>
+                {uiSettings?.showBellCustomPayments !== false && (
+                  <NotificationBell
+                    count={notifs?.customPayments.length ?? 0}
+                    badgeColor="bg-red-500"
+                    title="تنبيهات الدفعيات المخصصة"
+                    ringDelay="0s"
+                    mobileOpen={openBell === 'custom'}
+                    onMobileToggle={() => toggleBell('custom')}
+                  >
+                    {notifs?.customPayments.map(item => (
+                      <CustomPaymentItem key={item.id} item={item} />
+                    ))}
+                  </NotificationBell>
+                )}
 
-                <NotificationBell
-                  count={notifs?.monthlyPayments.length ?? 0}
-                  badgeColor="bg-violet-500"
-                  title="تنبيهات الدفعيات الشهرية"
-                  ringDelay="0.25s"
-                  mobileOpen={openBell === 'monthly'}
-                  onMobileToggle={() => toggleBell('monthly')}
-                >
-                  {notifs?.monthlyPayments.map(item => (
-                    <MonthlyItem key={item.id} item={item} />
-                  ))}
-                </NotificationBell>
+                {uiSettings?.showBellMonthlyPayments !== false && (
+                  <NotificationBell
+                    count={notifs?.monthlyPayments.length ?? 0}
+                    badgeColor="bg-violet-500"
+                    title="تنبيهات الدفعيات الشهرية"
+                    ringDelay="0.25s"
+                    mobileOpen={openBell === 'monthly'}
+                    onMobileToggle={() => toggleBell('monthly')}
+                  >
+                    {notifs?.monthlyPayments.map(item => (
+                      <MonthlyItem key={item.id} item={item} />
+                    ))}
+                  </NotificationBell>
+                )}
 
-                <NotificationBell
-                  count={notifs?.iqamaExpirySoon.length ?? 0}
-                  badgeColor="bg-amber-500"
-                  title="تنبيهات الاقامات قبل 30 يوم"
-                  ringDelay="0.5s"
-                  mobileOpen={openBell === 'iqama-soon'}
-                  onMobileToggle={() => toggleBell('iqama-soon')}
-                >
-                  {notifs?.iqamaExpirySoon.map(item => (
-                    <IqamaItem key={item.id} item={item} accentColor="bg-amber-500" />
-                  ))}
-                </NotificationBell>
+                {!iqamaPageVisible && uiSettings?.showBellIqamaSoon !== false && (
+                  <NotificationBell
+                    count={notifs?.iqamaExpirySoon.length ?? 0}
+                    badgeColor="bg-amber-500"
+                    title="تنبيهات الاقامات قبل 30 يوم"
+                    ringDelay="0.5s"
+                    mobileOpen={openBell === 'iqama-soon'}
+                    onMobileToggle={() => toggleBell('iqama-soon')}
+                  >
+                    {notifs?.iqamaExpirySoon.map(item => (
+                      <IqamaItem key={item.id} item={item} accentColor="bg-amber-500" />
+                    ))}
+                  </NotificationBell>
+                )}
 
-                <NotificationBell
-                  count={notifs?.iqamaExpired.length ?? 0}
-                  badgeColor="bg-red-500"
-                  title="تنبيهات الاقامات"
-                  ringDelay="0.75s"
-                  mobileOpen={openBell === 'iqama-expired'}
-                  onMobileToggle={() => toggleBell('iqama-expired')}
-                >
-                  {notifs?.iqamaExpired.map(item => (
-                    <IqamaItem key={item.id} item={item} accentColor="bg-red-500" />
-                  ))}
-                </NotificationBell>
+                {!iqamaPageVisible && uiSettings?.showBellIqamaExpired !== false && (
+                  <NotificationBell
+                    count={notifs?.iqamaExpired.length ?? 0}
+                    badgeColor="bg-red-500"
+                    title="تنبيهات الاقامات"
+                    ringDelay="0.75s"
+                    mobileOpen={openBell === 'iqama-expired'}
+                    onMobileToggle={() => toggleBell('iqama-expired')}
+                  >
+                    {notifs?.iqamaExpired.map(item => (
+                      <IqamaItem key={item.id} item={item} accentColor="bg-red-500" />
+                    ))}
+                  </NotificationBell>
+                )}
               </div>
 
               {/* Divider — desktop */}
@@ -280,7 +344,7 @@ export default function Navbar() {
 
             {/* Nav links */}
             <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" aria-label="التنقل الرئيسي">
-              {NAV_LINKS.map(({ to, label, end }) => (
+              {visibleLinks.map(({ to, label, end }) => (
                 <NavLink
                   key={to}
                   to={to}
@@ -288,13 +352,19 @@ export default function Navbar() {
                   onClick={() => setDrawerOpen(false)}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                      isActive
+                      isActive || to === detailSource
                         ? 'bg-sky-50 text-sky-700 border border-sky-200'
                         : 'text-gray-700 hover:bg-gray-50 hover:text-sky-700'
                     }`
                   }
                 >
                   {label}
+                  {to === '/deleted-client-dues' && pendingDuesCount > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-4.5 h-4.5 px-1
+                                     rounded-full bg-red-500 text-white text-[10px] font-bold">
+                      {pendingDuesCount}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </nav>
@@ -314,6 +384,24 @@ export default function Navbar() {
                   {initials}
                 </span>
                 <span>{me?.name ?? me?.username ?? 'الملف الشخصي'}</span>
+              </button>
+
+              <button
+                onClick={() => { setDrawerOpen(false); navigate('/settings') }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  location.pathname === '/settings'
+                    ? 'bg-sky-50 text-sky-700 border border-sky-200'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <span className="w-8 h-8 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+                  <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </span>
+                <span>الإعدادات</span>
               </button>
 
               <button

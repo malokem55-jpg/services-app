@@ -1,5 +1,7 @@
 import prisma from '../lib/prisma.js';
 import { Prisma } from '@prisma/client';
+import { TOTAL_MONTHS_PER_HIJRI_YEAR } from '../lib/card-types.js';
+import { getLastGrantAt } from './card-issuances.service.js';
 
 export type OrgCreateInput = {
   name?: string;
@@ -7,44 +9,43 @@ export type OrgCreateInput = {
   expiredDate?: string;
 };
 
-const CARD_VALUES: Record<string, number> = {
-  'بدون': 0,
-  '3 شهور': 0.25,
-  '6 شهور': 0.50,
-  '9 شهور': 0.75,
-  'سنة': 1,
-  'سنة و 3 شهور': 1.25,
-  'سنة و 6 شهور': 1.50,
-  'سنة و 9 شهور': 1.75,
-  'سنتين': 2,
-};
-
 export async function listOrganizations(search?: string) {
   const where: Prisma.OrganizationWhereInput = search
     ? { name: { contains: search } }
     : {};
 
-  const orgs = await prisma.organization.findMany({
-    where,
-    select: {
-      id: true,
-      name: true,
-      number: true,
-      expiredDate: true,
-      createdAt: true,
-      _count: { select: { clients: true } },
-      clients: { select: { cardType: true } },
-    },
-    orderBy: { name: 'asc' },
-  });
+  const since = await getLastGrantAt();
+  const [orgs, issuanceTotals] = await Promise.all([
+    prisma.organization.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        number: true,
+        expiredDate: true,
+        createdAt: true,
+        _count: { select: { clients: true } },
+      },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.cardIssuance.groupBy({
+      by: ['organizationId'],
+      where: { createdAt: { gt: since } },
+      _sum: { months: true },
+    }),
+  ]);
 
-  return orgs.map(({ clients, ...org }) => ({
-    ...org,
-    cardTotal: clients.reduce(
-      (sum, c) => sum + (CARD_VALUES[c.cardType ?? 'بدون'] ?? 0),
-      0
-    ),
-  }));
+  const usedByOrg = new Map(issuanceTotals.map((t) => [t.organizationId, t._sum.months ?? 0]));
+
+  // الرصيد بالسنوات: المسحوبة = مجموع شهور الإصدارات منذ آخر منح ÷ 12
+  return orgs.map((org) => {
+    const usedMonths = usedByOrg.get(org.id) ?? 0;
+    return {
+      ...org,
+      cardsWithdrawn: usedMonths / 12,
+      cardsRemaining: (TOTAL_MONTHS_PER_HIJRI_YEAR - usedMonths) / 12,
+    };
+  });
 }
 
 export async function getOrganization(id: number) {

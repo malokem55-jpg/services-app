@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 interface Props {
   title: string
   onClose: () => void
   children: ReactNode
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
 export default function Modal({ title, onClose, children, size = 'md' }: Props) {
@@ -17,9 +18,15 @@ export default function Modal({ title, onClose, children, size = 'md' }: Props) 
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const maxWidth = size === 'sm' ? 'sm:max-w-sm' : size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md'
+  const maxWidth =
+    size === 'sm' ? 'sm:max-w-sm'
+    : size === 'lg' ? 'sm:max-w-2xl'
+    : size === 'xl' ? 'sm:max-w-4xl'
+    : 'sm:max-w-md'
 
-  return (
+  // Portal إلى body: يعزل النافذة عن أي جدّ عليه transform (مثل page-enter)
+  // كان يحوّل تموضع fixed إلى داخل الحاوية بدل الشاشة الكاملة
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
       <div
@@ -61,6 +68,7 @@ export default function Modal({ title, onClose, children, size = 'md' }: Props) 
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

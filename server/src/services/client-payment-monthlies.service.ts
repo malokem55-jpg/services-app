@@ -89,19 +89,36 @@ function addMonths(date: Date, months: number): Date {
 
 /**
  * تسديد دفعية شهرية: يسجّل المبلغ المستلم، وإن كان أقل من مبلغ الدفعية
- * يُرحَّل الفرق ويُضاف إلى الدفعية الشهرية القادمة التي تُنشأ تلقائياً.
+ * يُرحَّل الفرق إلى الدفعية القادمة الموجودة في الجدول. إن كانت هذه آخر
+ * دفعية في الجدول تُنشأ دفعية إضافية بمبلغ الفرق فقط حتى لا يضيع الدين.
  */
 export async function payClientPaymentMonthly(id: number, data: PayClientPaymentMonthlyInput) {
+  // القراءات خارج الـ transaction لتقليل زمنها (قاعدة البيانات بعيدة وكل استعلام يكلف زمن ذهاب وإياب)
+  const record = await prisma.clientPaymentMonthly.findUnique({
+    where: { id },
+    include: { client: { select: { id: true, iqamaEndDate: true } } },
+  });
+  if (!record) return null;
+
+  // الدفعية القادمة غير المسدّدة إن كانت منشأة مسبقاً
+  const nextExisting = await prisma.clientPaymentMonthly.findFirst({
+    where: {
+      clientId: record.clientId,
+      id: { not: record.id },
+      status: { not: 'paid' },
+      ...(record.receivedDate && { receivedDate: { gt: record.receivedDate } }),
+    },
+    orderBy: { receivedDate: 'asc' },
+  });
+
+  const due = record.amount ?? 0;
+  const carryOver = due - data.receivedAmount;
+  const carriedFromDate = record.receivedDate
+    ? record.receivedDate.toISOString().slice(0, 10)
+    : record.month ?? '';
+  const carriedNote = `يشمل مبلغ مرحّل (${carryOver}) من دفعية ${carriedFromDate}`.trim();
+
   return prisma.$transaction(async (tx) => {
-    const record = await tx.clientPaymentMonthly.findUnique({
-      where: { id },
-      include: { client: { select: { id: true, amount: true, iqamaEndDate: true } } },
-    });
-    if (!record) return null;
-
-    const due = record.amount ?? 0;
-    const carryOver = due - data.receivedAmount;
-
     const paid = await tx.clientPaymentMonthly.update({
       where: { id },
       data: {
@@ -112,33 +129,44 @@ export async function payClientPaymentMonthly(id: number, data: PayClientPayment
       },
     });
 
-    // الدفعية القادمة = القسط الشهري الأساسي + الفرق المرحَّل
-    const baseAmount = record.client?.amount ?? due;
-    const nextDueDate = addMonths(record.receivedDate ?? new Date(), 1);
+    // الجدول مُنشأ مقدماً حتى انتهاء الإقامة: التسديد الكامل يعلّم الدفعية فقط،
+    // والفرق الجزئي يُضاف إلى الدفعية القادمة الموجودة دون إنشاء جديدة
+    let next = nextExisting;
 
-    const next = await tx.clientPaymentMonthly.create({
-      data: {
-        clientId: record.clientId,
-        iqamaEndDate: record.client?.iqamaEndDate ?? record.iqamaEndDate,
-        month: nextDueDate.toISOString().slice(0, 7),
-        receivedDate: nextDueDate,
-        amount: baseAmount + carryOver,
-        status: 'un-paid',
-        notes: carryOver > 0
-          ? `يشمل مبلغ مرحّل (${carryOver}) من دفعية ${record.month ?? ''}`.trim()
-          : undefined,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
-
-    if (record.clientId) {
-      await tx.client.update({
-        where: { id: record.clientId },
-        data: { nextPaymentDate: nextDueDate, updatedAt: new Date() },
-      });
+    if (carryOver > 0) {
+      if (nextExisting) {
+        next = await tx.clientPaymentMonthly.update({
+          where: { id: nextExisting.id },
+          data: {
+            amount: (nextExisting.amount ?? 0) + carryOver,
+            carriedOverAmount: (nextExisting.carriedOverAmount ?? 0) + carryOver,
+            carriedFromMonth: carriedFromDate,
+            notes: nextExisting.notes ? `${nextExisting.notes}\n${carriedNote}` : carriedNote,
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        // تسديد جزئي في آخر دفعية بالجدول: دفعية إضافية بمبلغ الفرق فقط
+        const nextDueDate = addMonths(record.receivedDate ?? new Date(), 1);
+        next = await tx.clientPaymentMonthly.create({
+          data: {
+            clientId: record.clientId,
+            iqamaEndDate: record.client?.iqamaEndDate ?? record.iqamaEndDate,
+            // مجاراة صيغة الشهر الموجودة في البيانات ("MM")
+            month: nextDueDate.toISOString().slice(5, 7),
+            receivedDate: nextDueDate,
+            amount: carryOver,
+            carriedOverAmount: carryOver,
+            carriedFromMonth: carriedFromDate,
+            status: 'un-paid',
+            notes: carriedNote,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+      }
     }
 
     return { paid, next };
-  });
+  }, { timeout: 20000, maxWait: 10000 });
 }

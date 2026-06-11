@@ -41,6 +41,8 @@ export async function getCustomPaymentAlerts() {
 
   return prisma.client.findMany({
     where: {
+      // الدفعة المخصصة خاصية سنوية فقط — العميل الشهري تنبيهاته من دفعياته الشهرية
+      paymentType: 'سنوي',
       nextPaymentDate: { not: null, gte: today, lt: in10Days },
     },
     include: {

@@ -108,15 +108,15 @@ async function migrate() {
       await target.query(
         `INSERT IGNORE INTO clients
            (id, name, phone, passport, board_number, visa_number,
-            iqama_number, iqama_end_date, card_type, card_value,
+            iqama_number, iqama_end_date, card_type,
             notes, payment_type, next_payment_date, amount,
             service_id, organization_id, last_step_id,
             created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           row.id, row.name, row.phone, row.passport,
           row.board_number, row.visa_number, row.iqama_number, row.iqama_end_date,
-          row.card_type, row.card_value, row.notes, row.payment_type,
+          row.card_type, row.notes, row.payment_type,
           row.next_payment_date, row.amount,
           row.service_id, row.organization_id, row.last_step_id,
           row.created_at, row.updated_at,

@@ -31,15 +31,44 @@ model Service {
 }
 
 model Organization {
-  id          Int       @id @default(autoincrement())
-  name        String?
-  number      String?
-  expiredDate DateTime? @map("expired_date") @db.Date
-  createdAt   DateTime? @map("created_at")
-  updatedAt   DateTime? @map("updated_at")
-  clients     Client[]
+  id               Int                        @id @default(autoincrement())
+  name             String?
+  number           String?
+  expiredDate      DateTime?                  @map("expired_date") @db.Date
+  createdAt        DateTime?                  @map("created_at")
+  updatedAt        DateTime?                  @map("updated_at")
+  clients          Client[]
+  cardIssuances    CardIssuance[]
+  loginCredentials OrganizationCredential[]
 
   @@map("organizations")
+}
+
+// منصات تسجيل الدخول الخارجية (مقيم / الغرفة التجارية):
+// رابط صفحة الدخول قابل للتعديل، والتعطيل يخفي عمود المنصة من جدول المؤسسات
+model LoginPlatform {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique // muqeem | chamber
+  enabled   Boolean  @default(false)
+  loginUrl  String   @default("") @map("login_url") @db.VarChar(500)
+
+  @@map("login_platforms")
+}
+
+// بيانات دخول المؤسسة على منصة خارجية — كلمة المرور مشفّرة AES-256-GCM
+// (تشفير قابل للفك لأن الميزة تتطلب استرجاعها للتعبئة، وليس bcrypt)
+model OrganizationCredential {
+  id             Int          @id @default(autoincrement())
+  organizationId Int          @map("organization_id")
+  platform       String // muqeem | chamber
+  username       String
+  passwordEnc    String       @map("password_enc") @db.Text
+  createdAt      DateTime?    @map("created_at")
+  updatedAt      DateTime?    @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, platform])
+  @@map("organization_credentials")
 }
 
 model ServiceStep {
@@ -56,6 +85,17 @@ model ServiceStep {
   @@map("service_steps")
 }
 
+// جهات القدوم: قائمة تُدار من صفحة الإعدادات ويُختار منها للعميل تحت الإجراء
+model ArrivalPlace {
+  id        Int       @id @default(autoincrement())
+  name      String
+  createdAt DateTime? @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+  clients   Client[]
+
+  @@map("arrival_places")
+}
+
 model Client {
   id              Int                    @id @default(autoincrement())
   name            String?
@@ -66,7 +106,6 @@ model Client {
   iqamaNumber     String?                @map("iqama_number")
   iqamaEndDate    DateTime?              @map("iqama_end_date") @db.Date
   cardType        String?                @default("بدون") @map("card_type")
-  cardValue       Float?                 @default(0) @map("card_value")
   notes           String?
   paymentType     String?                @map("payment_type")
   nextPaymentDate DateTime?              @map("next_payment_date") @db.Date
@@ -74,13 +113,16 @@ model Client {
   serviceId       Int?                   @map("service_id")
   organizationId  Int?                   @map("organization_id")
   lastStepId      Int?                   @map("last_step_id")
+  arrivalPlaceId  Int?                   @map("arrival_place_id")
   createdAt       DateTime?              @map("created_at")
   updatedAt       DateTime?              @map("updated_at")
   service         Service?               @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   organization    Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  arrivalPlace    ArrivalPlace?          @relation(fields: [arrivalPlaceId], references: [id], onDelete: SetNull)
   steps           ClientStep[]
   payments        ClientPayment[]
   paymentMonthlies ClientPaymentMonthly[]
+  cardIssuances   CardIssuance[]
 
   @@map("clients")
 }
@@ -114,20 +156,76 @@ model ClientPayment {
 }
 
 model ClientPaymentMonthly {
-  id             Int       @id @default(autoincrement())
-  clientId       Int?      @map("client_id")
-  iqamaEndDate   DateTime? @map("iqama_end_date") @db.Date
-  month          String?
-  receivedDate   DateTime? @map("received_date") @db.Date
-  amount         Float?
-  receivedAmount Float?    @map("received_amount")
-  status         String?
-  notes          String?
+  id                Int       @id @default(autoincrement())
+  clientId          Int?      @map("client_id")
+  iqamaEndDate      DateTime? @map("iqama_end_date") @db.Date
+  month             String?
+  receivedDate      DateTime? @map("received_date") @db.Date
+  amount            Float?
+  receivedAmount    Float?    @map("received_amount")
+  carriedOverAmount Float?    @map("carried_over_amount")
+  carriedFromMonth  String?   @map("carried_from_month")
+  status            String?
+  notes             String?
   createdAt      DateTime? @map("created_at")
   updatedAt      DateTime? @map("updated_at")
   client         Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@map("client_payment_monthlies")
+}
+
+// أرشيف ديون العملاء المحذوفين: لقطة منسوخة لحظة الحذف (سجل واحد لكل عميل)
+model DeletedClientDue {
+  id               Int       @id @default(autoincrement())
+  clientName       String?   @map("client_name")
+  phone            String?
+  passport         String?
+  iqamaNumber      String?   @map("iqama_number")
+  serviceName      String?   @map("service_name")
+  organizationName String?   @map("organization_name")
+  paymentType      String?   @map("payment_type")
+  totalDue         Float?    @default(0) @map("total_due")
+  collectedAmount  Float?    @default(0) @map("collected_amount")
+  status           String?   @default("pending") // pending | collected
+  details          Json?     // عناصر الدين: دفعيات متأخرة / مبالغ مرحّلة / المتبقي السنوي
+  collections      Json?     // سجل التحصيلات الجزئية بعد الحذف
+  notes            String?   @db.Text
+  deletedAt        DateTime? @map("deleted_at")
+  createdAt        DateTime? @map("created_at")
+  updatedAt        DateTime? @map("updated_at")
+
+  @@map("deleted_client_dues")
+}
+
+// سجل إصدارات كروت العمل: كل سطر إصدار يخصم مدته من رصيد المؤسسة (48 شهرًا لكل سنة هجرية).
+// السطر يبقى بعد حذف العميل أو نقله (لا استرداد) — الرصيد لا يتغير إلا بتعديل/حذف الإصدار نفسه.
+model CardIssuance {
+  id             Int          @id @default(autoincrement())
+  clientId       Int?         @map("client_id")
+  clientName     String?      @map("client_name") // لقطة اسم العميل لتبقى القراءة ممكنة بعد حذفه
+  organizationId Int          @map("organization_id")
+  cardType       String       @map("card_type")
+  months         Int // مدة الكرت بالشهور لحظة الإصدار
+  hijriYear      Int          @map("hijri_year") // السنة الهجرية لتاريخ الإصدار (أم القرى)
+  issuedAt       DateTime     @map("issued_at") @db.Date
+  createdAt      DateTime?    @map("created_at")
+  updatedAt      DateTime?    @map("updated_at")
+  client         Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, hijriYear])
+  @@index([clientId])
+  @@map("card_issuances")
+}
+
+// علامة آخر منح كروت: زر المنح يعيد رصيد كل المؤسسات إلى 4 كروت لحظة الضغط.
+// لا منح تلقائيًا مع السنة الهجرية، ولا أثر على تواريخ الإصدارات المسجلة —
+// الرصيد = 48 شهرًا ناقص الإصدارات المسجلة بعد هذه العلامة.
+model CardGrantSetting {
+  id          Int      @id @default(autoincrement())
+  lastGrantAt DateTime @map("last_grant_at")
+
+  @@map("card_grant_settings")
 }
 
 model PushSubscription {
@@ -146,6 +244,19 @@ model NotificationSetting {
   cronMinute Int @map("cron_minute")
 
   @@map("notification_settings")
+}
+
+model UiSetting {
+  id                      Int     @id @default(autoincrement())
+  showBellCustomPayments  Boolean @default(true) @map("show_bell_custom_payments")
+  showBellMonthlyPayments Boolean @default(true) @map("show_bell_monthly_payments")
+  showBellIqamaSoon       Boolean @default(true) @map("show_bell_iqama_soon")
+  showBellIqamaExpired    Boolean @default(true) @map("show_bell_iqama_expired")
+  showUnderProcedurePage  Boolean @default(true) @map("show_under_procedure_page")
+  showDeletedDuesPage     Boolean @default(true) @map("show_deleted_dues_page")
+  showIqamaAlertsPage     Boolean @default(false) @map("show_iqama_alerts_page")
+
+  @@map("ui_settings")
 }
 
 model SentPushNotification {

@@ -116,10 +116,14 @@ export async function runPushNotificationCheck() {
     if (await alreadySent('monthly_payment', payment.id, refDate)) continue;
     // Mark before send: a missed send is better than a duplicate
     await markSent('monthly_payment', payment.id, refDate);
+    const carriedNote =
+      payment.carriedOverAmount && payment.carriedOverAmount > 0
+        ? ` (منها ${payment.carriedOverAmount} مرحّلة من دفعية بتاريخ ${payment.carriedFromMonth ?? '—'})`
+        : '';
     await sendToAll(subs, {
       type: 'monthly_payment',
       title: 'دفعة شهرية قريبة',
-      body: `${payment.client?.name ?? ''} — ${payment.month ?? ''} — ${payment.amount ?? ''} ر.س`,
+      body: `${payment.client?.name ?? ''} — ${payment.month ?? ''} — ${payment.amount ?? ''} ر.س${carriedNote}`,
     });
   }
 
@@ -157,5 +161,28 @@ export async function runPushNotificationCheck() {
       title: 'إقامة منتهية أو عاجلة',
       body: `${client.name ?? ''} — انتهت في ${new Date(client.iqamaEndDate).toLocaleDateString('ar-SA')}`,
     });
+  }
+
+  // تذكير أسبوعي مجمَّع بديون العملاء المحذوفين المعلّقة — مرة واحدة كل أسبوع
+  // (referenceDate = بداية الأسبوع "الأحد"، و referenceId = 0 لأنه إشعار مجمَّع)
+  const pendingDues = await prisma.deletedClientDue.findMany({
+    where: { status: 'pending' },
+    select: { totalDue: true, collectedAmount: true },
+  });
+  if (pendingDues.length > 0) {
+    const weekStart = toDateOnly(new Date());
+    weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
+    if (!(await alreadySent('deleted_client_dues', 0, weekStart))) {
+      await markSent('deleted_client_dues', 0, weekStart);
+      const totalRemaining = pendingDues.reduce(
+        (sum, d) => sum + (d.totalDue ?? 0) - (d.collectedAmount ?? 0),
+        0,
+      );
+      await sendToAll(subs, {
+        type: 'deleted_client_dues',
+        title: 'تذكير: ديون عملاء محذوفين',
+        body: `لديك ${pendingDues.length} ديون معلّقة لعملاء محذوفين بإجمالي متبقٍ ${totalRemaining} ر.س`,
+      });
+    }
   }
 }

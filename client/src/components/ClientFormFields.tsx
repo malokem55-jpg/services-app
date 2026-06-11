@@ -1,4 +1,4 @@
-import type { ClientFormData, ServiceOption, OrgOption, ServiceStepOption, StepFormEntry } from '../lib/clientForm'
+import type { ClientFormData, ServiceOption, OrgOption, ServiceStepOption, StepFormEntry, ArrivalPlaceOption } from '../lib/clientForm'
 import { CARD_TYPE_OPTIONS } from '../lib/clientForm'
 import HijriDateInput from './HijriDateInput'
 
@@ -11,6 +11,12 @@ interface Props {
   stepEntries?: StepFormEntry[]
   onStepChange?: (stepId: number, field: 'date' | 'done', value: string | boolean) => void
   errors?: Record<string, string>
+  /** عميل غير شهري يجري تحويله إلى شهري — يُظهر تنبيه محو السجل المالي القديم */
+  convertingToMonthly?: boolean
+  /** العملية محددة مسبقاً (مثل صفحة تحت الإجراء) — يخفي سؤال "اختر العملية" */
+  hideServicePicker?: boolean
+  /** جهات القدوم المُدارة من صفحة الإعدادات — تظهر قائمتها في فورم إصدار الإقامة فقط */
+  arrivalPlaces?: ArrivalPlaceOption[]
 }
 
 const inputCls =
@@ -31,6 +37,9 @@ function FieldError({ msg }: { msg?: string }) {
 export default function ClientFormFields({
   form, onChange, services, organizations,
   serviceSteps = [], stepEntries = [], onStepChange, errors = {},
+  convertingToMonthly = false,
+  hideServicePicker = false,
+  arrivalPlaces = [],
 }: Props) {
   const ic = (field: string) => (errors[field] ? inputErrCls : inputCls)
   const isIqama = serviceSteps.length > 0
@@ -40,22 +49,24 @@ export default function ClientFormFields({
     <div className="space-y-3.5">
 
       {/* ── اختر العملية (always first) ── */}
-      <div>
-        <label className={labelCls}>اختر العملية</label>
-        <select value={form.serviceId} onChange={(e) => onChange('serviceId', e.target.value)}
-          className={ic('serviceId')}>
-          <option value="">— اختر الخدمة —</option>
-          {services.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-        <FieldError msg={errors.serviceId} />
-      </div>
+      {!hideServicePicker && (
+        <div>
+          <label className={labelCls}>اختر العملية</label>
+          <select value={form.serviceId} onChange={(e) => onChange('serviceId', e.target.value)}
+            className={ic('serviceId')}>
+            <option value="">— اختر الخدمة —</option>
+            {services.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+          <FieldError msg={errors.serviceId} />
+        </div>
+      )}
 
       {/* ── Fields appear after service is chosen ── */}
       {hasService && (
         <>
-          <div className="h-px bg-gray-200" />
+          {!hideServicePicker && <div className="h-px bg-gray-200" />}
 
           {/* ══ نقل داخلي ══ */}
           {!isIqama && (
@@ -114,6 +125,9 @@ export default function ClientFormFields({
                     ))}
                   </select>
                   <FieldError msg={errors.cardType} />
+                  <p className="mt-1 text-[11px] text-gray-400">
+                    غير «بدون» يُخصم من رصيد كروت المؤسسة — اختر «بدون» لعميل جاء بكرته
+                  </p>
                 </div>
               </div>
 
@@ -159,6 +173,13 @@ export default function ClientFormFields({
                 </>
               ) : form.paymentType === 'شهري' ? (
                 <>
+                  {convertingToMonthly && (
+                    <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+                      <p className="text-xs font-semibold text-amber-800 leading-relaxed">
+                        أدخل القسط الشهري الجديد ويوم الاستلام من كل شهر.
+                      </p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className={labelCls}>طريقة الدفع</label>
@@ -181,13 +202,6 @@ export default function ClientFormFields({
                       <input type="number" min={1} max={31} value={form.boardNumber} onChange={(e) => onChange('boardNumber', e.target.value)}
                         placeholder="1 - 31" className={ic('boardNumber')} />
                       <FieldError msg={errors.boardNumber} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className={labelCls}>تاريخ الدفعة القادمة (المخصص)</label>
-                      <input type="date" value={form.nextPaymentDate} onChange={(e) => onChange('nextPaymentDate', e.target.value)}
-                        className={inputCls} />
                     </div>
                   </div>
                 </>
@@ -257,7 +271,24 @@ export default function ClientFormFields({
                 </div>
               </div>
 
-              {/* صف 3: كرت العمل | طريقة الدفع | المبلغ */}
+              {/* صف 3: جهة القدوم (اختيارية — من قائمة الإعدادات) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className={labelCls}>جهة القدوم</label>
+                  <select value={form.arrivalPlaceId} onChange={(e) => onChange('arrivalPlaceId', e.target.value)}
+                    className={inputCls}>
+                    <option value="">— بدون —</option>
+                    {arrivalPlaces.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  {arrivalPlaces.length === 0 && (
+                    <p className="mt-1 text-[11px] text-gray-400">تُضاف الجهات من صفحة الإعدادات</p>
+                  )}
+                </div>
+              </div>
+
+              {/* صف 4: كرت العمل | طريقة الدفع | المبلغ */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className={labelCls}>كرت العمل</label>
@@ -268,6 +299,9 @@ export default function ClientFormFields({
                     ))}
                   </select>
                   <FieldError msg={errors.cardType} />
+                  <p className="mt-1 text-[11px] text-gray-400">
+                    غير «بدون» يُخصم من رصيد كروت المؤسسة — اختر «بدون» لعميل جاء بكرته
+                  </p>
                 </div>
                 <div>
                   <label className={labelCls}>طريقة الدفع</label>

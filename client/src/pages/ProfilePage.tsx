@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
 import Navbar from '../components/Navbar'
+import TabBar from '../components/TabBar'
+import PlatformCredentialsTab from '../components/PlatformCredentialsTab'
 
 interface UserProfile {
   id: number
@@ -12,11 +14,21 @@ interface UserProfile {
 
 const inputCls =
   'w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm ' +
-  'focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 focus:bg-white transition-colors min-h-11'
+  'focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 focus:bg-white transition-colors ' +
+  'min-h-11 md:min-h-0 md:py-2 md:rounded-lg'
 const labelCls = 'block text-xs font-semibold text-gray-600 mb-1.5'
+
+type ProfileTab = 'info' | 'password' | 'platforms'
+
+const TABS: { id: ProfileTab; label: string }[] = [
+  { id: 'info', label: 'البيانات الشخصية' },
+  { id: 'password', label: 'كلمة المرور' },
+  { id: 'platforms', label: 'مقيم والغرفة التجارية' },
+]
 
 export default function ProfilePage() {
   const qc = useQueryClient()
+  const [activeTab, setActiveTab] = useState<ProfileTab>('info')
 
   const { data: user, isLoading } = useQuery<UserProfile>({
     queryKey: ['me'],
@@ -88,16 +100,16 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gray-50/80">
       <Navbar />
 
-      <main className="mx-auto max-w-2xl px-4 py-6 space-y-5 page-enter">
+      <main className="mx-auto max-w-2xl px-4 py-6 md:py-5 space-y-5 md:space-y-4 page-enter">
         <div>
           <h2 className="text-xl font-bold text-gray-900">الملف الشخصي</h2>
           <p className="text-sm text-gray-500 mt-0.5">إدارة بياناتك الشخصية</p>
         </div>
 
         {isLoading ? (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-gray-200 animate-pulse" />
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-4 space-y-4">
+            <div className="flex items-center gap-4 md:gap-3">
+              <div className="w-16 h-16 md:w-10 md:h-10 rounded-full bg-gray-200 animate-pulse" />
               <div className="space-y-2">
                 <div className="h-5 w-32 rounded bg-gray-200 animate-pulse" />
                 <div className="h-4 w-24 rounded bg-gray-100 animate-pulse" />
@@ -107,21 +119,24 @@ export default function ProfilePage() {
         ) : (
           <>
             {/* ── Avatar card ── */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5
-                            flex items-center gap-4">
-              <div className="shrink-0 w-16 h-16 rounded-2xl bg-sky-600 flex items-center justify-center
-                              text-white text-2xl font-bold select-none shadow-sm shadow-sky-600/30">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:px-4 md:py-2.5
+                            flex items-center gap-4 md:gap-3">
+              <div className="shrink-0 w-16 h-16 md:w-10 md:h-10 rounded-2xl md:rounded-lg bg-sky-600 flex items-center justify-center
+                              text-white text-2xl md:text-base font-bold select-none shadow-sm shadow-sky-600/30">
                 {initials}
               </div>
-              <div>
-                <p className="text-lg font-bold text-gray-900">{user?.name ?? '—'}</p>
-                <p className="text-sm text-gray-400 mt-0.5 font-mono">@{user?.username ?? '—'}</p>
+              <div className="min-w-0 md:flex md:items-baseline md:gap-2">
+                <p className="text-lg md:text-sm font-bold text-gray-900 truncate">{user?.name ?? '—'}</p>
+                <p className="text-sm md:text-xs text-gray-400 mt-0.5 md:mt-0 font-mono">@{user?.username ?? '—'}</p>
               </div>
             </div>
 
+            <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} ariaLabel="أقسام الملف الشخصي" />
+
             {/* ── Info card ── */}
+            {activeTab === 'info' && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center justify-between px-5 py-4 md:py-3 border-b border-gray-100 bg-gray-50/50">
                 <h3 className="text-sm font-semibold text-sky-700">البيانات الشخصية</h3>
                 {!editingInfo && (
                   <button
@@ -138,7 +153,7 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <div className="p-5">
+              <div className="p-5 md:p-4">
                 {editingInfo ? (
                   <form onSubmit={handleInfoSubmit} className="space-y-4">
                     <div>
@@ -177,7 +192,7 @@ export default function ProfilePage() {
                       { label: 'الهاتف', value: user?.phone },
                     ].map(({ label, value }) => (
                       <div key={label}
-                        className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+                        className="flex items-center justify-between py-3 md:py-2.5 border-b border-gray-50 last:border-0">
                         <dt className="text-xs font-medium text-gray-400">{label}</dt>
                         <dd className="text-sm font-semibold text-gray-800">{value ?? '—'}</dd>
                       </div>
@@ -186,14 +201,16 @@ export default function ProfilePage() {
                 )}
               </div>
             </div>
+            )}
 
             {/* ── Password card ── */}
+            {activeTab === 'password' && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="px-5 py-4 md:py-3 border-b border-gray-100 bg-gray-50/50">
                 <h3 className="text-sm font-semibold text-sky-700">تغيير كلمة المرور</h3>
               </div>
-              <div className="p-5">
-                <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div className="p-5 md:p-4">
+                <form onSubmit={handlePasswordSubmit} className="space-y-4 md:space-y-3 md:max-w-md">
                   <div>
                     <label className={labelCls}>كلمة المرور الحالية</label>
                     <input type="password" value={currentPassword}
@@ -239,14 +256,18 @@ export default function ProfilePage() {
                   )}
 
                   <button type="submit" disabled={updatePassword.isPending}
-                    className="w-full rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
-                               text-white text-sm font-semibold py-3 min-h-11 transition-colors
+                    className="w-full md:w-auto md:px-8 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
+                               text-white text-sm font-semibold py-3 md:py-2.5 min-h-11 md:min-h-0 transition-colors
                                shadow-sm shadow-sky-500/20">
                     {updatePassword.isPending ? 'جارٍ الحفظ...' : 'تغيير كلمة المرور'}
                   </button>
                 </form>
               </div>
             </div>
+            )}
+
+            {/* ── Platforms credentials ── */}
+            {activeTab === 'platforms' && <PlatformCredentialsTab />}
           </>
         )}
       </main>

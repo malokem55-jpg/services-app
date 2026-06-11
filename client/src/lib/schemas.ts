@@ -21,7 +21,8 @@ export function clientSchema(isIqama: boolean, isAdd = false) {
     organizationId: z.string().min(1, 'المؤسسة مطلوبة'),
     cardType:       z.string().min(1, 'نوع البطاقة مطلوب'),
     paymentType:    z.string().min(1, 'طريقة الدفع مطلوبة'),
-    amount:         z.string().min(1, 'المبلغ مطلوب'),
+    amount:         z.string().min(1, 'المبلغ مطلوب')
+                      .refine((v) => Number(v) > 0, 'المبلغ يجب أن يكون أكبر من صفر'),
     iqamaNumber:    z.string().optional(),
     iqamaEndDate:   z.string().optional(),
   })
@@ -33,7 +34,8 @@ export function clientSchema(isIqama: boolean, isAdd = false) {
   }
 
   // Edit form (isAdd = false): require iqamaEndDate only when iqamaNumber is entered
-  //                            require boardNumber when paymentType is 'شهري'
+  //                            require boardNumber + iqamaEndDate when paymentType is 'شهري'
+  //                            (جدول الأقساط يُولَّد حتى تاريخ انتهاء الإقامة)
   if (!isAdd) {
     return base
       .extend({ boardNumber: z.string().optional() })
@@ -43,6 +45,9 @@ export function clientSchema(isIqama: boolean, isAdd = false) {
         }
         if (d.paymentType === 'شهري' && !d.boardNumber) {
           ctx.addIssue({ code: 'custom', message: 'يوم الاستلام مطلوب', path: ['boardNumber'] })
+        }
+        if (d.paymentType === 'شهري' && !d.iqamaEndDate) {
+          ctx.addIssue({ code: 'custom', message: 'تاريخ انتهاء الإقامة مطلوب للدفع الشهري', path: ['iqamaEndDate'] })
         }
       }) as z.ZodTypeAny
   }

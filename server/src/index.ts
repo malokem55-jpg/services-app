@@ -13,6 +13,13 @@ import statsRouter from './routes/stats.js';
 import notificationsRouter from './routes/notifications.js';
 import pushSubscriptionsRouter from './routes/push-subscriptions.js';
 import notificationSettingsRouter from './routes/notification-settings.js';
+import uiSettingsRouter from './routes/ui-settings.js';
+import deletedClientDuesRouter from './routes/deleted-client-dues.js';
+import cardIssuancesRouter from './routes/card-issuances.js';
+import arrivalPlacesRouter from './routes/arrival-places.js';
+import loginPlatformsRouter from './routes/login-platforms.js';
+import orgCredentialsRouter from './routes/org-credentials.js';
+import dataImportRouter from './routes/data-import.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { startPushCron } from './lib/push-cron.js';
 
@@ -38,6 +45,13 @@ app.use('/api/stats', statsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/push/subscribe', pushSubscriptionsRouter);
 app.use('/api/notification-settings', notificationSettingsRouter);
+app.use('/api/ui-settings', uiSettingsRouter);
+app.use('/api/deleted-client-dues', deletedClientDuesRouter);
+app.use('/api/card-issuances', cardIssuancesRouter);
+app.use('/api/arrival-places', arrivalPlacesRouter);
+app.use('/api/login-platforms', loginPlatformsRouter);
+app.use('/api/org-credentials', orgCredentialsRouter);
+app.use('/api/data-import', dataImportRouter);
 
 app.use(errorHandler);
 
