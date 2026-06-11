@@ -335,6 +335,7 @@ export default function PlatformCredentialsTab() {
   const { data: platforms = [], isLoading: platformsLoading } = useLoginPlatforms()
   const { data: summaries = [] } = useCredentialSummaries()
   const [search, setSearch] = useState('')
+  const [showExtensionHelp, setShowExtensionHelp] = useState(false)
   const [credModal, setCredModal] = useState<{
     orgId: number
     orgName: string
@@ -467,46 +468,87 @@ export default function PlatformCredentialsTab() {
         )}
       </div>
 
-      {/* تحميل إضافة المتصفح — مطلوبة للتعبئة التلقائية على كل جهاز */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 md:py-3 border-b border-gray-100 bg-gray-50/50">
-          <h3 className="text-sm font-semibold text-sky-700">إضافة المتصفح — التعبئة التلقائية</h3>
-          <p className="text-xs text-gray-400 mt-0.5">
-            تُثبَّت مرة واحدة على كل جهاز حتى تُملأ بيانات الدخول تلقائيًا في صفحة المنصة
-          </p>
+      {/* إضافة المتصفح: شريط مضغوط — التحميل مباشر والإرشادات في نافذة */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3
+                      flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+            <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round"
+                d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-800">إضافة المتصفح</p>
+            <p className="text-xs text-gray-400 truncate">
+              تُثبَّت مرة واحدة لكل جهاز لتعمل التعبئة التلقائية
+            </p>
+          </div>
         </div>
-        <div className="p-5 space-y-4">
+        <div className="flex items-center gap-2 shrink-0 ms-auto">
+          <button
+            type="button"
+            onClick={() => setShowExtensionHelp(true)}
+            className="rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:text-sky-600
+                       text-gray-600 text-xs font-semibold px-3 py-2 transition-colors"
+          >
+            الإرشادات
+          </button>
           <a
             href="/extension.zip"
             download
-            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl
-                       bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold
-                       px-5 py-2.5 min-h-11 shadow-sm shadow-sky-500/20 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500 hover:bg-sky-600
+                       text-white text-xs font-semibold px-3.5 py-2 shadow-sm shadow-sky-500/20 transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round"
                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            تحميل ملف الإضافة (extension.zip)
+            تحميل
           </a>
-
-          <ol className="list-decimal ps-5 space-y-1.5 text-xs text-gray-500 leading-relaxed">
-            <li>
-              فك ضغط الملف في مجلد دائم لا يُحذف، مثل{' '}
-              <span dir="ltr" className="font-mono text-gray-600">C:\muqeem-extension</span>
-            </li>
-            <li>
-              افتح في Chrome الصفحة{' '}
-              <span dir="ltr" className="font-mono text-gray-600">chrome://extensions</span>
-              {' '}وفعّل <span className="font-semibold text-gray-600">Developer mode</span>
-            </li>
-            <li>
-              اضغط <span className="font-semibold text-gray-600">Load unpacked</span> واختر المجلد الذي فككت فيه الضغط
-            </li>
-            <li>حدّث صفحة الموقع — انتهى، ولن تحتاج تكرارها على هذا الجهاز</li>
-          </ol>
         </div>
       </div>
+
+      {/* نافذة إرشادات تثبيت الإضافة */}
+      {showExtensionHelp && (
+        <Modal title="تثبيت إضافة المتصفح" size="sm" onClose={() => setShowExtensionHelp(false)}>
+          <div className="space-y-4">
+            <ol className="space-y-3">
+              {[
+                <>فك ضغط الملف في مجلد دائم لا يُحذف، مثل{' '}
+                  <span dir="ltr" className="font-mono text-gray-700">C:\muqeem-extension</span></>,
+                <>افتح في Chrome الصفحة{' '}
+                  <span dir="ltr" className="font-mono text-gray-700">chrome://extensions</span>
+                  {' '}وفعّل <span className="font-semibold text-gray-700">Developer mode</span></>,
+                <>اضغط <span className="font-semibold text-gray-700">Load unpacked</span>{' '}
+                  واختر المجلد الذي فككت فيه الضغط</>,
+                <>حدّث صفحة الموقع — انتهى، ولن تحتاج تكرارها على هذا الجهاز</>,
+              ].map((step, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-sky-100 text-sky-700
+                                   flex items-center justify-center text-xs font-bold mt-0.5">
+                    {i + 1}
+                  </span>
+                  <span className="text-sm text-gray-600 leading-relaxed">{step}</span>
+                </li>
+              ))}
+            </ol>
+
+            <a
+              href="/extension.zip"
+              download
+              className="flex items-center justify-center gap-2 w-full rounded-xl bg-sky-500 hover:bg-sky-600
+                         text-white text-sm font-semibold py-2.5 min-h-11 shadow-sm shadow-sky-500/20 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              تحميل ملف الإضافة
+            </a>
+          </div>
+        </Modal>
+      )}
 
       {credModal && (
         <CredentialModal
