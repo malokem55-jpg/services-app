@@ -5,6 +5,7 @@ import {
   getCustomPaymentAlerts,
   getIqamaExpirySoonAlerts,
   getIqamaExpiryUrgentAlerts,
+  getTafweedAlerts,
 } from './notifications.service.js';
 
 let vapidInitialized = false;
@@ -103,11 +104,12 @@ export async function runPushNotificationCheck() {
   const subs = await prisma.pushSubscription.findMany();
   if (subs.length === 0) return;
 
-  const [monthlyPayments, customPayments, iqamaExpirySoon, iqamaExpired] = await Promise.all([
+  const [monthlyPayments, customPayments, iqamaExpirySoon, iqamaExpired, tafweedAlerts] = await Promise.all([
     getMonthlyPaymentAlerts(),
     getCustomPaymentAlerts(),
     getIqamaExpirySoonAlerts(),
     getIqamaExpiryUrgentAlerts(),
+    getTafweedAlerts(),
   ]);
 
   for (const payment of monthlyPayments) {
@@ -160,6 +162,18 @@ export async function runPushNotificationCheck() {
       type: 'iqama_expired',
       title: 'إقامة منتهية أو عاجلة',
       body: `${client.name ?? ''} — انتهت في ${new Date(client.iqamaEndDate).toLocaleDateString('ar-SA')}`,
+    });
+  }
+
+  for (const client of tafweedAlerts) {
+    if (!client.tafweedAlertDate) continue;
+    const refDate = toDateOnly(client.tafweedAlertDate);
+    if (await alreadySent('tafweed', client.id, refDate)) continue;
+    await markSent('tafweed', client.id, refDate);
+    await sendToAll(subs, {
+      type: 'tafweed',
+      title: 'تنبيه التفويض والتصديق',
+      body: `تذكير: يجب إجراء التفويض للعميل ${client.name ?? ''} على مؤسسة (${client.organization?.name ?? '—'}) اليوم`,
     });
   }
 

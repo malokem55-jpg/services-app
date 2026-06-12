@@ -110,6 +110,13 @@ model Client {
   paymentType     String?                @map("payment_type")
   nextPaymentDate DateTime?              @map("next_payment_date") @db.Date
   amount          Float?
+  // عميل شهري: استمرار توليد الدفعيات الشهرية حتى بعد انتهاء الإقامة
+  generateMonthlyAfterIqama Boolean      @default(false) @map("generate_monthly_after_iqama")
+  // تنبيه التفويض والتصديق (عميل تحت الإجراء): وجود التاريخ مع done=false = التنبيه نشط.
+  // زر "تم التفويض" يعلّم done=true (التاريخ يبقى لعرض "تم التفويض" في التفاصيل)،
+  // وإعادة التفعيل بتاريخ جديد تعيد done=false
+  tafweedAlertDate DateTime?             @map("tafweed_alert_date") @db.Date
+  tafweedDone      Boolean               @default(false) @map("tafweed_done")
   serviceId       Int?                   @map("service_id")
   organizationId  Int?                   @map("organization_id")
   lastStepId      Int?                   @map("last_step_id")
@@ -167,6 +174,8 @@ model ClientPaymentMonthly {
   carriedFromMonth  String?   @map("carried_from_month")
   status            String?
   notes             String?
+  // دفعية متولدة بعد انتهاء الإقامة (خيار التوليد المستمر) — لا تمسّها مزامنة جدول الإقامة
+  afterIqama        Boolean   @default(false) @map("after_iqama")
   createdAt      DateTime? @map("created_at")
   updatedAt      DateTime? @map("updated_at")
   client         Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -255,8 +264,21 @@ model UiSetting {
   showUnderProcedurePage  Boolean @default(true) @map("show_under_procedure_page")
   showDeletedDuesPage     Boolean @default(true) @map("show_deleted_dues_page")
   showIqamaAlertsPage     Boolean @default(false) @map("show_iqama_alerts_page")
+  showCustomMobileVersion Boolean @default(false) @map("show_custom_mobile_version")
 
   @@map("ui_settings")
+}
+
+// تعبئة مقيم على الموبايل: مفتاح ثابت يحمله الـ Bookmarklet في Safari، وحقول
+// «التسليح» تحدد آخر مؤسسة فُتحت من التطبيق المخصص ليجلبها الـ Bookmarklet مرة واحدة
+model MobileFill {
+  id             Int       @id @default(autoincrement())
+  fillKey        String    @map("fill_key") @db.VarChar(64)
+  organizationId Int?      @map("organization_id")
+  platform       String?   @db.VarChar(32)
+  armedAt        DateTime? @map("armed_at")
+
+  @@map("mobile_fill")
 }
 
 model SentPushNotification {

@@ -8,6 +8,7 @@ export interface UiSettings {
   showUnderProcedurePage: boolean;
   showDeletedDuesPage: boolean;
   showIqamaAlertsPage: boolean;
+  showCustomMobileVersion: boolean;
 }
 
 const DEFAULTS: UiSettings = {
@@ -18,6 +19,7 @@ const DEFAULTS: UiSettings = {
   showUnderProcedurePage: true,
   showDeletedDuesPage: true,
   showIqamaAlertsPage: false,
+  showCustomMobileVersion: false,
 };
 
 export async function getUiSettings(): Promise<UiSettings> {

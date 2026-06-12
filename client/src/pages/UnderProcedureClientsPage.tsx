@@ -12,6 +12,8 @@ import {
   type ArrivalPlaceOption,
   EMPTY_CLIENT_FORM,
   buildClientPayload,
+  tafweedAlertErrors,
+  tafweedDisplayValue,
 } from '../lib/clientForm'
 import { clientSchema, clientStepSchema, getErrors } from '../lib/schemas'
 import Navbar from '../components/Navbar'
@@ -47,6 +49,8 @@ interface ClientDetail {
   paymentType: string | null
   amount: number | null
   nextPaymentDate: string | null
+  tafweedAlertDate: string | null
+  tafweedDone: boolean | null
   service: { id: number; name: string | null } | null
   organization: { id: number; name: string | null } | null
   arrivalPlace: { id: number; name: string } | null
@@ -376,7 +380,7 @@ export default function UnderProcedureClientsPage() {
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     const isIqama = serviceSteps.length > 0
-    const errs = getErrors(clientSchema(isIqama, true), form)
+    const errs = { ...getErrors(clientSchema(isIqama, true), form), ...tafweedAlertErrors(form) }
     setAddErrors(errs)
     if (Object.keys(errs).length > 0) return
     createClient.mutate(buildClientPayload(form))
@@ -656,6 +660,8 @@ export default function UnderProcedureClientsPage() {
                   { label: 'رقم التأشيرة', val: detailClient.visaNumber },
                   { label: 'جهة القدوم', val: detailClient.arrivalPlace?.name },
                   { label: 'الخطوة الحالية', val: currentStep },
+                  { label: 'تاريخ تنبيه التفويض والتصديق',
+                    val: tafweedDisplayValue(detailClient.tafweedAlertDate, detailClient.tafweedDone) },
                   { label: 'تاريخ الدفعة القادمة', val: isMonthly ? nextMonthlyDue : detailClient.nextPaymentDate?.slice(0, 10) },
                   { label: 'طريقة الدفع', val: detailClient.paymentType },
                   { label: 'المبلغ الإجمالي', val: detailClient.amount != null ? detailClient.amount.toLocaleString('en-US') : null },

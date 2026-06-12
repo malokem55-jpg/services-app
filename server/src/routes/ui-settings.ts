@@ -24,6 +24,7 @@ const updateSchema = z
     showUnderProcedurePage: z.boolean(),
     showDeletedDuesPage: z.boolean(),
     showIqamaAlertsPage: z.boolean(),
+    showCustomMobileVersion: z.boolean(),
   })
   .partial();
 

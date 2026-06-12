@@ -19,9 +19,11 @@ import cardIssuancesRouter from './routes/card-issuances.js';
 import arrivalPlacesRouter from './routes/arrival-places.js';
 import loginPlatformsRouter from './routes/login-platforms.js';
 import orgCredentialsRouter from './routes/org-credentials.js';
+import mobileFillRouter from './routes/mobile-fill.js';
 import dataImportRouter from './routes/data-import.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { startPushCron } from './lib/push-cron.js';
+import { startMonthlyRollingCron } from './lib/monthly-cron.js';
 
 const app = express();
 const port = process.env.PORT ?? 3000;
@@ -51,6 +53,7 @@ app.use('/api/card-issuances', cardIssuancesRouter);
 app.use('/api/arrival-places', arrivalPlacesRouter);
 app.use('/api/login-platforms', loginPlatformsRouter);
 app.use('/api/org-credentials', orgCredentialsRouter);
+app.use('/api/mobile-fill', mobileFillRouter);
 app.use('/api/data-import', dataImportRouter);
 
 app.use(errorHandler);
@@ -58,4 +61,5 @@ app.use(errorHandler);
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
   startPushCron().catch((err) => console.error('[push] Failed to start cron:', err));
+  startMonthlyRollingCron();
 });

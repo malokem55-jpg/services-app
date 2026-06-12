@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js';
+import { ensureUpcomingInstallment } from './clients.service.js';
 
 export type ClientPaymentMonthlyCreateInput = {
   clientId: number;
@@ -96,9 +97,17 @@ export async function payClientPaymentMonthly(id: number, data: PayClientPayment
   // القراءات خارج الـ transaction لتقليل زمنها (قاعدة البيانات بعيدة وكل استعلام يكلف زمن ذهاب وإياب)
   const record = await prisma.clientPaymentMonthly.findUnique({
     where: { id },
-    include: { client: { select: { id: true, iqamaEndDate: true } } },
+    include: {
+      client: {
+        select: { id: true, iqamaEndDate: true, amount: true, generateMonthlyAfterIqama: true },
+      },
+    },
   });
   if (!record) return null;
+
+  // خيار "التوليد بعد انتهاء الإقامة" مفعَّل: الأشهر مستمرة بلا نهاية،
+  // فدفعية الشهر التالي المنشأة هنا تكون قسطاً كاملاً (+ المرحَّل إن وجد)
+  const rolling = record.client?.generateMonthlyAfterIqama === true;
 
   // الدفعية القادمة غير المسدّدة إن كانت منشأة مسبقاً
   const nextExisting = await prisma.clientPaymentMonthly.findFirst({
@@ -118,7 +127,7 @@ export async function payClientPaymentMonthly(id: number, data: PayClientPayment
     : record.month ?? '';
   const carriedNote = `يشمل مبلغ مرحّل (${carryOver}) من دفعية ${carriedFromDate}`.trim();
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const paid = await tx.clientPaymentMonthly.update({
       where: { id },
       data: {
@@ -146,20 +155,24 @@ export async function payClientPaymentMonthly(id: number, data: PayClientPayment
           },
         });
       } else {
-        // تسديد جزئي في آخر دفعية بالجدول: دفعية إضافية بمبلغ الفرق فقط
+        // تسديد جزئي في آخر دفعية بالجدول: دفعية إضافية بمبلغ الفرق فقط —
+        // ومع خيار التوليد المستمر يكون الشهر التالي مستحقاً فتشمل قسطه كاملاً
         const nextDueDate = addMonths(record.receivedDate ?? new Date(), 1);
+        const clientIqamaEnd = record.client?.iqamaEndDate ?? record.iqamaEndDate;
+        const baseAmount = rolling ? record.client?.amount ?? 0 : 0;
         next = await tx.clientPaymentMonthly.create({
           data: {
             clientId: record.clientId,
-            iqamaEndDate: record.client?.iqamaEndDate ?? record.iqamaEndDate,
+            iqamaEndDate: clientIqamaEnd,
             // مجاراة صيغة الشهر الموجودة في البيانات ("MM")
             month: nextDueDate.toISOString().slice(5, 7),
             receivedDate: nextDueDate,
-            amount: carryOver,
+            amount: baseAmount + carryOver,
             carriedOverAmount: carryOver,
             carriedFromMonth: carriedFromDate,
             status: 'un-paid',
             notes: carriedNote,
+            afterIqama: rolling && (!clientIqamaEnd || nextDueDate > clientIqamaEnd),
             createdAt: new Date(),
             updatedAt: new Date(),
           },
@@ -169,4 +182,11 @@ export async function payClientPaymentMonthly(id: number, data: PayClientPayment
 
     return { paid, next };
   }, { timeout: 20000, maxWait: 10000 });
+
+  // تسديد كامل لآخر دفعية مع خيار التوليد المستمر: ضمان توليد دفعية
+  // الشهر التالي عند حلول موعدها (الدالة نفسها تتحقق من تفعيل الخيار)
+  if (rolling && record.clientId) {
+    await ensureUpcomingInstallment(record.clientId);
+  }
+  return result;
 }

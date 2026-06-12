@@ -99,13 +99,66 @@ export interface ClientFormData {
   serviceId: string
   organizationId: string
   arrivalPlaceId: string
+  /** عميل شهري: استمرار توليد الدفعيات حتى بعد انتهاء الإقامة — '1' مفعَّل، '' معطَّل */
+  generateMonthlyAfterIqama: string
+  /** تنبيه التفويض والتصديق (تحت الإجراء) — '1' مفعَّل، '' معطَّل */
+  tafweedAlertEnabled: string
+  /** تاريخ تنبيه التفويض — إلزامي عند التفعيل ولا يكون قبل اليوم */
+  tafweedAlertDate: string
+  /** علامة "تم التفويض" المحفوظة — تحفظ حالة "تم التفويض" من المسح عند تعديل حقول أخرى */
+  tafweedDone: string
 }
 
 export const EMPTY_CLIENT_FORM: ClientFormData = {
   name: '', phone: '', passport: '', boardNumber: '', visaNumber: '',
   iqamaNumber: '', iqamaEndDate: '', cardType: 'بدون', paymentType: '',
   amount: '', receivedAmount: '', notes: '', nextPaymentDate: '', serviceId: '', organizationId: '',
-  arrivalPlaceId: '',
+  arrivalPlaceId: '', generateMonthlyAfterIqama: '', tafweedAlertEnabled: '', tafweedAlertDate: '',
+  tafweedDone: '',
+}
+
+/** اسم اليوم بالعربية لتاريخ YYYY-MM-DD — مثل "الأحد" */
+export function arabicDayName(dateStr: string): string {
+  return new Date(dateStr.slice(0, 10)).toLocaleDateString('ar-SA', {
+    weekday: 'long',
+    timeZone: 'UTC',
+  })
+}
+
+/**
+ * قيمة حقل "تاريخ تنبيه التفويض والتصديق" في تفاصيل العميل:
+ * بدون تاريخ → "لم يتم تعيين تاريخ"، منجز → "تم التفويض"،
+ * نشط → التاريخ واسم اليوم بين قوسين
+ */
+export function tafweedDisplayValue(
+  date: string | null | undefined,
+  done: boolean | null | undefined,
+): string {
+  if (!date) return 'لم يتم تعيين تاريخ'
+  if (done) return 'تم التفويض'
+  const d = date.slice(0, 10)
+  return `${d} (${arabicDayName(d)})`
+}
+
+/**
+ * تحقق تنبيه التفويض: التفعيل يستلزم تاريخًا، والتاريخ لا يكون قبل اليوم.
+ * في التعديل يُمرَّر التاريخ المحفوظ — إبقاؤه كما هو مسموح حتى لو صار في الماضي،
+ * والمنع على الإدخال الجديد أو التغيير فقط.
+ */
+export function tafweedAlertErrors(
+  f: ClientFormData,
+  savedDate?: string | null,
+): Record<string, string> {
+  if (f.tafweedAlertEnabled !== '1') return {}
+  if (!f.tafweedAlertDate) {
+    return { tafweedAlertDate: 'تاريخ تنبيه التفويض مطلوب عند التفعيل' }
+  }
+  const today = new Date().toISOString().slice(0, 10)
+  const saved = savedDate ? savedDate.slice(0, 10) : null
+  if (f.tafweedAlertDate !== saved && f.tafweedAlertDate < today) {
+    return { tafweedAlertDate: 'لا يمكن اختيار تاريخ سابق لتاريخ اليوم' }
+  }
+  return {}
 }
 
 export function buildClientPayload(f: ClientFormData) {
@@ -125,6 +178,16 @@ export function buildClientPayload(f: ClientFormData) {
     notes: f.notes || undefined,
     // الدفعة المخصصة (nextPaymentDate) خاصية سنوية فقط — لا تُرسل للعميل الشهري
     nextPaymentDate: f.paymentType === 'شهري' ? undefined : f.nextPaymentDate || undefined,
+    // التوليد بعد انتهاء الإقامة خاصية شهرية فقط — تُصفَّر عند التحويل إلى سنوي
+    generateMonthlyAfterIqama: f.paymentType === 'شهري' ? f.generateMonthlyAfterIqama === '1' : false,
+    // تنبيه التفويض: مفعَّل بتاريخ → تنشيط (وإلغاء علامة الإنجاز)،
+    // منجز ("تم التفويض") دون إعادة تفعيل → لا تغيير ليبقى محفوظاً،
+    // غير ذلك → مسح التاريخ والعلامة معاً
+    ...(f.tafweedAlertEnabled === '1' && f.tafweedAlertDate
+      ? { tafweedAlertDate: f.tafweedAlertDate, tafweedDone: false }
+      : f.tafweedDone === '1'
+      ? {}
+      : { tafweedAlertDate: null, tafweedDone: false }),
     serviceId: f.serviceId ? Number(f.serviceId) : undefined,
     organizationId: f.organizationId ? Number(f.organizationId) : undefined,
     // null تمسح جهة القدوم عند التعديل (الحقل اختياري)

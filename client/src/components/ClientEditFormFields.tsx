@@ -153,6 +153,34 @@ export default function ClientEditFormFields({
               <input type="text" value={remaining.toLocaleString('en-US')} readOnly className={readOnlyCls} />
             </div>
           </div>
+
+          {/* صف 5: تنبيه التفويض والتصديق */}
+          <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 space-y-2.5">
+            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={form.tafweedAlertEnabled === '1'}
+                onChange={(e) => onChange('tafweedAlertEnabled', e.target.checked ? '1' : '')}
+                className="w-4 h-4 mt-0.5 accent-sky-500 cursor-pointer shrink-0"
+              />
+              <span className="text-xs font-semibold text-gray-600 leading-relaxed">
+                تفعيل تنبيه التفويض لهذا العميل
+              </span>
+            </label>
+            {form.tafweedAlertEnabled === '1' && (
+              <div className="sm:max-w-60">
+                <label className={labelCls}>تاريخ تنبيه التفويض والتصديق</label>
+                <input
+                  type="date"
+                  value={form.tafweedAlertDate}
+                  min={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => onChange('tafweedAlertDate', e.target.value)}
+                  className={ic('tafweedAlertDate')}
+                />
+                <FieldError msg={errors.tafweedAlertDate} />
+              </div>
+            )}
+          </div>
         </>
       ) : (
         <>
@@ -199,30 +227,43 @@ export default function ClientEditFormFields({
 
           {/* صف 3: حسب طريقة الدفع */}
           {isMonthly ? (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className={labelCls}>طريقة الدفع</label>
-                <select value={form.paymentType} onChange={(e) => onChange('paymentType', e.target.value)}
-                  className={ic('paymentType')}>
-                  <option value="">— اختر —</option>
-                  <option value="شهري">شهري</option>
-                  <option value="سنوي">سنوي</option>
-                </select>
-                <FieldError msg={errors.paymentType} />
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className={labelCls}>طريقة الدفع</label>
+                  <select value={form.paymentType} onChange={(e) => onChange('paymentType', e.target.value)}
+                    className={ic('paymentType')}>
+                    <option value="">— اختر —</option>
+                    <option value="شهري">شهري</option>
+                    <option value="سنوي">سنوي</option>
+                  </select>
+                  <FieldError msg={errors.paymentType} />
+                </div>
+                <div>
+                  <label className={labelCls}>القسط الشهري (ر.س)</label>
+                  <input type="number" min={0} value={form.amount} onChange={(e) => onChange('amount', e.target.value)}
+                    placeholder="0.00" className={ic('amount')} />
+                  <FieldError msg={errors.amount} />
+                </div>
+                <div>
+                  <label className={labelCls}>يوم الاستلام من كل شهر</label>
+                  <input type="number" min={1} max={31} value={form.boardNumber} onChange={(e) => onChange('boardNumber', e.target.value)}
+                    placeholder="1 - 31" className={ic('boardNumber')} />
+                  <FieldError msg={errors.boardNumber} />
+                </div>
               </div>
-              <div>
-                <label className={labelCls}>القسط الشهري (ر.س)</label>
-                <input type="number" min={0} value={form.amount} onChange={(e) => onChange('amount', e.target.value)}
-                  placeholder="0.00" className={ic('amount')} />
-                <FieldError msg={errors.amount} />
-              </div>
-              <div>
-                <label className={labelCls}>يوم الاستلام من كل شهر</label>
-                <input type="number" min={1} max={31} value={form.boardNumber} onChange={(e) => onChange('boardNumber', e.target.value)}
-                  placeholder="1 - 31" className={ic('boardNumber')} />
-                <FieldError msg={errors.boardNumber} />
-              </div>
-            </div>
+              <label className="flex items-start gap-2.5 cursor-pointer select-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={form.generateMonthlyAfterIqama === '1'}
+                  onChange={(e) => onChange('generateMonthlyAfterIqama', e.target.checked ? '1' : '')}
+                  className="w-4 h-4 mt-0.5 accent-sky-500 cursor-pointer shrink-0"
+                />
+                <span className="text-xs font-semibold text-gray-600 leading-relaxed">
+                  توليد تنبيهات دفعيات شهرية لهذا العميل حتى إذا كانت إقامته منتهية
+                </span>
+              </label>
+            </>
           ) : (
             <>
               {/* صف 3: طريقة الدفع | المبلغ الإجمالي | المبلغ المدفوع */}

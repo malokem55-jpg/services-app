@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
 import Logo from './Logo'
+import Modal from './Modal'
 import NotificationBell from './NotificationBell'
-import { useNotifications } from '../hooks/useNotifications'
-import type { MonthlyPaymentAlert, CustomPaymentAlert, IqamaAlert } from '../hooks/useNotifications'
+import WhatsAppButton from './WhatsAppButton'
+import { useNotifications, isIqamaExpired } from '../hooks/useNotifications'
+import type { MonthlyPaymentAlert, CustomPaymentAlert, IqamaAlert, TafweedAlert } from '../hooks/useNotifications'
+import { arabicDayName } from '../lib/clientForm'
 import { useUiSettings } from '../hooks/useUiSettings'
 
 interface Me { name: string | null; username: string | null }
@@ -26,14 +29,29 @@ function fmtDate(s: string | null | undefined): string {
   return s.slice(0, 10)
 }
 
+// رسالة تذكير الدفعة التي تُعبَّأ مسبقاً في محادثة واتساب مع العميل
+function paymentReminderMessage(item: MonthlyPaymentAlert): string {
+  const name = item.client?.name ?? ''
+  const amount = item.amount != null ? `${item.amount} ريال` : ''
+  const date = item.receivedDate ? item.receivedDate.slice(0, 10) : ''
+  return `السلام عليكم ${name}،\nنذكّركم بدفعتكم الشهرية المستحقة بتاريخ ${date} بمبلغ ${amount}.\nنشكر لكم تعاونكم.`
+}
+
 function MonthlyItem({ item }: { item: MonthlyPaymentAlert }) {
+  const iqamaExpired = isIqamaExpired(item.client?.iqamaEndDate)
   return (
     <div className="flex border-b border-gray-100 last:border-b-0">
-      <div className="w-1 shrink-0 bg-violet-500 rounded-ss" />
+      <div className={`w-1 shrink-0 ${iqamaExpired ? 'bg-red-500' : 'bg-violet-500'} rounded-ss`} />
       <div className="flex-1 px-3 py-4 text-sm text-gray-700 leading-relaxed">
         <p>
           لديك دفعية قادمة من {item.client?.name ?? '—'}
           {item.client?.service?.name ? ` [${item.client.service.name}]` : ''}
+          {iqamaExpired && (
+            <span className="inline-flex items-center rounded-full bg-red-100 text-red-700
+                             text-[10px] font-bold px-2 py-0.5 ms-1.5 align-middle">
+              إقامة منتهية
+            </span>
+          )}
         </p>
         <p className="mt-0.5">
           بتاريخ ({fmtDate(item.receivedDate)})
@@ -43,6 +61,16 @@ function MonthlyItem({ item }: { item: MonthlyPaymentAlert }) {
           )}
         </p>
       </div>
+      {/* زر واتساب يظهر فقط إذا كان للعميل رقم هاتف */}
+      {item.client?.phone && (
+        <div className="flex items-center pe-3">
+          <WhatsAppButton
+            phone={item.client.phone}
+            name={item.client.name}
+            message={paymentReminderMessage(item)}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -88,11 +116,57 @@ function IqamaItem({ item, accentColor }: { item: IqamaAlert; accentColor: strin
   )
 }
 
+// عنصر تنبيه تفويض واحد — زر "تم التفويض" يفتح نافذة تأكيد قبل إخفاء التنبيه
+function TafweedItem({ item, onDone }: { item: TafweedAlert; onDone: () => void }) {
+  return (
+    <div className="flex border-b border-gray-100 last:border-b-0">
+      <div className="w-1 shrink-0 bg-orange-500 rounded-ss" />
+      <div className="flex-1 px-3 py-4 text-sm text-gray-700 leading-relaxed">
+        <p>
+          تذكير: يجب إجراء التفويض للعميل{' '}
+          <span className="font-semibold text-gray-900">{item.name ?? '—'}</span>
+          {item.organization?.name ? ` على مؤسسة (${item.organization.name})` : ''} اليوم
+        </p>
+        <p className="mt-0.5 text-gray-500">
+          تاريخ التنبيه: {fmtDate(item.tafweedAlertDate)}
+          {item.tafweedAlertDate ? ` (${arabicDayName(item.tafweedAlertDate)})` : ''}
+        </p>
+        <button
+          onClick={onDone}
+          className="mt-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white
+                     text-xs font-semibold px-3 py-1.5 transition-colors"
+        >
+          تم التفويض
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
+  const qc = useQueryClient()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [openBell, setOpenBell] = useState<string | null>(null)
+  // تنبيه التفويض الذي ينتظر تأكيد "تم التفويض" في النافذة
+  const [confirmTafweed, setConfirmTafweed] = useState<TafweedAlert | null>(null)
+
+  // تأكيد التفويض يعلّم التنبيه منجزاً فيختفي من الجرس،
+  // ويبقى التاريخ محفوظاً لعرض "تم التفويض" في تفاصيل العميل
+  const markTafweedDone = useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<unknown>(`/api/clients/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ tafweedDone: true }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['clients'] })
+      qc.invalidateQueries({ queryKey: ['client'] })
+      setConfirmTafweed(null)
+    },
+  })
 
   function toggleBell(id: string) {
     setOpenBell(prev => prev === id ? null : id)
@@ -244,9 +318,14 @@ export default function Navbar() {
                     mobileOpen={openBell === 'monthly'}
                     onMobileToggle={() => toggleBell('monthly')}
                   >
-                    {notifs?.monthlyPayments.map(item => (
-                      <MonthlyItem key={item.id} item={item} />
-                    ))}
+                    {/* منتهية الإقامة أولاً لأنها الأكثر إلحاحاً، ثم حسب ترتيب الاستحقاق */}
+                    {[...(notifs?.monthlyPayments ?? [])]
+                      .sort((a, b) =>
+                        Number(isIqamaExpired(b.client?.iqamaEndDate)) -
+                        Number(isIqamaExpired(a.client?.iqamaEndDate)))
+                      .map(item => (
+                        <MonthlyItem key={item.id} item={item} />
+                      ))}
                   </NotificationBell>
                 )}
 
@@ -279,6 +358,19 @@ export default function Navbar() {
                     ))}
                   </NotificationBell>
                 )}
+
+                <NotificationBell
+                  count={notifs?.tafweedAlerts.length ?? 0}
+                  badgeColor="bg-orange-500"
+                  title="تنبيهات التفويض والتصديق"
+                  ringDelay="1s"
+                  mobileOpen={openBell === 'tafweed'}
+                  onMobileToggle={() => toggleBell('tafweed')}
+                >
+                  {notifs?.tafweedAlerts.map(item => (
+                    <TafweedItem key={item.id} item={item} onDone={() => setConfirmTafweed(item)} />
+                  ))}
+                </NotificationBell>
               </div>
 
               {/* Divider — desktop */}
@@ -418,6 +510,43 @@ export default function Navbar() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── نافذة تأكيد "تم التفويض" ── */}
+      {confirmTafweed && (
+        <Modal title="تأكيد التفويض" onClose={() => setConfirmTafweed(null)}>
+          <p className="text-sm text-gray-700 leading-relaxed mb-5">
+            هل تم إجراء التفويض للعميل{' '}
+            <span className="font-semibold text-gray-900">{confirmTafweed.name ?? '—'}</span>
+            {confirmTafweed.organization?.name ? ` على مؤسسة (${confirmTafweed.organization.name})` : ''}؟
+            <br />
+            <span className="text-xs text-gray-500">بعد التأكيد سيختفي هذا التنبيه من جرس التنبيهات.</span>
+          </p>
+          {markTafweedDone.isError && (
+            <p className="text-sm text-red-600 mb-4">
+              {markTafweedDone.error instanceof Error ? markTafweedDone.error.message : 'حدث خطأ غير متوقع'}
+            </p>
+          )}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setConfirmTafweed(null)}
+              className="flex-1 rounded-xl border border-gray-200 bg-white hover:bg-gray-50
+                         text-gray-700 text-sm font-medium py-3 min-h-11 transition-colors"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              disabled={markTafweedDone.isPending}
+              onClick={() => markTafweedDone.mutate(confirmTafweed.id)}
+              className="flex-1 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60
+                         text-white text-sm font-semibold py-3 min-h-11 transition-colors"
+            >
+              {markTafweedDone.isPending ? '...' : 'تأكيد'}
+            </button>
+          </div>
+        </Modal>
       )}
     </>
   )

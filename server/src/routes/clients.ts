@@ -31,6 +31,12 @@ const clientBodySchema = z.object({
   nextPaymentDate: z.string().date('nextPaymentDate must be YYYY-MM-DD').optional(),
   amount: z.number().nonnegative().optional(),
   receivedAmount: z.number().nonnegative().optional(),
+  // عميل شهري: استمرار توليد الدفعيات حتى بعد انتهاء الإقامة
+  generateMonthlyAfterIqama: z.boolean().optional(),
+  // تاريخ تنبيه التفويض والتصديق (تحت الإجراء) — null يمسح التنبيه نهائياً
+  tafweedAlertDate: z.string().date('tafweedAlertDate must be YYYY-MM-DD').nullable().optional(),
+  // علامة "تم التفويض" — true تخفي التنبيه من الجرس مع إبقاء التاريخ محفوظاً
+  tafweedDone: z.boolean().optional(),
   serviceId: z.number().int().positive().optional(),
   organizationId: z.number().int().positive().optional(),
   lastStepId: z.number().int().positive().optional(),

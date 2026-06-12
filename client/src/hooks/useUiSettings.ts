@@ -9,6 +9,7 @@ export interface UiSettings {
   showUnderProcedurePage: boolean
   showDeletedDuesPage: boolean
   showIqamaAlertsPage: boolean
+  showCustomMobileVersion: boolean
 }
 
 export function useUiSettings() {

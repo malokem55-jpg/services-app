@@ -13,6 +13,7 @@ import {
   EMPTY_CLIENT_FORM,
   buildClientPayload,
   iqamaStatus,
+  tafweedDisplayValue,
 } from '../lib/clientForm'
 import { clientSchema, clientStepSchema, getErrors } from '../lib/schemas'
 import { formatBothDates } from '../lib/hijri'
@@ -49,6 +50,8 @@ interface ClientDetail {
   paymentType: string | null
   amount: number | null
   nextPaymentDate: string | null
+  tafweedAlertDate: string | null
+  tafweedDone: boolean | null
   service: { id: number; name: string | null } | null
   organization: { id: number; name: string | null } | null
   arrivalPlace: { id: number; name: string } | null
@@ -792,6 +795,8 @@ export default function ClientsPage() {
                       { label: 'رقم التأشيرة', val: detailClient.visaNumber },
                       { label: 'جهة القدوم', val: detailClient.arrivalPlace?.name },
                       { label: 'الخطوة الحالية', val: currentStep },
+                      { label: 'تاريخ تنبيه التفويض والتصديق',
+                        val: tafweedDisplayValue(detailClient.tafweedAlertDate, detailClient.tafweedDone) },
                       { label: 'تاريخ الدفعة القادمة', val: isMonthly ? nextMonthlyDue : detailClient.nextPaymentDate?.slice(0, 10) },
                       { label: 'طريقة الدفع', val: detailClient.paymentType },
                       { label: 'المبلغ الإجمالي', val: detailClient.amount != null ? detailClient.amount.toLocaleString('en-US') : null },

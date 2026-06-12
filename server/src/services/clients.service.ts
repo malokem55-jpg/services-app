@@ -31,6 +31,12 @@ export type ClientCreateInput = {
   amount?: number;
   /** المبلغ المستلم عند التحويل من شهري إلى سنوي — يُسجَّل كدفعة أولى */
   receivedAmount?: number;
+  /** عميل شهري: استمرار توليد الدفعيات الشهرية حتى بعد انتهاء الإقامة */
+  generateMonthlyAfterIqama?: boolean;
+  /** تاريخ تنبيه التفويض والتصديق — null يمسح التنبيه نهائياً */
+  tafweedAlertDate?: string | null;
+  /** علامة "تم التفويض" — true تخفي التنبيه من الجرس مع إبقاء التاريخ */
+  tafweedDone?: boolean;
   serviceId?: number;
   organizationId?: number;
   lastStepId?: number;
@@ -45,6 +51,15 @@ const MONTHLY = 'شهري';
 // خطأ تحقق يصل للواجهة برسالته العربية كاستجابة 400 عبر errorHandler
 class ValidationError extends Error {
   statusCode = 400;
+}
+
+// تنبيه التفويض غرضه التذكير مستقبلاً — تاريخ في الماضي مرفوض عند الإدخال أو التغيير
+function assertTafweedDateNotPast(dateStr: string) {
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (dateStr < todayStr) {
+    throw new ValidationError('تاريخ تنبيه التفويض لا يمكن أن يكون سابقاً لتاريخ اليوم');
+  }
 }
 
 function parseReceiptDay(value: string | null | undefined): number {
@@ -97,6 +112,78 @@ function buildMonthlySchedule(
     cursor = dueDateIn(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, day);
   }
   return entries;
+}
+
+/**
+ * عميل شهري مفعَّل عنده "التوليد بعد انتهاء الإقامة": يضمن وجود دفعية في أقرب
+ * يوم استلام قادم، مع تعويض الأشهر الفائتة منذ آخر دفعية في الجدول إن وُجدت.
+ * الدفعيات الواقعة بعد تاريخ انتهاء الإقامة تُعلَّم afterIqama حتى لا تمسّها
+ * مزامنة الجدول عند تعديل تاريخ الإقامة أو إلغاء تفعيل الخيار لاحقاً.
+ * يرجع true إذا أُنشئت دفعيات جديدة.
+ */
+export async function ensureUpcomingInstallment(clientId: number): Promise<boolean> {
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: {
+      paymentType: true,
+      generateMonthlyAfterIqama: true,
+      boardNumber: true,
+      amount: true,
+      iqamaEndDate: true,
+    },
+  });
+  if (!client || client.paymentType !== MONTHLY || !client.generateMonthlyAfterIqama) return false;
+  const day = Number(client.boardNumber);
+  if (!Number.isInteger(day) || day < 1 || day > 31) return false;
+  if (!client.amount || client.amount <= 0) return false;
+
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  let target = dueDateIn(today.getUTCFullYear(), today.getUTCMonth(), day);
+  if (target < today) target = dueDateIn(today.getUTCFullYear(), today.getUTCMonth() + 1, day);
+
+  const last = await prisma.clientPaymentMonthly.findFirst({
+    where: { clientId, receivedDate: { not: null } },
+    orderBy: { receivedDate: 'desc' },
+    select: { receivedDate: true },
+  });
+
+  let cursor = last?.receivedDate
+    ? dueDateIn(last.receivedDate.getUTCFullYear(), last.receivedDate.getUTCMonth() + 1, day)
+    : target;
+  const entries: Prisma.ClientPaymentMonthlyCreateManyInput[] = [];
+  while (cursor <= target) {
+    entries.push({
+      clientId,
+      month: String(cursor.getUTCMonth() + 1).padStart(2, '0'),
+      receivedDate: cursor,
+      amount: client.amount,
+      status: 'un-paid',
+      iqamaEndDate: client.iqamaEndDate,
+      afterIqama: !client.iqamaEndDate || cursor > client.iqamaEndDate,
+      createdAt: now,
+      updatedAt: now,
+    });
+    cursor = dueDateIn(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, day);
+  }
+  if (entries.length === 0) return false;
+  await prisma.clientPaymentMonthly.createMany({ data: entries });
+  return true;
+}
+
+/** الفحص الدوري: يمرّ على كل العملاء الشهريين المفعَّل عندهم الخيار */
+export async function ensureRollingMonthlyInstallments() {
+  const clients = await prisma.client.findMany({
+    where: { paymentType: MONTHLY, generateMonthlyAfterIqama: true },
+    select: { id: true },
+  });
+  for (const c of clients) {
+    try {
+      await ensureUpcomingInstallment(c.id);
+    } catch (err) {
+      console.error(`[monthly-rolling] failed for client ${c.id}:`, err);
+    }
+  }
 }
 
 // إعادة تسعير الدفعيات غير المسدّدة بالقسط الجديد مع الحفاظ على المبالغ المرحّلة فوقه
@@ -186,6 +273,9 @@ export async function createClient(data: ClientCreateInput) {
   if (!data.organizationId) {
     throw new ValidationError('المؤسسة مطلوبة');
   }
+  if (data.tafweedAlertDate) {
+    assertTafweedDateNotPast(data.tafweedAlertDate);
+  }
   const organizationId = data.organizationId;
   // كرت غير "بدون" عند الإدخال = إصدار فعلي يُخصم من رصيد المؤسسة.
   // "بدون" تعني عميلًا جاء بكرته من جهة سابقة أو بلا كرت — لا خصم ولا سجل.
@@ -204,6 +294,9 @@ export async function createClient(data: ClientCreateInput) {
     paymentType: data.paymentType,
     // الدفعة المخصصة (nextPaymentDate) خاصية سنوية فقط — العميل الشهري لا يملكها
     nextPaymentDate: isMonthly ? null : data.nextPaymentDate ? new Date(data.nextPaymentDate) : undefined,
+    // التوليد بعد انتهاء الإقامة خاصية شهرية فقط
+    generateMonthlyAfterIqama: isMonthly ? data.generateMonthlyAfterIqama ?? false : false,
+    tafweedAlertDate: data.tafweedAlertDate ? new Date(data.tafweedAlertDate) : undefined,
     amount: data.amount,
     serviceId: data.serviceId,
     organizationId: data.organizationId,
@@ -218,7 +311,9 @@ export async function createClient(data: ClientCreateInput) {
   if (isMonthly) {
     const { day, iqamaEndDate, amount } = monthlyScheduleInputs(data);
     schedule = buildMonthlySchedule(day, amount, iqamaEndDate);
-    if (schedule.length === 0) {
+    // مع خيار التوليد بعد انتهاء الإقامة تُقبل الإضافة بجدول فارغ (إقامة منتهية)
+    // وتتكفل ensureUpcomingInstallment بإنشاء دفعية أقرب يوم استلام قادم
+    if (schedule.length === 0 && !data.generateMonthlyAfterIqama) {
       throw new ValidationError('تاريخ انتهاء الإقامة يجب أن يكون بعد أقرب يوم استلام قادم');
     }
   }
@@ -227,7 +322,7 @@ export async function createClient(data: ClientCreateInput) {
     return prisma.client.create({ data: createData, include: clientInclude });
   }
 
-  return prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     const client = await tx.client.create({ data: createData });
     if (issuedCardType) {
       await createIssuanceInTx(tx, {
@@ -237,24 +332,64 @@ export async function createClient(data: ClientCreateInput) {
         cardType: issuedCardType,
       });
     }
-    if (isMonthly) {
+    if (isMonthly && schedule.length > 0) {
       await tx.clientPaymentMonthly.createMany({
         data: schedule.map((entry) => ({ ...entry, clientId: client.id })),
       });
     }
     return tx.client.findUniqueOrThrow({ where: { id: client.id }, include: clientInclude });
   }, { timeout: 20000, maxWait: 10000 });
+
+  if (isMonthly && data.generateMonthlyAfterIqama) {
+    const added = await ensureUpcomingInstallment(created.id);
+    if (added) {
+      return prisma.client.findUniqueOrThrow({ where: { id: created.id }, include: clientInclude });
+    }
+  }
+  return created;
+}
+
+type ClientWithInclude = Prisma.ClientGetPayload<{ include: typeof clientInclude }>;
+
+// بعد تعديل عميل شهري مفعَّل عنده التوليد بعد انتهاء الإقامة: ضمان وجود
+// الدفعية القادمة، وإرجاع نسخة محدثة من العميل إن أُضيفت دفعيات جديدة
+async function finalizeRolling(clientId: number, enabled: boolean, result: ClientWithInclude) {
+  if (!enabled) return result;
+  const added = await ensureUpcomingInstallment(clientId);
+  if (!added) return result;
+  return prisma.client.findUniqueOrThrow({ where: { id: clientId }, include: clientInclude });
 }
 
 export async function updateClient(id: number, data: ClientCreateInput) {
   const existing = await prisma.client.findUnique({
     where: { id },
-    select: { paymentType: true, boardNumber: true, iqamaEndDate: true, amount: true },
+    select: {
+      paymentType: true,
+      boardNumber: true,
+      iqamaEndDate: true,
+      amount: true,
+      generateMonthlyAfterIqama: true,
+      tafweedAlertDate: true,
+      tafweedDone: true,
+    },
   });
   if (!existing) return null;
 
+  // تاريخ تنبيه تفويض جديد أو مغيَّر لا يكون في الماضي. إبقاء تاريخ تنبيه نشط
+  // كما هو مسموح حتى لا تتعطل تعديلات الحقول الأخرى، أما إعادة تفعيل تنبيه
+  // منجز ("تم التفويض") فتُعامل كتاريخ جديد ويُرفض الماضي
+  if (data.tafweedAlertDate) {
+    const existingTafweed = existing.tafweedAlertDate?.toISOString().slice(0, 10) ?? null;
+    const unchangedActive = data.tafweedAlertDate === existingTafweed && !existing.tafweedDone;
+    if (!unchangedActive) {
+      assertTafweedDateNotPast(data.tafweedAlertDate);
+    }
+  }
+
   const wasMonthly = existing.paymentType === MONTHLY;
   const staysMonthly = data.paymentType !== undefined ? data.paymentType === MONTHLY : wasMonthly;
+  // القيمة الفعلية للخيار بعد هذا التعديل — تحكم التوليد بعد انتهاء الإقامة
+  const rollingEnabled = data.generateMonthlyAfterIqama ?? existing.generateMonthlyAfterIqama;
 
   const updateData: Prisma.ClientUncheckedUpdateInput = {
     ...(data.name !== undefined && { name: data.name }),
@@ -273,6 +408,13 @@ export async function updateClient(id: number, data: ClientCreateInput) {
       nextPaymentDate: data.nextPaymentDate ? new Date(data.nextPaymentDate) : null,
     }),
     ...(data.amount !== undefined && { amount: data.amount }),
+    ...(data.generateMonthlyAfterIqama !== undefined && {
+      generateMonthlyAfterIqama: data.generateMonthlyAfterIqama,
+    }),
+    ...(data.tafweedAlertDate !== undefined && {
+      tafweedAlertDate: data.tafweedAlertDate ? new Date(data.tafweedAlertDate) : null,
+    }),
+    ...(data.tafweedDone !== undefined && { tafweedDone: data.tafweedDone }),
     ...(data.serviceId !== undefined && { serviceId: data.serviceId }),
     ...(data.organizationId !== undefined && { organizationId: data.organizationId }),
     ...(data.lastStepId !== undefined && { lastStepId: data.lastStepId }),
@@ -299,6 +441,8 @@ export async function updateClient(id: number, data: ClientCreateInput) {
       }
       // يوم الاستلام الشهري المخزَّن في boardNumber لم يعد له معنى للعميل السنوي
       updateData.boardNumber = null;
+      // وكذلك خيار التوليد بعد انتهاء الإقامة — خاصية شهرية فقط
+      updateData.generateMonthlyAfterIqama = false;
 
       return prisma.$transaction(async (tx) => {
         await tx.clientPaymentMonthly.deleteMany({ where: { clientId: id } });
@@ -330,19 +474,23 @@ export async function updateClient(id: number, data: ClientCreateInput) {
   if (!wasMonthly) {
     const { day, iqamaEndDate, amount } = monthlyScheduleInputs(data, existing);
     const schedule = buildMonthlySchedule(day, amount, iqamaEndDate);
-    if (schedule.length === 0) {
+    // مع خيار التوليد بعد انتهاء الإقامة يُقبل جدول فارغ (إقامة منتهية)
+    if (schedule.length === 0 && !rollingEnabled) {
       throw new ValidationError('تاريخ انتهاء الإقامة يجب أن يكون بعد أقرب يوم استلام قادم');
     }
 
-    return prisma.$transaction(async (tx) => {
+    const converted = await prisma.$transaction(async (tx) => {
       await tx.clientPaymentMonthly.deleteMany({ where: { clientId: id } });
       await tx.clientPayment.deleteMany({ where: { clientId: id } });
       await tx.client.update({ where: { id }, data: updateData });
-      await tx.clientPaymentMonthly.createMany({
-        data: schedule.map((entry) => ({ ...entry, clientId: id })),
-      });
+      if (schedule.length > 0) {
+        await tx.clientPaymentMonthly.createMany({
+          data: schedule.map((entry) => ({ ...entry, clientId: id })),
+        });
+      }
       return tx.client.findUniqueOrThrow({ where: { id }, include: clientInclude });
     }, { timeout: 20000, maxWait: 10000 });
+    return finalizeRolling(id, rollingEnabled, converted);
   }
 
   // تغيير القسط لعميل شهري قائم يعيد تسعير كل الدفعيات غير المسدّدة
@@ -361,9 +509,16 @@ export async function updateClient(id: number, data: ClientCreateInput) {
     });
     const schedule = buildMonthlySchedule(day, amount, iqamaEndDate, lastInstallment?.receivedDate);
 
-    return prisma.$transaction(async (tx) => {
+    const synced = await prisma.$transaction(async (tx) => {
+      // الدفعيات المعلَّمة afterIqama متولدة من خيار "التوليد بعد انتهاء الإقامة"
+      // وليست جزءاً من جدول الإقامة — تبقى كما هي ولا تمسّها المزامنة
       await tx.clientPaymentMonthly.deleteMany({
-        where: { clientId: id, status: { not: 'paid' }, receivedDate: { gt: iqamaEndDate } },
+        where: {
+          clientId: id,
+          status: { not: 'paid' },
+          receivedDate: { gt: iqamaEndDate },
+          afterIqama: false,
+        },
       });
       await tx.client.update({ where: { id }, data: updateData });
       if (amountChanged) {
@@ -376,17 +531,20 @@ export async function updateClient(id: number, data: ClientCreateInput) {
       }
       return tx.client.findUniqueOrThrow({ where: { id }, include: clientInclude });
     }, { timeout: 20000, maxWait: 10000 });
+    return finalizeRolling(id, rollingEnabled, synced);
   }
 
   if (amountChanged) {
-    return prisma.$transaction(async (tx) => {
+    const repriced = await prisma.$transaction(async (tx) => {
       await tx.client.update({ where: { id }, data: updateData });
       await repriceUnpaidInstallments(tx, id, data.amount as number);
       return tx.client.findUniqueOrThrow({ where: { id }, include: clientInclude });
     }, { timeout: 20000, maxWait: 10000 });
+    return finalizeRolling(id, rollingEnabled, repriced);
   }
 
-  return prisma.client.update({ where: { id }, data: updateData, include: clientInclude });
+  const updated = await prisma.client.update({ where: { id }, data: updateData, include: clientInclude });
+  return finalizeRolling(id, rollingEnabled, updated);
 }
 
 // عنصر دين واحد في تفاصيل أرشيف العميل المحذوف:

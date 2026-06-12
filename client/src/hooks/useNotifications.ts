@@ -13,10 +13,18 @@ export interface MonthlyPaymentAlert {
   month: string | null
   client: {
     name: string | null
+    phone: string | null
     iqamaNumber: string | null
+    iqamaEndDate: string | null
     service: ServiceInfo | null
     organization: OrgInfo | null
   } | null
+}
+
+// إقامة منتهية فعلاً: تاريخ النهاية قبل اليوم (من تنتهي إقامته اليوم لا يزال سارياً)
+export function isIqamaExpired(s: string | null | undefined): boolean {
+  if (!s) return false
+  return s.slice(0, 10) < new Date().toISOString().slice(0, 10)
 }
 
 export interface CustomPaymentAlert {
@@ -38,11 +46,20 @@ export interface IqamaAlert {
   organization: OrgInfo | null
 }
 
+// تنبيه التفويض والتصديق: يظهر من يوم التاريخ المحدد ويبقى حتى الضغط على "تم التفويض"
+export interface TafweedAlert {
+  id: number
+  name: string | null
+  tafweedAlertDate: string | null
+  organization: OrgInfo | null
+}
+
 export interface NotificationsData {
   monthlyPayments: MonthlyPaymentAlert[]
   customPayments: CustomPaymentAlert[]
   iqamaExpirySoon: IqamaAlert[]
   iqamaExpired: IqamaAlert[]
+  tafweedAlerts: TafweedAlert[]
 }
 
 export function useNotifications() {

@@ -4,17 +4,19 @@ import Navbar from '../components/Navbar'
 import TabBar from '../components/TabBar'
 import ArrivalPlacesSection from '../components/ArrivalPlacesSection'
 import NotificationSettingsSection from '../components/NotificationSettingsSection'
+import PwaSettingsSection from '../components/PwaSettingsSection'
 import { apiFetch } from '../lib/api'
 import { useUiSettings } from '../hooks/useUiSettings'
 import type { UiSettings } from '../hooks/useUiSettings'
 
-type SettingsTab = 'bells' | 'pages' | 'places' | 'push'
+type SettingsTab = 'bells' | 'pages' | 'places' | 'push' | 'pwa'
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'places', label: 'جهات القدوم' },
   { id: 'pages', label: 'الصفحات' },
   { id: 'bells', label: 'التنبيهات' },
   { id: 'push', label: 'اشعارات الهاتف' },
+  { id: 'pwa', label: 'تطبيق PWA' },
 ]
 
 const BELL_OPTIONS: { key: keyof UiSettings; label: string; description: string; accent: string }[] = [
@@ -232,6 +234,7 @@ export default function SettingsPage() {
           renderSection('الصفحات', 'الصفحة المخفية تختفي من القائمة ومن لوحة التحكم', PAGE_OPTIONS)}
         {activeTab === 'places' && <ArrivalPlacesSection />}
         {activeTab === 'push' && <NotificationSettingsSection />}
+        {activeTab === 'pwa' && <PwaSettingsSection />}
       </main>
     </div>
   )

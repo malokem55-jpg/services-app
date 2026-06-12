@@ -25,7 +25,9 @@ export async function getMonthlyPaymentAlerts() {
       client: {
         select: {
           name: true,
+          phone: true,
           iqamaNumber: true,
+          iqamaEndDate: true,
           service: { select: { name: true } },
           organization: { select: { name: true } },
         },
@@ -67,6 +69,25 @@ export async function getIqamaExpirySoonAlerts() {
       organization: { select: { name: true } },
     },
     orderBy: { iqamaEndDate: 'asc' },
+  });
+}
+
+// تنبيهات التفويض والتصديق: تظهر من يوم التاريخ المحدد وتبقى حتى يضغط
+// المستخدم "تم التفويض" فتُعلَّم منجزة. المقارنة بتاريخ اليوم المحلي بصيغة UTC
+// لأن العمود @db.Date مخزَّن كمنتصف ليل UTC
+export async function getTafweedAlerts() {
+  const now = new Date();
+  const todayUtc = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+
+  return prisma.client.findMany({
+    where: { tafweedAlertDate: { lte: todayUtc }, tafweedDone: false },
+    select: {
+      id: true,
+      name: true,
+      tafweedAlertDate: true,
+      organization: { select: { name: true } },
+    },
+    orderBy: { tafweedAlertDate: 'asc' },
   });
 }
 

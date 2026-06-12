@@ -9,6 +9,8 @@ import {
   type ArrivalPlaceOption,
   buildClientPayload,
   iqamaStatus,
+  tafweedAlertErrors,
+  tafweedDisplayValue,
 } from '../lib/clientForm'
 import { formatBothDates } from '../lib/hijri'
 import { clientSchema, clientStepSchema, clientPaymentSchema, getErrors } from '../lib/schemas'
@@ -64,6 +66,9 @@ interface ClientDetail {
   paymentType: string | null
   nextPaymentDate: string | null
   amount: number | null
+  generateMonthlyAfterIqama: boolean | null
+  tafweedAlertDate: string | null
+  tafweedDone: boolean | null
   serviceId: number | null
   organizationId: number | null
   lastStepId: number | null
@@ -94,6 +99,12 @@ function clientToForm(c: ClientDetail): ClientFormData {
     notes: c.notes ?? '',
     nextPaymentDate: c.nextPaymentDate ?? '',
     arrivalPlaceId: c.arrivalPlaceId != null ? String(c.arrivalPlaceId) : '',
+    generateMonthlyAfterIqama: c.generateMonthlyAfterIqama ? '1' : '',
+    // البوكس مفعَّل للتنبيه النشط فقط — المنجز ("تم التفويض") يظهر غير مفعَّل
+    // وتحفظ علامته في tafweedDone حتى لا تمسحها تعديلات الحقول الأخرى
+    tafweedAlertEnabled: c.tafweedAlertDate && !c.tafweedDone ? '1' : '',
+    tafweedAlertDate: c.tafweedAlertDate ? c.tafweedAlertDate.slice(0, 10) : '',
+    tafweedDone: c.tafweedDone ? '1' : '',
   }
 }
 
@@ -218,6 +229,7 @@ export default function ClientDetailPage() {
     iqamaEndDate: '', cardType: 'بدون', paymentType: '', amount: '',
     serviceId: '', organizationId: '', boardNumber: '', visaNumber: '',
     receivedAmount: '', notes: '', nextPaymentDate: '', arrivalPlaceId: '',
+    generateMonthlyAfterIqama: '', tafweedAlertEnabled: '', tafweedAlertDate: '', tafweedDone: '',
   })
   const [editErrors, setEditErrors] = useState<Record<string, string>>({})
   const [showDeleteClient, setShowDeleteClient] = useState(false)
@@ -332,6 +344,12 @@ export default function ClientDetailPage() {
         errs.nextPaymentDate = 'تاريخ الدفعة القادمة مطلوب'
       }
     }
+    // تنبيه التفويض: التفعيل يستلزم تاريخًا غير سابق لليوم. التاريخ النشط المحفوظ
+    // يُقبل كما هو، أما إعادة تفعيل تنبيه منجز فتُعامل كإدخال جديد
+    Object.assign(
+      errs,
+      tafweedAlertErrors(editForm, client?.tafweedDone ? null : client?.tafweedAlertDate),
+    )
     setEditErrors(errs)
     if (Object.keys(errs).length > 0) return
     updateClient.mutate(buildClientPayload(editForm))
@@ -526,6 +544,8 @@ export default function ClientDetailPage() {
                 <InfoField label="جهة القدوم"        value={client.arrivalPlace?.name} />
                 <InfoField label="الخطوة الحالية"    value={currentStep} />
                 <InfoField label="كرت العمل"         value={client.cardType} />
+                <InfoField label="تاريخ تنبيه التفويض والتصديق"
+                  value={tafweedDisplayValue(client.tafweedAlertDate, client.tafweedDone)} />
                 <InfoField label="تاريخ الدفعة القادمة"
                   value={isMonthly ? nextMonthlyDue : client.nextPaymentDate?.slice(0, 10)} />
                 <InfoField label="طريقة الدفع"       value={client.paymentType} />

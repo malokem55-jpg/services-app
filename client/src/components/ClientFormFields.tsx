@@ -204,6 +204,17 @@ export default function ClientFormFields({
                       <FieldError msg={errors.boardNumber} />
                     </div>
                   </div>
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
+                    <input
+                      type="checkbox"
+                      checked={form.generateMonthlyAfterIqama === '1'}
+                      onChange={(e) => onChange('generateMonthlyAfterIqama', e.target.checked ? '1' : '')}
+                      className="w-4 h-4 mt-0.5 accent-sky-500 cursor-pointer shrink-0"
+                    />
+                    <span className="text-xs font-semibold text-gray-600 leading-relaxed">
+                      توليد تنبيهات دفعيات شهرية لهذا العميل حتى إذا كانت إقامته منتهية
+                    </span>
+                  </label>
                 </>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -334,6 +345,34 @@ export default function ClientFormFields({
                   <input type="date" value={form.nextPaymentDate} onChange={(e) => onChange('nextPaymentDate', e.target.value)}
                     className={inputCls} />
                 </div>
+              </div>
+
+              {/* ── تنبيه التفويض والتصديق ── */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 space-y-2.5">
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.tafweedAlertEnabled === '1'}
+                    onChange={(e) => onChange('tafweedAlertEnabled', e.target.checked ? '1' : '')}
+                    className="w-4 h-4 mt-0.5 accent-sky-500 cursor-pointer shrink-0"
+                  />
+                  <span className="text-xs font-semibold text-gray-600 leading-relaxed">
+                    تفعيل تنبيه التفويض لهذا العميل
+                  </span>
+                </label>
+                {form.tafweedAlertEnabled === '1' && (
+                  <div className="sm:max-w-60">
+                    <label className={labelCls}>تاريخ تنبيه التفويض والتصديق</label>
+                    <input
+                      type="date"
+                      value={form.tafweedAlertDate}
+                      min={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => onChange('tafweedAlertDate', e.target.value)}
+                      className={ic('tafweedAlertDate')}
+                    />
+                    <FieldError msg={errors.tafweedAlertDate} />
+                  </div>
+                )}
               </div>
 
               {/* ── جدول الخطوات ── */}
