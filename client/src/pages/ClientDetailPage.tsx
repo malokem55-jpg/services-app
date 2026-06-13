@@ -230,7 +230,7 @@ export default function ClientDetailPage() {
     name: '', phone: '', passport: '', iqamaNumber: '',
     iqamaEndDate: '', cardType: 'بدون', paymentType: '', amount: '',
     serviceId: '', organizationId: '', boardNumber: '', visaNumber: '',
-    receivedAmount: '', notes: '', nextPaymentDate: '', arrivalPlaceId: '',
+    receivedAmount: '', notes: '', nextPaymentDate: '', monthlyReceiptDay: '', arrivalPlaceId: '',
     generateMonthlyAfterIqama: '', tafweedAlertEnabled: '', tafweedAlertDate: '', tafweedDone: '',
   })
   const [editErrors, setEditErrors] = useState<Record<string, string>>({})

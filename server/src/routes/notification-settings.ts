@@ -1,6 +1,6 @@
 import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { requireAuth, AuthRequest } from '../middleware/auth.js';
+import { requireAuth, requireAuthOrMalik, AuthRequest } from '../middleware/auth.js';
 import {
   getNotificationSettings,
   updateNotificationSchedule,
@@ -10,6 +10,18 @@ import { reschedulePushCron } from '../lib/push-cron.js';
 import { runPushNotificationCheck } from '../services/push.service.js';
 
 const router = Router();
+
+// إرسال جميع التنبيهات المختارة فوراً — تقبل تسجيل دخول المستخدم أو كلمة مرور لوحة malik
+// (الزر منقول إلى لوحة malik التي تُفتح بلا تسجيل دخول). قبل requireAuth عمداً.
+router.post('/send-now', requireAuthOrMalik, async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    await runPushNotificationCheck({ force: true });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.use(requireAuth);
 
 router.get('/', async (_req: AuthRequest, res: Response, next: NextFunction) => {
@@ -54,16 +66,6 @@ router.put('/channels', async (req: AuthRequest, res: Response, next: NextFuncti
     await updatePushChannels(channels);
     const settings = await getNotificationSettings();
     res.json(settings);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// إرسال جميع التنبيهات المختارة فوراً حتى لو كانت مُرسَلة من قبل
-router.post('/send-now', async (_req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    await runPushNotificationCheck({ force: true });
-    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

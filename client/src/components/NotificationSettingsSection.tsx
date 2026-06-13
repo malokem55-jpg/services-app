@@ -91,12 +91,6 @@ export default function NotificationSettingsSection() {
     },
   })
 
-  // إرسال جميع التنبيهات المختارة فوراً حتى لو أُرسلت من قبل
-  const sendNowMutation = useMutation({
-    mutationFn: () =>
-      apiFetch<{ ok: boolean }>('/api/notification-settings/send-now', { method: 'POST' }),
-  })
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const [h, m] = timeValue.split(':').map(Number)
@@ -108,7 +102,6 @@ export default function NotificationSettingsSection() {
   }
 
   const [selectedHour, selectedMinute] = timeValue.split(':').map(Number)
-  const anyChannelOn = CHANNEL_OPTIONS.some((o) => data?.[o.key])
 
   return (
     <div className="space-y-3 md:space-y-4">
@@ -156,33 +149,6 @@ export default function NotificationSettingsSection() {
           </div>
         )}
 
-        {/* زر الإرسال الفوري */}
-        <div className="px-3 py-2.5 border-t border-gray-100 bg-gray-50/40 space-y-1.5">
-          <button
-            type="button"
-            onClick={() => { sendNowMutation.reset(); sendNowMutation.mutate() }}
-            disabled={sendNowMutation.isPending || isLoading || !anyChannelOn}
-            className="w-full flex items-center justify-center gap-2 rounded-lg
-                       bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60
-                       text-white text-[13px] font-semibold py-2 min-h-10 transition-colors
-                       shadow-sm shadow-emerald-500/20"
-          >
-            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.27 5.45a.5.5 0 01.67-.65l16.5 7.2a.5.5 0 010 .9l-16.5 7.2a.5.5 0 01-.67-.65L6 12zm0 0h6" />
-            </svg>
-            {sendNowMutation.isPending ? 'جارٍ الإرسال...' : 'إرسال جميع التنبيهات الآن'}
-          </button>
-
-          {sendNowMutation.isError ? (
-            <p className="text-[11px] text-red-600 text-center">
-              {sendNowMutation.error instanceof Error ? sendNowMutation.error.message : 'تعذّر الإرسال'}
-            </p>
-          ) : sendNowMutation.isSuccess ? (
-            <p className="text-[11px] text-emerald-600 font-medium text-center">تم إرسال التنبيهات المُختارة ✓</p>
-          ) : (
-            <p className="text-[11px] text-gray-400 text-center">يُرسِل فوراً حتى لو سبق إرساله</p>
-          )}
-        </div>
       </div>
 
       {/* وقت الإرسال اليومي */}

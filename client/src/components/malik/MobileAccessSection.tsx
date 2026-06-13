@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import MuqeemFillCard from '../MuqeemFillCard'
+import SendNotificationsNowCard from './SendNotificationsNowCard'
 
 // قسم «تشغيل المشروع على الهاتف» داخل لوحة malik.
 // يقرأ ويبدّل إعداد runOnMobile عبر نقطة عامة بلا مصادقة حتى تعمل اللوحة بلا تسجيل دخول.
@@ -78,7 +79,10 @@ export default function MobileAccessSection() {
       {/* تعبئة مقيم على الآيفون (منقول من تاب «تطبيق الموبايل») */}
       <MuqeemFillCard />
 
-      {/* شرح آلية عمل الإشعارات (منقول من تبويب «إشعارات الهاتف» في الإعدادات) */}
+      {/* إرسال جميع التنبيهات الآن (منقول من تاب «ضبط الجوال» في الإعدادات) */}
+      <SendNotificationsNowCard />
+
+      {/* شرح آلية عمل الإشعارات (منقول من تاب «ضبط الجوال» في الإعدادات) */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50">
           <h3 className="text-sm font-semibold text-sky-700">كيف تعمل الإشعارات؟</h3>
@@ -88,7 +92,7 @@ export default function MobileAccessSection() {
             {[
               'يتم إرسال الإشعارات مرة واحدة يومياً في الوقت المحدد.',
               'يُرسَل إشعار لكل تنبيه جديد فقط (لا يتكرر للتنبيه ذاته).',
-              'يُرسَل إشعار فقط للتنبيهات التي اخترتها في الأعلى.',
+              'يُرسَل إشعار فقط للتنبيهات التي فعّلتها في إعدادات التطبيق.',
               'زر «إرسال جميع التنبيهات الآن» يُعيد الإرسال فوراً حتى لو سبق إرساله.',
               'تأكد من منح التطبيق إذن الإشعارات في متصفحك.',
             ].map((text, i) => (
