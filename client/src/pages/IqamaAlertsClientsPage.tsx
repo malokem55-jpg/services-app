@@ -29,6 +29,7 @@ interface ClientDetail {
   cardType: string | null
   paymentType: string | null
   amount: number | null
+  monthlyReceiptDay: number | null
   nextPaymentDate: string | null
   service: { id: number; name: string | null } | null
   organization: { id: number; name: string | null } | null
@@ -184,7 +185,7 @@ export default function IqamaAlertsClientsPage() {
       // للعميل الشهري: السيرفر يستكمل جدول الدفعيات تلقائياً حتى تاريخ الانتهاء الجديد
       const clientUpdate: Record<string, unknown> = { iqamaEndDate: body.iqamaEndDate, amount: body.amount }
       if (body.isMonthly && body.dayOfMonth) {
-        clientUpdate.boardNumber = String(body.dayOfMonth)
+        clientUpdate.monthlyReceiptDay = body.dayOfMonth
       }
       await apiFetch<unknown>(`/api/clients/${body.clientId}`, {
         method: 'PUT',
@@ -486,7 +487,7 @@ export default function IqamaAlertsClientsPage() {
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">يوم الاستلام في الشهر</p>
                     <p className="text-sm font-semibold text-gray-900">
-                      {detailClient.boardNumber || '—'}
+                      {detailClient.monthlyReceiptDay ?? '—'}
                     </p>
                   </div>
                 </div>

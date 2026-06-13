@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { requireAuth, AuthRequest } from '../middleware/auth.js';
+import { requireAuth, requireMalik, AuthRequest } from '../middleware/auth.js';
 import { getUiSettings, updateUiSettings } from '../services/ui-settings.service.js';
 
 const router = Router();
@@ -10,6 +10,19 @@ const router = Router();
 router.get('/mobile-access', async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const settings = await getUiSettings();
+    res.json({ runOnMobile: settings.runOnMobile });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// تبديل «تشغيل المشروع على الهاتف» فقط — محمية بكلمة مرور لوحة malik (X-Malik-Token).
+// لا تكشف بقية الإعدادات ولا تعدّلها.
+const mobileAccessSchema = z.object({ runOnMobile: z.boolean() });
+router.put('/mobile-access', requireMalik, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { runOnMobile } = mobileAccessSchema.parse(req.body);
+    const settings = await updateUiSettings({ runOnMobile });
     res.json({ runOnMobile: settings.runOnMobile });
   } catch (err) {
     next(err);

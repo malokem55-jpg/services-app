@@ -359,18 +359,20 @@ export default function Navbar() {
                   </NotificationBell>
                 )}
 
-                <NotificationBell
-                  count={notifs?.tafweedAlerts.length ?? 0}
-                  badgeColor="bg-orange-500"
-                  title="تنبيهات التفويض والتصديق"
-                  ringDelay="1s"
-                  mobileOpen={openBell === 'tafweed'}
-                  onMobileToggle={() => toggleBell('tafweed')}
-                >
-                  {notifs?.tafweedAlerts.map(item => (
-                    <TafweedItem key={item.id} item={item} onDone={() => setConfirmTafweed(item)} />
-                  ))}
-                </NotificationBell>
+                {uiSettings?.showBellTafweed !== false && (
+                  <NotificationBell
+                    count={notifs?.tafweedAlerts.length ?? 0}
+                    badgeColor="bg-orange-500"
+                    title="تنبيهات التفويض والتصديق"
+                    ringDelay="1s"
+                    mobileOpen={openBell === 'tafweed'}
+                    onMobileToggle={() => toggleBell('tafweed')}
+                  >
+                    {notifs?.tafweedAlerts.map(item => (
+                      <TafweedItem key={item.id} item={item} onDone={() => setConfirmTafweed(item)} />
+                    ))}
+                  </NotificationBell>
+                )}
               </div>
 
               {/* Divider — desktop */}

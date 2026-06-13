@@ -199,9 +199,9 @@ export default function ClientFormFields({
                     </div>
                     <div>
                       <label className={labelCls}>يوم الاستلام من كل شهر</label>
-                      <input type="number" min={1} max={31} value={form.boardNumber} onChange={(e) => onChange('boardNumber', e.target.value)}
-                        placeholder="1 - 31" className={ic('boardNumber')} />
-                      <FieldError msg={errors.boardNumber} />
+                      <input type="number" min={1} max={31} value={form.monthlyReceiptDay} onChange={(e) => onChange('monthlyReceiptDay', e.target.value)}
+                        placeholder="1 - 31" className={ic('monthlyReceiptDay')} />
+                      <FieldError msg={errors.monthlyReceiptDay} />
                     </div>
                   </div>
                   <label className="flex items-start gap-2.5 cursor-pointer select-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">

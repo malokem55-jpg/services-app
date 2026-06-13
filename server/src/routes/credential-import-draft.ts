@@ -1,10 +1,11 @@
-import { Router, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { requireAuth, AuthRequest } from '../middleware/auth.js';
+import { requireMalik } from '../middleware/auth.js';
 import { getDraftRows, saveDraftRows, clearDraft } from '../services/credential-import-draft.service.js';
 
+// محمية بكلمة مرور لوحة malik (X-Malik-Token) بدل تسجيل دخول المستخدم.
 const router = Router();
-router.use(requireAuth);
+router.use(requireMalik);
 
 // شكل صف المسودة مطابق لحالة الصف في الواجهة (EditRow)
 const rowSchema = z.object({
@@ -22,7 +23,7 @@ const rowSchema = z.object({
 const bodySchema = z.object({ rows: z.array(rowSchema) });
 
 // GET /api/credential-import-draft — الصفوف المحفوظة (أو مصفوفة فارغة)
-router.get('/', async (_req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
   try {
     res.json({ rows: await getDraftRows() });
   } catch (err) {
@@ -31,7 +32,7 @@ router.get('/', async (_req: AuthRequest, res: Response, next: NextFunction) => 
 });
 
 // PUT /api/credential-import-draft — حفظ/استبدال المسودة
-router.put('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.put('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const parsed = bodySchema.safeParse(req.body);
     if (!parsed.success) {
@@ -46,7 +47,7 @@ router.put('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
 });
 
 // DELETE /api/credential-import-draft — حذف المسودة
-router.delete('/', async (_req: AuthRequest, res: Response, next: NextFunction) => {
+router.delete('/', async (_req: Request, res: Response, next: NextFunction) => {
   try {
     await clearDraft();
     res.json({ ok: true });

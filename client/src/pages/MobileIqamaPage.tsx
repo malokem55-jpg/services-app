@@ -122,7 +122,7 @@ export default function MobileIqamaPage() {
     }) => {
       const clientUpdate: Record<string, unknown> = { iqamaEndDate: body.iqamaEndDate, amount: body.amount }
       if (body.isMonthly && body.dayOfMonth) {
-        clientUpdate.boardNumber = String(body.dayOfMonth)
+        clientUpdate.monthlyReceiptDay = body.dayOfMonth
       }
       await apiFetch<unknown>(`/api/clients/${body.clientId}`, {
         method: 'PUT',

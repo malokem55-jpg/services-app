@@ -4,19 +4,17 @@ import Navbar from '../components/Navbar'
 import TabBar from '../components/TabBar'
 import ArrivalPlacesSection from '../components/ArrivalPlacesSection'
 import NotificationSettingsSection from '../components/NotificationSettingsSection'
-import PwaSettingsSection from '../components/PwaSettingsSection'
 import { apiFetch } from '../lib/api'
 import { useUiSettings } from '../hooks/useUiSettings'
 import type { UiSettings } from '../hooks/useUiSettings'
 
-type SettingsTab = 'bells' | 'pages' | 'places' | 'push' | 'pwa'
+type SettingsTab = 'bells' | 'pages' | 'places' | 'push'
 
 const TABS: { id: SettingsTab; label: string }[] = [
-  { id: 'places', label: 'جهات القدوم' },
+  { id: 'push', label: 'ضبط الجوال' },
   { id: 'pages', label: 'الصفحات' },
   { id: 'bells', label: 'التنبيهات' },
-  { id: 'push', label: 'اشعارات الهاتف' },
-  { id: 'pwa', label: 'تطبيق الموبايل' },
+  { id: 'places', label: 'جهات القدوم' },
 ]
 
 const BELL_OPTIONS: { key: keyof UiSettings; label: string; description: string; accent: string }[] = [
@@ -43,6 +41,12 @@ const BELL_OPTIONS: { key: keyof UiSettings; label: string; description: string;
     label: 'تنبيهات الاقامات المنتهية',
     description: 'جرس الإقامات المنتهية',
     accent: 'bg-red-500',
+  },
+  {
+    key: 'showBellTafweed',
+    label: 'تنبيهات التفويض والتصديق',
+    description: 'جرس تنبيهات تاريخ التفويض',
+    accent: 'bg-orange-500',
   },
 ]
 
@@ -119,7 +123,7 @@ function SectionSkeleton() {
 export default function SettingsPage() {
   const qc = useQueryClient()
   const { data: settings, isLoading, isError } = useUiSettings()
-  const [activeTab, setActiveTab] = useState<SettingsTab>('places')
+  const [activeTab, setActiveTab] = useState<SettingsTab>('push')
 
   const mutation = useMutation({
     mutationFn: (patch: Partial<UiSettings>) =>
@@ -229,12 +233,11 @@ export default function SettingsPage() {
         )}
 
         {activeTab === 'bells' &&
-          renderSection('التنبيهات', 'التحكم في إظهار وإخفاء أجراس التنبيهات الأربعة', BELL_OPTIONS)}
+          renderSection('التنبيهات', 'التحكم في إظهار وإخفاء أجراس التنبيهات الخمسة', BELL_OPTIONS)}
         {activeTab === 'pages' &&
           renderSection('الصفحات', 'الصفحة المخفية تختفي من القائمة ومن لوحة التحكم', PAGE_OPTIONS)}
         {activeTab === 'places' && <ArrivalPlacesSection />}
         {activeTab === 'push' && <NotificationSettingsSection />}
-        {activeTab === 'pwa' && <PwaSettingsSection />}
       </main>
     </div>
   )

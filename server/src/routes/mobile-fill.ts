@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { requireAuth, AuthRequest } from '../middleware/auth.js';
+import { requireAuth, requireAuthOrMalik, AuthRequest } from '../middleware/auth.js';
 import { PLATFORM_KEYS } from '../services/login-platforms.service.js';
 import { getFillKey, armFill, consumePendingFill } from '../services/mobile-fill.service.js';
 
@@ -24,18 +24,19 @@ router.get('/pending', async (req: Request, res: Response, next: NextFunction) =
   }
 });
 
-router.use(requireAuth);
-
 // ─── GET /api/mobile-fill/key ────────────────────────────────────────────────
-// تستخدمه صفحة الإعدادات لتوليد رابط الـ Bookmarklet
+// تستخدمه صفحة الإعدادات ولوحة malik لتوليد رابط الـ Bookmarklet — تقبل تسجيل دخول
+// المستخدم أو كلمة مرور لوحة malik (لأن اللوحة تُفتح بلا تسجيل دخول). قبل requireAuth عمداً.
 
-router.get('/key', async (_req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/key', requireAuthOrMalik, async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     res.json({ key: await getFillKey() });
   } catch (err) {
     next(err);
   }
 });
+
+router.use(requireAuth);
 
 // ─── POST /api/mobile-fill/arm ───────────────────────────────────────────────
 // يستدعيه التطبيق المخصص قبل فتح موقع المنصة

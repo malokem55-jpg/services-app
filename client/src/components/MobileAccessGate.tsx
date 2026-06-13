@@ -7,14 +7,14 @@ import { isMobileDevice } from '../lib/customMode'
  * بوابة الوصول من الهاتف: عند إيقاف إعداد «تشغيل المشروع على الهاتف» يُمنع فتح
  * الموقع على متصفحات الجوال وتطبيق PWA — قبل شاشة الدخول أصلاً — ويبقى يعمل
  * على الكمبيوتر فقط. تقرأ الإعداد من نقطة عامة بلا مصادقة.
- * صفحة التحكم /mobile-access تبقى متاحة دائمًا حتى يمكن إعادة التفعيل من الهاتف.
+ * لوحة التحكم /malik تبقى متاحة دائمًا حتى يمكن إعادة التفعيل من الهاتف.
  */
 export default function MobileAccessGate() {
   const mobile = isMobileDevice()
   const { pathname } = useLocation()
 
-  // الكمبيوتر يعمل دائمًا بلا أي انتظار، وصفحة التحكم مستثناة على كل الأجهزة
-  const enabled = mobile && pathname !== '/mobile-access'
+  // الكمبيوتر يعمل دائمًا بلا أي انتظار، ولوحة التحكم مستثناة على كل الأجهزة
+  const enabled = mobile && pathname !== '/malik'
 
   const { data, isLoading } = useQuery<{ runOnMobile: boolean }>({
     queryKey: ['mobile-access'],

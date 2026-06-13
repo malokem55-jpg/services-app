@@ -6,6 +6,7 @@ export interface UiSettings {
   showBellMonthlyPayments: boolean
   showBellIqamaSoon: boolean
   showBellIqamaExpired: boolean
+  showBellTafweed: boolean
   showUnderProcedurePage: boolean
   showDeletedDuesPage: boolean
   showIqamaAlertsPage: boolean

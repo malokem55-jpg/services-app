@@ -1,13 +1,14 @@
-import express, { Router, Response, NextFunction } from 'express';
+import express, { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { requireAuth, AuthRequest } from '../middleware/auth.js';
+import { requireMalik } from '../middleware/auth.js';
 import {
   buildImportPreview,
   commitCredentialsImport,
 } from '../services/org-credentials-import.service.js';
 
+// محمية بكلمة مرور لوحة malik (X-Malik-Token) بدل تسجيل دخول المستخدم.
 const router = Router();
-router.use(requireAuth);
+router.use(requireMalik);
 
 // POST /api/org-credentials-import/parse — يستقبل ملف الإكسل كبيانات ثنائية خام
 // (الوسيط العام express.json يتجاوزه لأن نوع المحتوى ليس JSON)
@@ -21,7 +22,7 @@ router.post(
     ],
     limit: '20mb',
   }),
-  async (req: AuthRequest, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const body = req.body;
       if (!Buffer.isBuffer(body) || body.length === 0) {
@@ -52,7 +53,7 @@ const commitSchema = z.object({
     .min(1, 'لا توجد صفوف للإدخال'),
 });
 
-router.post('/commit', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/commit', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const parsed = commitSchema.safeParse(req.body);
     if (!parsed.success) {

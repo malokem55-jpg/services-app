@@ -30,6 +30,8 @@ const clientBodySchema = z.object({
   paymentType: z.string().optional(),
   nextPaymentDate: z.string().date('nextPaymentDate must be YYYY-MM-DD').optional(),
   amount: z.number().nonnegative().optional(),
+  // عميل شهري: يوم الاستلام من كل شهر (1-31) — حقل مستقل عن رقم الحدود
+  monthlyReceiptDay: z.number().int().min(1).max(31).optional(),
   receivedAmount: z.number().nonnegative().optional(),
   // عميل شهري: استمرار توليد الدفعيات حتى بعد انتهاء الإقامة
   generateMonthlyAfterIqama: z.boolean().optional(),

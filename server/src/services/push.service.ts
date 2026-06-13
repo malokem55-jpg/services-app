@@ -7,6 +7,7 @@ import {
   getIqamaExpiryUrgentAlerts,
   getTafweedAlerts,
 } from './notifications.service.js';
+import { getPushChannels } from './notification-settings.service.js';
 
 let vapidInitialized = false;
 
@@ -92,17 +93,29 @@ async function alreadySent(alertType: string, referenceId: number, referenceDate
 }
 
 async function markSent(alertType: string, referenceId: number, referenceDate: Date) {
-  await prisma.sentPushNotification.create({
-    data: { alertType, referenceId, referenceDate },
+  // upsert: في وضع الإرسال الفوري (force) قد يكون التنبيه مُعلَّماً مسبقاً
+  await prisma.sentPushNotification.upsert({
+    where: { alertType_referenceId_referenceDate: { alertType, referenceId, referenceDate } },
+    update: {},
+    create: { alertType, referenceId, referenceDate },
   });
 }
 
-export async function runPushNotificationCheck() {
+export interface RunPushOptions {
+  // الإرسال الفوري: يتجاهل سجل "أُرسل من قبل" فيُعيد إرسال كل التنبيهات المختارة
+  force?: boolean;
+}
+
+export async function runPushNotificationCheck(options: RunPushOptions = {}) {
+  const { force = false } = options;
   if (!getWebPush()) return;
 
   // Fetch subscriptions once — avoids one DB query per alert
   const subs = await prisma.pushSubscription.findMany();
   if (subs.length === 0) return;
+
+  // تحديد أي التنبيهات الخمسة مُفعَّلة للإرسال للهاتف
+  const channels = await getPushChannels();
 
   const [monthlyPayments, customPayments, iqamaExpirySoon, iqamaExpired, tafweedAlerts] = await Promise.all([
     getMonthlyPaymentAlerts(),
@@ -112,91 +125,104 @@ export async function runPushNotificationCheck() {
     getTafweedAlerts(),
   ]);
 
-  for (const payment of monthlyPayments) {
-    if (!payment.receivedDate) continue;
-    const refDate = toDateOnly(payment.receivedDate);
-    if (await alreadySent('monthly_payment', payment.id, refDate)) continue;
-    // Mark before send: a missed send is better than a duplicate
-    await markSent('monthly_payment', payment.id, refDate);
-    const carriedNote =
-      payment.carriedOverAmount && payment.carriedOverAmount > 0
-        ? ` (منها ${payment.carriedOverAmount} مرحّلة من دفعية بتاريخ ${payment.carriedFromMonth ?? '—'})`
-        : '';
-    await sendToAll(subs, {
-      type: 'monthly_payment',
-      title: 'دفعة شهرية قريبة',
-      body: `${payment.client?.name ?? ''} — ${payment.month ?? ''} — ${payment.amount ?? ''} ر.س${carriedNote}`,
-    });
+  if (channels.pushMonthlyPayment) {
+    for (const payment of monthlyPayments) {
+      if (!payment.receivedDate) continue;
+      const refDate = toDateOnly(payment.receivedDate);
+      if (!force && (await alreadySent('monthly_payment', payment.id, refDate))) continue;
+      // Mark before send: a missed send is better than a duplicate
+      await markSent('monthly_payment', payment.id, refDate);
+      const carriedNote =
+        payment.carriedOverAmount && payment.carriedOverAmount > 0
+          ? ` (منها ${payment.carriedOverAmount} مرحّلة من دفعية بتاريخ ${payment.carriedFromMonth ?? '—'})`
+          : '';
+      await sendToAll(subs, {
+        type: 'monthly_payment',
+        title: 'دفعة شهرية قريبة',
+        body: `${payment.client?.name ?? ''} — ${payment.month ?? ''} — ${payment.amount ?? ''} ر.س${carriedNote}`,
+      });
+    }
   }
 
-  for (const client of customPayments) {
-    if (!client.nextPaymentDate) continue;
-    const refDate = toDateOnly(client.nextPaymentDate);
-    if (await alreadySent('custom_payment', client.id, refDate)) continue;
-    await markSent('custom_payment', client.id, refDate);
-    await sendToAll(subs, {
-      type: 'custom_payment',
-      title: 'دفعة مخصصة قريبة',
-      body: `${client.name ?? ''} — ${client.amount ?? ''} ر.س`,
-    });
+  if (channels.pushCustomPayment) {
+    for (const client of customPayments) {
+      if (!client.nextPaymentDate) continue;
+      const refDate = toDateOnly(client.nextPaymentDate);
+      if (!force && (await alreadySent('custom_payment', client.id, refDate))) continue;
+      await markSent('custom_payment', client.id, refDate);
+      await sendToAll(subs, {
+        type: 'custom_payment',
+        title: 'دفعة مخصصة قريبة',
+        body: `${client.name ?? ''} — ${client.amount ?? ''} ر.س`,
+      });
+    }
   }
 
-  for (const client of iqamaExpirySoon) {
-    if (!client.iqamaEndDate) continue;
-    const refDate = toDateOnly(client.iqamaEndDate);
-    if (await alreadySent('iqama_expiry_soon', client.id, refDate)) continue;
-    await markSent('iqama_expiry_soon', client.id, refDate);
-    await sendToAll(subs, {
-      type: 'iqama_expiry_soon',
-      title: 'إقامة ستنتهي قريباً',
-      body: `${client.name ?? ''} — تنتهي في ${new Date(client.iqamaEndDate).toLocaleDateString('ar-SA')}`,
-    });
+  if (channels.pushIqamaSoon) {
+    for (const client of iqamaExpirySoon) {
+      if (!client.iqamaEndDate) continue;
+      const refDate = toDateOnly(client.iqamaEndDate);
+      if (!force && (await alreadySent('iqama_expiry_soon', client.id, refDate))) continue;
+      await markSent('iqama_expiry_soon', client.id, refDate);
+      await sendToAll(subs, {
+        type: 'iqama_expiry_soon',
+        title: 'إقامة ستنتهي قريباً',
+        body: `${client.name ?? ''} — تنتهي في ${new Date(client.iqamaEndDate).toLocaleDateString('ar-SA')}`,
+      });
+    }
   }
 
-  for (const client of iqamaExpired) {
-    if (!client.iqamaEndDate) continue;
-    const refDate = toDateOnly(client.iqamaEndDate);
-    if (await alreadySent('iqama_expired', client.id, refDate)) continue;
-    await markSent('iqama_expired', client.id, refDate);
-    await sendToAll(subs, {
-      type: 'iqama_expired',
-      title: 'إقامة منتهية أو عاجلة',
-      body: `${client.name ?? ''} — انتهت في ${new Date(client.iqamaEndDate).toLocaleDateString('ar-SA')}`,
-    });
+  if (channels.pushIqamaExpired) {
+    for (const client of iqamaExpired) {
+      if (!client.iqamaEndDate) continue;
+      const refDate = toDateOnly(client.iqamaEndDate);
+      if (!force && (await alreadySent('iqama_expired', client.id, refDate))) continue;
+      await markSent('iqama_expired', client.id, refDate);
+      await sendToAll(subs, {
+        type: 'iqama_expired',
+        title: 'إقامة منتهية أو عاجلة',
+        body: `${client.name ?? ''} — انتهت في ${new Date(client.iqamaEndDate).toLocaleDateString('ar-SA')}`,
+      });
+    }
   }
 
-  for (const client of tafweedAlerts) {
-    if (!client.tafweedAlertDate) continue;
-    const refDate = toDateOnly(client.tafweedAlertDate);
-    if (await alreadySent('tafweed', client.id, refDate)) continue;
-    await markSent('tafweed', client.id, refDate);
-    await sendToAll(subs, {
-      type: 'tafweed',
-      title: 'تنبيه التفويض والتصديق',
-      body: `تذكير: يجب إجراء التفويض للعميل ${client.name ?? ''} على مؤسسة (${client.organization?.name ?? '—'}) اليوم`,
-    });
+  if (channels.pushTafweed) {
+    for (const client of tafweedAlerts) {
+      if (!client.tafweedAlertDate) continue;
+      const refDate = toDateOnly(client.tafweedAlertDate);
+      if (!force && (await alreadySent('tafweed', client.id, refDate))) continue;
+      await markSent('tafweed', client.id, refDate);
+      await sendToAll(subs, {
+        type: 'tafweed',
+        title: 'تنبيه التفويض والتصديق',
+        body: `تذكير: يجب إجراء التفويض للعميل ${client.name ?? ''} على مؤسسة (${client.organization?.name ?? '—'}) اليوم`,
+      });
+    }
   }
 
   // تذكير أسبوعي مجمَّع بديون العملاء المحذوفين المعلّقة — مرة واحدة كل أسبوع
   // (referenceDate = بداية الأسبوع "الأحد"، و referenceId = 0 لأنه إشعار مجمَّع)
-  const pendingDues = await prisma.deletedClientDue.findMany({
-    where: { status: 'pending' },
-    select: { totalDue: true, collectedAmount: true },
-  });
-  if (pendingDues.length > 0) {
-    const weekStart = toDateOnly(new Date());
-    weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
-    if (!(await alreadySent('deleted_client_dues', 0, weekStart))) {
-      await markSent('deleted_client_dues', 0, weekStart);
-      const totalRemaining = pendingDues.reduce(
-        (sum, d) => sum + (d.totalDue ?? 0) - (d.collectedAmount ?? 0),
-        0,
-      );
-      await sendToAll(subs, {
-        type: 'deleted_client_dues',
-        title: 'تذكير: ديون عملاء محذوفين',
-        body: `لديك ${pendingDues.length} ديون معلّقة لعملاء محذوفين بإجمالي متبقٍ ${totalRemaining} ر.س`,
-      });
+  // ليس ضمن التنبيهات الخمسة القابلة للاختيار، لذا لا يُرسَل في وضع الإرسال الفوري
+  if (!force) {
+    const pendingDues = await prisma.deletedClientDue.findMany({
+      where: { status: 'pending' },
+      select: { totalDue: true, collectedAmount: true },
+    });
+    if (pendingDues.length > 0) {
+      const weekStart = toDateOnly(new Date());
+      weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
+      if (!(await alreadySent('deleted_client_dues', 0, weekStart))) {
+        await markSent('deleted_client_dues', 0, weekStart);
+        const totalRemaining = pendingDues.reduce(
+          (sum, d) => sum + (d.totalDue ?? 0) - (d.collectedAmount ?? 0),
+          0,
+        );
+        await sendToAll(subs, {
+          type: 'deleted_client_dues',
+          title: 'تذكير: ديون عملاء محذوفين',
+          body: `لديك ${pendingDues.length} ديون معلّقة لعملاء محذوفين بإجمالي متبقٍ ${totalRemaining} ر.س`,
+        });
+      }
     }
   }
 }

@@ -34,17 +34,17 @@ export function clientSchema(isIqama: boolean, isAdd = false) {
   }
 
   // Edit form (isAdd = false): require iqamaEndDate only when iqamaNumber is entered
-  //                            require boardNumber + iqamaEndDate when paymentType is 'شهري'
+  //                            require monthlyReceiptDay + iqamaEndDate when paymentType is 'شهري'
   //                            (جدول الأقساط يُولَّد حتى تاريخ انتهاء الإقامة)
   if (!isAdd) {
     return base
-      .extend({ boardNumber: z.string().optional() })
+      .extend({ monthlyReceiptDay: z.string().optional() })
       .superRefine((d, ctx) => {
         if (d.iqamaNumber && !d.iqamaEndDate) {
           ctx.addIssue({ code: 'custom', message: 'تاريخ انتهاء الإقامة مطلوب عند إدخال رقم الإقامة', path: ['iqamaEndDate'] })
         }
-        if (d.paymentType === 'شهري' && !d.boardNumber) {
-          ctx.addIssue({ code: 'custom', message: 'يوم الاستلام مطلوب', path: ['boardNumber'] })
+        if (d.paymentType === 'شهري' && !d.monthlyReceiptDay) {
+          ctx.addIssue({ code: 'custom', message: 'يوم الاستلام مطلوب', path: ['monthlyReceiptDay'] })
         }
         if (d.paymentType === 'شهري' && !d.iqamaEndDate) {
           ctx.addIssue({ code: 'custom', message: 'تاريخ انتهاء الإقامة مطلوب للدفع الشهري', path: ['iqamaEndDate'] })
@@ -55,20 +55,20 @@ export function clientSchema(isIqama: boolean, isAdd = false) {
   // Add form (isAdd = true, non-iqama):
   //   • iqamaNumber + iqamaEndDate always required
   //   • receivedAmount required when paymentType === 'سنوي'
-  //   • boardNumber required when paymentType === 'شهري'
+  //   • monthlyReceiptDay required when paymentType === 'شهري'
   return base
     .extend({
       iqamaNumber:    z.string().min(1, 'رقم الإقامة مطلوب'),
       iqamaEndDate:   z.string().min(1, 'تاريخ انتهاء الإقامة مطلوب'),
       receivedAmount: z.string().optional(),
-      boardNumber:    z.string().optional(),
+      monthlyReceiptDay: z.string().optional(),
     })
     .superRefine((d, ctx) => {
       if (d.paymentType === 'سنوي' && !d.receivedAmount) {
         ctx.addIssue({ code: 'custom', message: 'المبلغ المستلم مطلوب', path: ['receivedAmount'] })
       }
-      if (d.paymentType === 'شهري' && !d.boardNumber) {
-        ctx.addIssue({ code: 'custom', message: 'يوم الاستلام مطلوب', path: ['boardNumber'] })
+      if (d.paymentType === 'شهري' && !d.monthlyReceiptDay) {
+        ctx.addIssue({ code: 'custom', message: 'يوم الاستلام مطلوب', path: ['monthlyReceiptDay'] })
       }
     }) as z.ZodTypeAny
 }

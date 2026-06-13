@@ -66,6 +66,7 @@ interface ClientDetail {
   paymentType: string | null
   nextPaymentDate: string | null
   amount: number | null
+  monthlyReceiptDay: number | null
   generateMonthlyAfterIqama: boolean | null
   tafweedAlertDate: string | null
   tafweedDone: boolean | null
@@ -98,6 +99,7 @@ function clientToForm(c: ClientDetail): ClientFormData {
     receivedAmount: '',
     notes: c.notes ?? '',
     nextPaymentDate: c.nextPaymentDate ?? '',
+    monthlyReceiptDay: c.monthlyReceiptDay != null ? String(c.monthlyReceiptDay) : '',
     arrivalPlaceId: c.arrivalPlaceId != null ? String(c.arrivalPlaceId) : '',
     generateMonthlyAfterIqama: c.generateMonthlyAfterIqama ? '1' : '',
     // البوكس مفعَّل للتنبيه النشط فقط — المنجز ("تم التفويض") يظهر غير مفعَّل
@@ -591,31 +593,45 @@ export default function ClientDetailPage() {
                 <InfoField label="تاريخ انتهاء الإقامة"
                   custom={<IqamaBadge dateStr={client.iqamaEndDate} />} />
                 <InfoField label="كرت العمل"   value={client.cardType} />
-                <InfoField label="تاريخ الدفعة القادمة"
-                  value={isMonthly ? nextMonthlyDue : client.nextPaymentDate?.slice(0, 10)} />
-                <InfoField label="طريقة الدفع" value={client.paymentType} />
-                <InfoField
-                  label={isMonthly ? 'القسط الشهري' : 'المبلغ الإجمالي'}
-                  value={client.amount != null ? client.amount.toLocaleString('en-US') : null}
-                />
+                {/* العميل السنوي: حقول الدفع تبقى ضمن الشبكة. الشهري له صف رباعي مستقل أدناه */}
+                {!isMonthly && (
+                  <>
+                    <InfoField label="تاريخ الدفعة القادمة"
+                      value={client.nextPaymentDate?.slice(0, 10)} />
+                    <InfoField label="طريقة الدفع" value={client.paymentType} />
+                    <InfoField label="المبلغ الإجمالي"
+                      value={client.amount != null ? client.amount.toLocaleString('en-US') : null} />
+                  </>
+                )}
               </div>
 
-              {/* صندوق المدفوع / المتبقي أو يوم الاستلام */}
               {isMonthly ? (
-                <div className="grid grid-cols-2 gap-4 mb-5">
-                  <div>
-                    <p className="text-xs text-gray-400 mb-0.5">تاريخ الدفعة القادمة</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {nextMonthlyDue ?? '—'}
+                <>
+                  {/* الصف قبل الأخير: أربعة حقول للدفع الشهري */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                    <InfoField label="طريقة الدفع" value={client.paymentType} />
+                    <InfoField label="القسط الشهري"
+                      value={client.amount != null ? client.amount.toLocaleString('en-US') : null} />
+                    <InfoField label="يوم الاستلام في الشهر"
+                      value={client.monthlyReceiptDay != null ? String(client.monthlyReceiptDay) : null} />
+                    <InfoField label="تاريخ الدفعة القادمة" value={nextMonthlyDue} />
+                  </div>
+
+                  {/* الصف الأخير: هل تستمر الدفعيات الشهرية بعد انتهاء الإقامة؟ */}
+                  <div className={`rounded-xl px-4 py-3 mb-5 border ${
+                    client.generateMonthlyAfterIqama
+                      ? 'bg-emerald-50 border-emerald-100'
+                      : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <p className={`text-sm font-semibold ${
+                      client.generateMonthlyAfterIqama ? 'text-emerald-700' : 'text-gray-600'
+                    }`}>
+                      {client.generateMonthlyAfterIqama
+                        ? '✅ تستمر الدفعيات الشهرية لهذا العميل حتى بعد انتهاء إقامته'
+                        : '⛔ تتوقف الدفعيات الشهرية عند انتهاء إقامته'}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-400 mb-0.5">يوم الاستلام في الشهر</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {client.boardNumber || '—'}
-                    </p>
-                  </div>
-                </div>
+                </>
               ) : (
                 <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 mb-5">
                   <div>
@@ -918,6 +934,7 @@ export default function ClientDetailPage() {
                       paymentType: value,
                       amount: client.amount != null ? String(client.amount) : '',
                       boardNumber: client.boardNumber ?? '',
+                      monthlyReceiptDay: client.monthlyReceiptDay != null ? String(client.monthlyReceiptDay) : '',
                       nextPaymentDate: client.nextPaymentDate ?? '',
                       receivedAmount: '',
                     }

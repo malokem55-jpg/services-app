@@ -1,6 +1,6 @@
 import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { requireAuth, AuthRequest } from '../middleware/auth.js';
+import { requireAuth, requireAuthOrMalik, AuthRequest } from '../middleware/auth.js';
 import { PLATFORM_KEYS } from '../services/login-platforms.service.js';
 import { CHAMBER_CITY_KEYS } from '../services/chamber-cities.service.js';
 import {
@@ -11,20 +11,24 @@ import {
 } from '../services/org-credentials.service.js';
 
 const router = Router();
-router.use(requireAuth);
 
 const paramsSchema = z.object({
   orgId: z.coerce.number().int().positive(),
   platform: z.enum(PLATFORM_KEYS),
 });
 
-router.get('/', async (_req: AuthRequest, res: Response, next: NextFunction) => {
+// ملخصات بيانات الدخول (بدون كلمات مرور): تقبل تسجيل دخول المستخدم أو كلمة مرور لوحة malik
+// لمعرفة المؤسسات التي لديها بيانات محفوظة قبل الاستيراد.
+router.get('/', requireAuthOrMalik, async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     res.json(await listCredentialSummaries());
   } catch (err) {
     next(err);
   }
 });
+
+// بقية المسارات تتطلب تسجيل الدخول (تكشف كلمات المرور أو تعدّلها)
+router.use(requireAuth);
 
 // يعيد كلمة المرور مفكوكة — تستخدمه نافذة التعديل وزر فتح صفحة الدخول
 router.get('/:orgId/:platform', async (req: AuthRequest, res: Response, next: NextFunction) => {

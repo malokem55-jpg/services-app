@@ -23,22 +23,24 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const DeletedClientDuesPage = lazy(() => import('./pages/DeletedClientDuesPage'))
 const IqamaAlertsClientsPage = lazy(() => import('./pages/IqamaAlertsClientsPage'))
-const DataImportPage = lazy(() => import('./pages/DataImportPage'))
-const CredentialsImportPage = lazy(() => import('./pages/CredentialsImportPage'))
-const MobileAccessPage = lazy(() => import('./pages/MobileAccessPage'))
+// لوحة تحكم malik: صفحة مخفية تجمع (استيراد قاعدة البيانات + حسابات مقيم والغرفة +
+// التحكم بتشغيل الموقع على الهاتف) — تُفتح بالرابط /malik بلا تسجيل دخول
+const MalikPage = lazy(() => import('./pages/MalikPage'))
 
 function App() {
   return (
     <Routes>
+      {/* لوحة تحكم malik: صفحة مخفية بلا تسجيل دخول وخارج كل البوابات لتبقى متاحة دائمًا
+          (حتى على الهاتف عند حجبه) — تجمع استيراد قاعدة البيانات وحسابات مقيم والغرفة
+          والتحكم بتشغيل الموقع على الهاتف */}
+      <Route path="/malik" element={<MalikPage />} />
+
       {/* بوابة الوصول من الهاتف: عند إيقاف «تشغيل المشروع على الهاتف» يُحجب كل الموقع
           على الجوال — قبل شاشة الدخول — ويبقى يعمل على الكمبيوتر فقط */}
       <Route element={<MobileAccessGate />}>
         <Route path="/login" element={<LoginPage />} />
 
         <Route element={<ProtectedRoute />}>
-          {/* صفحة مخفية للتحكم بفتح الموقع على الهاتف — خارج بوابة النسخة المخصصة لتبقى متاحة دائمًا */}
-          <Route path="/mobile-access" element={<MobileAccessPage />} />
-
           {/* بوابة النسخة المخصصة: تحصر الـ PWA المثبت على الموبايل في شاشات /m عند تفعيلها */}
           <Route element={<CustomModeGate />}>
             <Route path="/" element={<HomePage />} />
@@ -51,10 +53,6 @@ function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/deleted-client-dues" element={<DeletedClientDuesPage />} />
             <Route path="/iqama-alerts-clients" element={<IqamaAlertsClientsPage />} />
-            {/* صفحة مخفية: استيراد بيانات النظام القديم — وصول بالرابط فقط، بلا روابط في القوائم */}
-            <Route path="/data-import" element={<DataImportPage />} />
-            {/* صفحة مخفية: استيراد بيانات دخول المؤسسات من ملف إكسل — وصول بالرابط فقط */}
-            <Route path="/credentials-import" element={<CredentialsImportPage />} />
 
             {/* النسخة المخصصة للموبايل */}
             <Route path="/m" element={<MobileHomePage />} />

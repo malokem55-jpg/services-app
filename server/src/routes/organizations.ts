@@ -1,6 +1,6 @@
 import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { requireAuth, AuthRequest } from '../middleware/auth.js';
+import { requireAuth, requireAuthOrMalik, AuthRequest } from '../middleware/auth.js';
 import { parseId } from '../lib/parseId.js';
 import {
   listOrganizations,
@@ -12,8 +12,6 @@ import {
 
 const router = Router();
 
-router.use(requireAuth);
-
 const orgBodySchema = z.object({
   name: z.string().optional(),
   number: z.string().optional(),
@@ -21,8 +19,9 @@ const orgBodySchema = z.object({
 });
 
 // ─── GET /api/organizations ──────────────────────────────────────────────────
+// قراءة فقط: تقبل تسجيل دخول المستخدم أو كلمة مرور لوحة malik (لربط المؤسسات عند الاستيراد).
 
-router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/', requireAuthOrMalik, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : undefined;
     res.json(await listOrganizations(search || undefined));
@@ -30,6 +29,9 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
     next(err);
   }
 });
+
+// بقية المسارات تتطلب تسجيل الدخول
+router.use(requireAuth);
 
 // ─── GET /api/organizations/:id ──────────────────────────────────────────────
 

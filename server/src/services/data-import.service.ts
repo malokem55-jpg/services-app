@@ -250,18 +250,38 @@ export async function importLegacyDump(sql: string): Promise<ImportResult> {
   }
   const clientData: Prisma.ClientCreateManyInput[] = clients.map((r) => {
     const desc = `العميل ${asString(r.name) ?? r.id}`;
+    const paymentType = asString(r.payment_type);
+    const isMonthly = paymentType === 'شهري';
+
+    // يوم الاستلام (1-31) أصبح حقلًا مستقلًا. في البيانات القديمة كان يُخزَّن داخل
+    // board_number للعميل الشهري — يُنقل للحقل الجديد ويُفرّغ board_number.
+    // (الدمب من النظام الجديد قد يحوي العمود مباشرة، فيُقدَّم على الاشتقاق.)
+    let monthlyReceiptDay = isMonthly ? asNumber(r.monthly_receipt_day) : null;
+    let boardNumber = asString(r.board_number);
+    if (isMonthly && monthlyReceiptDay === null && boardNumber !== null) {
+      const day = Number(boardNumber);
+      if (/^[0-9]+$/.test(boardNumber) && day >= 1 && day <= 31) {
+        monthlyReceiptDay = day; // يوم استلام صالح → ينتقل للحقل المستقل
+        boardNumber = null;      // ولم يعد له معنى كرقم حدود
+      } else {
+        // قيمة غير صالحة كيوم استلام (خارج 1-31 أو ليست رقمًا) — تُترك مكانها لمراجعة مالك
+        warnings.push(`${desc}: عميل شهري بقيمة يوم استلام غير صالحة (board_number = ${boardNumber}) — لم تُنقل`);
+      }
+    }
+
     return {
       id: asNumber(r.id)!,
       name: asString(r.name),
       phone: asString(r.phone),
       passport: asString(r.passport),
-      boardNumber: asString(r.board_number),
+      boardNumber,
+      monthlyReceiptDay,
       visaNumber: asString(r.visa_number),
       iqamaNumber: asString(r.iqama_number),
       iqamaEndDate: asDate(r.iqama_end_date),
       cardType: asString(r.card_type) ?? 'بدون',
       notes: asString(r.notes),
-      paymentType: asString(r.payment_type),
+      paymentType,
       nextPaymentDate: asDate(r.next_payment_date),
       amount: asNumber(r.amount),
       serviceId: fkOrNull(r.service_id, serviceIds, 'الخدمة', desc),

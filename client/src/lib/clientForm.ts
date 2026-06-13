@@ -96,6 +96,8 @@ export interface ClientFormData {
   receivedAmount: string
   notes: string
   nextPaymentDate: string
+  /** عميل شهري: يوم الاستلام من كل شهر (1-31) — حقل مستقل عن رقم الحدود */
+  monthlyReceiptDay: string
   serviceId: string
   organizationId: string
   arrivalPlaceId: string
@@ -112,7 +114,8 @@ export interface ClientFormData {
 export const EMPTY_CLIENT_FORM: ClientFormData = {
   name: '', phone: '', passport: '', boardNumber: '', visaNumber: '',
   iqamaNumber: '', iqamaEndDate: '', cardType: 'بدون', paymentType: '',
-  amount: '', receivedAmount: '', notes: '', nextPaymentDate: '', serviceId: '', organizationId: '',
+  amount: '', receivedAmount: '', notes: '', nextPaymentDate: '', monthlyReceiptDay: '',
+  serviceId: '', organizationId: '',
   arrivalPlaceId: '', generateMonthlyAfterIqama: '', tafweedAlertEnabled: '', tafweedAlertDate: '',
   tafweedDone: '',
 }
@@ -178,6 +181,8 @@ export function buildClientPayload(f: ClientFormData) {
     notes: f.notes || undefined,
     // الدفعة المخصصة (nextPaymentDate) خاصية سنوية فقط — لا تُرسل للعميل الشهري
     nextPaymentDate: f.paymentType === 'شهري' ? undefined : f.nextPaymentDate || undefined,
+    // يوم الاستلام خاصية شهرية فقط
+    monthlyReceiptDay: f.paymentType === 'شهري' && f.monthlyReceiptDay ? Number(f.monthlyReceiptDay) : undefined,
     // التوليد بعد انتهاء الإقامة خاصية شهرية فقط — تُصفَّر عند التحويل إلى سنوي
     generateMonthlyAfterIqama: f.paymentType === 'شهري' ? f.generateMonthlyAfterIqama === '1' : false,
     // تنبيه التفويض: مفعَّل بتاريخ → تنشيط (وإلغاء علامة الإنجاز)،

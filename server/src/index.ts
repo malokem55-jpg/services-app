@@ -24,6 +24,7 @@ import credentialImportDraftRouter from './routes/credential-import-draft.js';
 import chamberCitiesRouter from './routes/chamber-cities.js';
 import mobileFillRouter from './routes/mobile-fill.js';
 import dataImportRouter from './routes/data-import.js';
+import malikRouter from './routes/malik.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { startPushCron } from './lib/push-cron.js';
 import { startMonthlyRollingCron } from './lib/monthly-cron.js';
@@ -61,6 +62,7 @@ app.use('/api/credential-import-draft', credentialImportDraftRouter);
 app.use('/api/chamber-cities', chamberCitiesRouter);
 app.use('/api/mobile-fill', mobileFillRouter);
 app.use('/api/data-import', dataImportRouter);
+app.use('/api/malik', malikRouter);
 
 app.use(errorHandler);
 

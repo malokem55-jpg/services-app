@@ -121,6 +121,8 @@ model Client {
   paymentType     String?                @map("payment_type")
   nextPaymentDate DateTime?              @map("next_payment_date") @db.Date
   amount          Float?
+  // عميل شهري: يوم الاستلام من كل شهر (1-31) — حقل مستقل عن رقم الحدود
+  monthlyReceiptDay Int?                 @map("monthly_receipt_day")
   // عميل شهري: استمرار توليد الدفعيات الشهرية حتى بعد انتهاء الإقامة
   generateMonthlyAfterIqama Boolean      @default(false) @map("generate_monthly_after_iqama")
   // تنبيه التفويض والتصديق (عميل تحت الإجراء): وجود التاريخ مع done=false = التنبيه نشط.
@@ -263,6 +265,13 @@ model NotificationSetting {
   cronHour   Int @map("cron_hour")
   cronMinute Int @map("cron_minute")
 
+  // تحديد أي التنبيهات الخمسة تُرسَل كإشعار للهاتف
+  pushMonthlyPayment Boolean @default(true) @map("push_monthly_payment")
+  pushCustomPayment  Boolean @default(true) @map("push_custom_payment")
+  pushIqamaSoon      Boolean @default(true) @map("push_iqama_soon")
+  pushIqamaExpired   Boolean @default(true) @map("push_iqama_expired")
+  pushTafweed        Boolean @default(true) @map("push_tafweed")
+
   @@map("notification_settings")
 }
 
@@ -272,6 +281,7 @@ model UiSetting {
   showBellMonthlyPayments Boolean @default(true) @map("show_bell_monthly_payments")
   showBellIqamaSoon       Boolean @default(true) @map("show_bell_iqama_soon")
   showBellIqamaExpired    Boolean @default(true) @map("show_bell_iqama_expired")
+  showBellTafweed         Boolean @default(true) @map("show_bell_tafweed")
   showUnderProcedurePage  Boolean @default(true) @map("show_under_procedure_page")
   showDeletedDuesPage     Boolean @default(true) @map("show_deleted_dues_page")
   showIqamaAlertsPage     Boolean @default(false) @map("show_iqama_alerts_page")
@@ -279,6 +289,15 @@ model UiSetting {
   runOnMobile             Boolean @default(true) @map("run_on_mobile")
 
   @@map("ui_settings")
+}
+
+// كلمة مرور واحدة للوحة /malik (سجل مفرد). hash بـ bcrypt، تُنشأ عند أول دخول
+// وتُغيَّر من داخل اللوحة. غير مرتبطة بحساب المستخدم ولا بـ JWT الموقع.
+model MalikSetting {
+  id           Int     @id @default(autoincrement())
+  passwordHash String? @map("password_hash") @db.VarChar(255)
+
+  @@map("malik_settings")
 }
 
 // تعبئة مقيم على الموبايل: مفتاح ثابت يحمله الـ Bookmarklet في Safari، وحقول

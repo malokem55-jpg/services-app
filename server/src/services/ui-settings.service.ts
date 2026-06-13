@@ -5,6 +5,7 @@ export interface UiSettings {
   showBellMonthlyPayments: boolean;
   showBellIqamaSoon: boolean;
   showBellIqamaExpired: boolean;
+  showBellTafweed: boolean;
   showUnderProcedurePage: boolean;
   showDeletedDuesPage: boolean;
   showIqamaAlertsPage: boolean;
@@ -17,6 +18,7 @@ const DEFAULTS: UiSettings = {
   showBellMonthlyPayments: true,
   showBellIqamaSoon: true,
   showBellIqamaExpired: true,
+  showBellTafweed: true,
   showUnderProcedurePage: true,
   showDeletedDuesPage: true,
   showIqamaAlertsPage: false,

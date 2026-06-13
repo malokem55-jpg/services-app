@@ -29,6 +29,8 @@ export type ClientCreateInput = {
   paymentType?: string;
   nextPaymentDate?: string;
   amount?: number;
+  /** عميل شهري: يوم الاستلام من كل شهر (1-31) — حقل مستقل عن رقم الحدود */
+  monthlyReceiptDay?: number;
   /** المبلغ المستلم عند التحويل من شهري إلى سنوي — يُسجَّل كدفعة أولى */
   receivedAmount?: number;
   /** عميل شهري: استمرار توليد الدفعيات الشهرية حتى بعد انتهاء الإقامة */
@@ -62,7 +64,7 @@ function assertTafweedDateNotPast(dateStr: string) {
   }
 }
 
-function parseReceiptDay(value: string | null | undefined): number {
+function parseReceiptDay(value: number | string | null | undefined): number {
   const day = Number(value);
   if (!Number.isInteger(day) || day < 1 || day > 31) {
     throw new ValidationError('يوم الاستلام من كل شهر مطلوب للدفع الشهري (رقم بين 1 و 31)');
@@ -127,13 +129,13 @@ export async function ensureUpcomingInstallment(clientId: number): Promise<boole
     select: {
       paymentType: true,
       generateMonthlyAfterIqama: true,
-      boardNumber: true,
+      monthlyReceiptDay: true,
       amount: true,
       iqamaEndDate: true,
     },
   });
   if (!client || client.paymentType !== MONTHLY || !client.generateMonthlyAfterIqama) return false;
-  const day = Number(client.boardNumber);
+  const day = Number(client.monthlyReceiptDay);
   if (!Number.isInteger(day) || day < 1 || day > 31) return false;
   if (!client.amount || client.amount <= 0) return false;
 
@@ -206,11 +208,11 @@ async function repriceUnpaidInstallments(
 
 // مدخلات الجدول الشهري بعد التحقق: القسط ويوم الاستلام وتاريخ انتهاء الإقامة كلها إلزامية
 function monthlyScheduleInputs(data: ClientCreateInput, fallback?: {
-  boardNumber: string | null;
+  monthlyReceiptDay: number | null;
   iqamaEndDate: Date | null;
   amount: number | null;
 }) {
-  const day = parseReceiptDay(data.boardNumber ?? fallback?.boardNumber);
+  const day = parseReceiptDay(data.monthlyReceiptDay ?? fallback?.monthlyReceiptDay);
   const iqamaEndDate = data.iqamaEndDate ? new Date(data.iqamaEndDate) : fallback?.iqamaEndDate;
   if (!iqamaEndDate) {
     throw new ValidationError('تاريخ انتهاء الإقامة مطلوب للدفع الشهري');
@@ -292,6 +294,8 @@ export async function createClient(data: ClientCreateInput) {
     cardType: data.cardType,
     notes: data.notes,
     paymentType: data.paymentType,
+    // يوم الاستلام خاصية شهرية فقط — يُمسح لغير الشهري
+    monthlyReceiptDay: isMonthly ? data.monthlyReceiptDay ?? null : null,
     // الدفعة المخصصة (nextPaymentDate) خاصية سنوية فقط — العميل الشهري لا يملكها
     nextPaymentDate: isMonthly ? null : data.nextPaymentDate ? new Date(data.nextPaymentDate) : undefined,
     // التوليد بعد انتهاء الإقامة خاصية شهرية فقط
@@ -365,7 +369,7 @@ export async function updateClient(id: number, data: ClientCreateInput) {
     where: { id },
     select: {
       paymentType: true,
-      boardNumber: true,
+      monthlyReceiptDay: true,
       iqamaEndDate: true,
       amount: true,
       generateMonthlyAfterIqama: true,
@@ -408,6 +412,7 @@ export async function updateClient(id: number, data: ClientCreateInput) {
       nextPaymentDate: data.nextPaymentDate ? new Date(data.nextPaymentDate) : null,
     }),
     ...(data.amount !== undefined && { amount: data.amount }),
+    ...(data.monthlyReceiptDay !== undefined && { monthlyReceiptDay: data.monthlyReceiptDay }),
     ...(data.generateMonthlyAfterIqama !== undefined && {
       generateMonthlyAfterIqama: data.generateMonthlyAfterIqama,
     }),
@@ -439,8 +444,8 @@ export async function updateClient(id: number, data: ClientCreateInput) {
       if (!data.nextPaymentDate) {
         throw new ValidationError('تاريخ الدفعة القادمة مطلوب للتحويل إلى سنوي');
       }
-      // يوم الاستلام الشهري المخزَّن في boardNumber لم يعد له معنى للعميل السنوي
-      updateData.boardNumber = null;
+      // يوم الاستلام الشهري لم يعد له معنى للعميل السنوي
+      updateData.monthlyReceiptDay = null;
       // وكذلك خيار التوليد بعد انتهاء الإقامة — خاصية شهرية فقط
       updateData.generateMonthlyAfterIqama = false;
 

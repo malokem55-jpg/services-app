@@ -49,6 +49,7 @@ interface ClientDetail {
   cardType: string | null
   paymentType: string | null
   amount: number | null
+  monthlyReceiptDay: number | null
   nextPaymentDate: string | null
   tafweedAlertDate: string | null
   tafweedDone: boolean | null
@@ -381,7 +382,7 @@ export default function ClientsPage() {
       // للعميل الشهري: السيرفر يستكمل جدول الدفعيات تلقائياً حتى تاريخ الانتهاء الجديد
       const clientUpdate: Record<string, unknown> = { iqamaEndDate: body.iqamaEndDate, amount: body.amount }
       if (body.isMonthly && body.dayOfMonth) {
-        clientUpdate.boardNumber = String(body.dayOfMonth)
+        clientUpdate.monthlyReceiptDay = body.dayOfMonth
       }
       await apiFetch<unknown>(`/api/clients/${body.clientId}`, {
         method: 'PUT',
@@ -511,7 +512,7 @@ export default function ClientsPage() {
         </div>
 
         {/* ── Filters ── */}
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${underProcedurePageActive ? 'lg:grid-cols-4' : 'lg:grid-cols-5'} gap-2.5 mb-4 md:shrink-0`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${underProcedurePageActive ? 'lg:grid-cols-3' : 'lg:grid-cols-5'} gap-2.5 mb-4 md:shrink-0`}>
           <div className="relative">
             <svg className="pointer-events-none absolute inset-y-0 inset-e-3 my-auto w-4 h-4 text-gray-400"
               fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -543,12 +544,14 @@ export default function ClientsPage() {
             ))}
           </select>
 
-          <select value={stepFilter} onChange={(e) => setStepFilter(e.target.value)} className={inputCls}>
-            <option value="">كل الخطوات</option>
-            {allServiceSteps.map((s) => (
-              <option key={s.id} value={String(s.id)}>{s.name}</option>
-            ))}
-          </select>
+          {!underProcedurePageActive && (
+            <select value={stepFilter} onChange={(e) => setStepFilter(e.target.value)} className={inputCls}>
+              <option value="">كل الخطوات</option>
+              {allServiceSteps.map((s) => (
+                <option key={s.id} value={String(s.id)}>{s.name}</option>
+              ))}
+            </select>
+          )}
 
           {!underProcedurePageActive && (
             <select value={clientTypeFilter} onChange={(e) => setClientTypeFilterOverride(e.target.value)} className={inputCls}>
@@ -865,7 +868,7 @@ export default function ClientsPage() {
                       <div>
                         <p className="text-xs text-gray-400 mb-0.5">يوم الاستلام في الشهر</p>
                         <p className="text-sm font-semibold text-gray-900">
-                          {detailClient.boardNumber || '—'}
+                          {detailClient.monthlyReceiptDay ?? '—'}
                         </p>
                       </div>
                     </div>
