@@ -5,6 +5,7 @@ import { PLATFORM_KEYS } from '../services/login-platforms.service.js';
 import { CHAMBER_CITY_KEYS } from '../services/chamber-cities.service.js';
 import {
   listCredentialSummaries,
+  listMuqeemFillList,
   getCredential,
   upsertCredential,
   deleteCredential,
@@ -29,6 +30,15 @@ router.get('/', requireAuthOrMalik, async (_req: AuthRequest, res: Response, nex
 
 // بقية المسارات تتطلب تسجيل الدخول (تكشف كلمات المرور أو تعدّلها)
 router.use(requireAuth);
+
+// كل بيانات مقيم دفعة واحدة لبناء «الزر الموحّد» (مسار مفرد المقطع فلا يصطدم بـ /:orgId/:platform)
+router.get('/muqeem-fill-list', async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    res.json(await listMuqeemFillList());
+  } catch (err) {
+    next(err);
+  }
+});
 
 // يعيد كلمة المرور مفكوكة — تستخدمه نافذة التعديل وزر فتح صفحة الدخول
 router.get('/:orgId/:platform', async (req: AuthRequest, res: Response, next: NextFunction) => {

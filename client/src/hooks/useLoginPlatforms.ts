@@ -56,6 +56,25 @@ export function useCredentialSummaries() {
   })
 }
 
+export interface MuqeemFillEntry {
+  organizationId: number
+  name: string | null
+  username: string
+  password: string
+}
+
+// كل بيانات مقيم (بكلمات المرور) لبناء «الزر الموحّد». مُعطّل افتراضيًا ويُجلب عند الطلب
+// فقط (refetch) حتى لا تبقى كلمات المرور في الذاكرة، ولا يُحتفظ به في الكاش (gcTime 0).
+export function useMuqeemFillList() {
+  return useQuery<MuqeemFillEntry[]>({
+    queryKey: ['muqeem-fill-list'],
+    queryFn: () => apiFetch<MuqeemFillEntry[]>('/api/org-credentials/muqeem-fill-list'),
+    enabled: false,
+    staleTime: 0,
+    gcTime: 0,
+  })
+}
+
 export function useChamberCities() {
   return useQuery<ChamberCity[]>({
     queryKey: ['chamber-cities'],

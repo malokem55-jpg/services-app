@@ -10,6 +10,26 @@ export async function listCredentialSummaries() {
   });
 }
 
+// كل بيانات دخول مقيم (باسم المؤسسة وكلمة المرور مفكوكة) — لبناء «الزر الموحّد»
+// الذي يحمل كل المؤسسات بداخله ويعبّي في صفحة مقيم دون اتصال بالخادم (يتجاوز CSP).
+export async function listMuqeemFillList() {
+  const rows = await prisma.organizationCredential.findMany({
+    where: { platform: 'muqeem' },
+    select: {
+      organizationId: true,
+      username: true,
+      passwordEnc: true,
+      organization: { select: { name: true } },
+    },
+  });
+  return rows.map((r) => ({
+    organizationId: r.organizationId,
+    name: r.organization.name,
+    username: r.username,
+    password: decryptCredential(r.passwordEnc),
+  }));
+}
+
 export async function getCredential(organizationId: number, platform: PlatformKey) {
   const cred = await prisma.organizationCredential.findUnique({
     where: { organizationId_platform: { organizationId, platform } },
