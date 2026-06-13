@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { gregorianToHijri, hijriToGregorian, HIJRI_MONTHS, formatBothDates } from '../lib/hijri'
 
 interface Props {
@@ -50,15 +51,50 @@ export default function HijriDateInput({ value, onChange, defaultMode = 'hijri',
   const [viewYear, setViewYear] = useState(0)
   const [viewMonth, setViewMonth] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
+  // تموضع القائمة محسوب بالنسبة للشاشة (fixed) كي لا تُقصّ داخل النافذة
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
 
+  // إغلاق عند النقر خارج الزرّ أو القائمة (القائمة الآن في body عبر portal)
   useEffect(() => {
     if (!open) return
     const onOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (ref.current?.contains(t) || popRef.current?.contains(t)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', onOutside)
     return () => document.removeEventListener('mousedown', onOutside)
   }, [open])
+
+  // حساب موضع القائمة، مع قلبها لأعلى تلقائياً عند ضيق المساحة بالأسفل
+  useLayoutEffect(() => {
+    if (!open) { setPos(null); return }
+    function place() {
+      const trigger = ref.current
+      if (!trigger) return
+      const r = trigger.getBoundingClientRect()
+      const width = 288 // w-72
+      const gap = 6
+      const height = popRef.current?.offsetHeight ?? 360
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+      const spaceBelow = vh - r.bottom
+      const top = spaceBelow >= height + gap || spaceBelow >= r.top
+        ? r.bottom + gap
+        : Math.max(gap, r.top - height - gap)
+      // محاذاة الحافة اليمنى للزرّ (RTL) مع إبقائها داخل الشاشة
+      const left = Math.min(Math.max(gap, r.right - width), vw - width - gap)
+      setPos({ top, left })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open, mode, viewMonth, viewYear])
 
   function resolveView(m: 'hijri' | 'gregorian') {
     const src = value ? value.slice(0, 10) : new Date().toISOString().slice(0, 10)
@@ -148,9 +184,12 @@ export default function HijriDateInput({ value, onChange, defaultMode = 'hijri',
         }
       </button>
 
-      {/* Calendar popover */}
-      {open && (
-        <div className="absolute z-50 mt-1.5 right-0 w-72 bg-white rounded-2xl shadow-xl border border-gray-200 p-3 select-none">
+      {/* Calendar popover — portal إلى body بموضع fixed كي لا يُقصّ داخل النافذة */}
+      {open && createPortal(
+        <div
+          ref={popRef}
+          style={{ top: pos?.top ?? -9999, left: pos?.left ?? -9999, visibility: pos ? 'visible' : 'hidden' }}
+          className="fixed z-60 w-72 bg-white rounded-2xl shadow-xl border border-gray-200 p-3 select-none">
 
           {/* Mode toggle */}
           <div className="flex rounded-xl border border-gray-200 overflow-hidden mb-3 text-xs">
@@ -213,7 +252,8 @@ export default function HijriDateInput({ value, onChange, defaultMode = 'hijri',
             </div>
           </div>
 
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

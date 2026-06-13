@@ -276,6 +276,7 @@ model UiSetting {
   showDeletedDuesPage     Boolean @default(true) @map("show_deleted_dues_page")
   showIqamaAlertsPage     Boolean @default(false) @map("show_iqama_alerts_page")
   showCustomMobileVersion Boolean @default(false) @map("show_custom_mobile_version")
+  runOnMobile             Boolean @default(true) @map("run_on_mobile")
 
   @@map("ui_settings")
 }
@@ -290,6 +291,16 @@ model MobileFill {
   armedAt        DateTime? @map("armed_at")
 
   @@map("mobile_fill")
+}
+
+// مسودة استيراد بيانات الدخول من إكسل: الصفوف المتبقية (غير المطابقة/الناقصة) تُحفظ
+// مشفّرة AES-256-GCM ليُكملها المستخدم لاحقًا دون رفع الملف من جديد. سجل واحد (تطبيق بمستخدم واحد).
+model CredentialImportDraft {
+  id        Int       @id @default(autoincrement())
+  payload   String    @db.Text // JSON الصفوف مشفّرًا
+  updatedAt DateTime? @map("updated_at")
+
+  @@map("credential_import_drafts")
 }
 
 model SentPushNotification {

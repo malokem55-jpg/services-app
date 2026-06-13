@@ -9,6 +9,7 @@ export interface UiSettings {
   showDeletedDuesPage: boolean;
   showIqamaAlertsPage: boolean;
   showCustomMobileVersion: boolean;
+  runOnMobile: boolean;
 }
 
 const DEFAULTS: UiSettings = {
@@ -20,6 +21,7 @@ const DEFAULTS: UiSettings = {
   showDeletedDuesPage: true,
   showIqamaAlertsPage: false,
   showCustomMobileVersion: false,
+  runOnMobile: true,
 };
 
 export async function getUiSettings(): Promise<UiSettings> {

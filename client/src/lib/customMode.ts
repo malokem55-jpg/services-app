@@ -8,3 +8,9 @@ export function isMobilePwa(): boolean {
   const mobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
   return standalone && mobileDevice
 }
+
+// أي جهاز هاتف/جوال (متصفح عادي أو تطبيق PWA مثبت) — لتحديد ما إذا كان
+// الموقع مسموحًا بفتحه على الهاتف أم محصورًا في الكمبيوتر
+export function isMobileDevice(): boolean {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
 import Navbar from '../components/Navbar'
@@ -163,13 +163,74 @@ export default function CredentialsImportPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['org-credentials'] }),
   })
 
+  // ─── المسودة: حفظ الصفوف المتبقية على الخادم لإكمالها لاحقًا دون رفع الملف من جديد ───
+  const draftQuery = useQuery<{ rows: EditRow[] }>({
+    queryKey: ['credential-import-draft'],
+    queryFn: () => apiFetch<{ rows: EditRow[] }>('/api/credential-import-draft'),
+    staleTime: Infinity,
+    gcTime: 0,
+  })
+  const saveDraft = useMutation({
+    mutationFn: (rowsToSave: EditRow[]) =>
+      apiFetch('/api/credential-import-draft', { method: 'PUT', body: JSON.stringify({ rows: rowsToSave }) }),
+  })
+  const clearDraft = useMutation({
+    mutationFn: () => apiFetch('/api/credential-import-draft', { method: 'DELETE' }),
+  })
+
+  const [draftReady, setDraftReady] = useState(false) // اكتمل تحميل المسودة → يُسمح بالحفظ التلقائي
+  const [restoredCount, setRestoredCount] = useState(0) // عدد صفوف استُرجعت من مسودة محفوظة
+
+  // استرجاع المسودة مرة واحدة عند أول فتح للصفحة
+  const restoredRef = useRef(false)
+  useEffect(() => {
+    if (restoredRef.current) return
+    if (draftQuery.isSuccess) {
+      restoredRef.current = true
+      const saved = draftQuery.data.rows ?? []
+      if (saved.length > 0) {
+        setRows(saved)
+        setRestoredCount(saved.length)
+      }
+      setDraftReady(true)
+    } else if (draftQuery.isError) {
+      restoredRef.current = true
+      setDraftReady(true)
+    }
+  }, [draftQuery.isSuccess, draftQuery.isError, draftQuery.data])
+
+  // حفظ تلقائي مؤجّل: يُحفظ ما بقي، ويُحذف عند إفراغ الجدول
+  const saveTimer = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    if (!draftReady) return
+    if (saveTimer.current) window.clearTimeout(saveTimer.current)
+    saveTimer.current = window.setTimeout(() => {
+      if (rows.length > 0) saveDraft.mutate(rows)
+      else clearDraft.mutate()
+    }, 700)
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, draftReady])
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0] ?? null
     setFile(selected)
     setRows([])
+    setRestoredCount(0)
     parseMutation.reset()
     commitMutation.reset()
     if (selected) parseMutation.mutate(selected)
+  }
+
+  // حذف المسودة والبدء من جديد
+  function handleDiscardDraft() {
+    setRows([])
+    setRestoredCount(0)
+    setFile(null)
+    parseMutation.reset()
+    commitMutation.reset()
   }
 
   function patchRow(key: string, patch: Partial<EditRow>) {
@@ -250,6 +311,29 @@ export default function CredentialsImportPage() {
           </p>
         </div>
 
+        {/* شعار استرجاع مسودة محفوظة */}
+        {restoredCount > 0 && (
+          <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 min-w-0">
+              <svg className="w-5 h-5 text-sky-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M3 7v6h6M3 13a9 9 0 1 0 3-7.7L3 7" />
+              </svg>
+              <p className="text-sm text-sky-800">
+                تم استرجاع مسودة محفوظة فيها <span className="font-bold">{restoredCount}</span> صف — أكمِلها من حيث توقفت.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleDiscardDraft}
+              className="shrink-0 rounded-lg border border-sky-200 bg-white hover:bg-red-50 hover:text-red-600 hover:border-red-200
+                         text-sky-700 text-xs font-semibold px-3 py-1.5 transition-colors"
+            >
+              حذف المسودة والبدء من جديد
+            </button>
+          </div>
+        )}
+
         {/* اختيار الملف */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-5 py-4 md:py-3 border-b border-gray-100 bg-gray-50/50">
@@ -304,6 +388,12 @@ export default function CredentialsImportPage() {
                     <span className="text-amber-600 font-semibold"> — منها {unmatchedCount} غير مطابقة</span>
                   )}
                   {' '}— يمكنك تعديل أي حقل، وربط المؤسسات غير المطابقة يدويًا
+                </p>
+                <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
+                  <svg className="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  {saveDraft.isPending ? 'جارٍ حفظ المسودة...' : 'يُحفظ تلقائيًا — يمكنك العودة لاحقًا وإكمال الباقي'}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 text-[11px] font-semibold">

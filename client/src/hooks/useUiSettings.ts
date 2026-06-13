@@ -10,6 +10,7 @@ export interface UiSettings {
   showDeletedDuesPage: boolean
   showIqamaAlertsPage: boolean
   showCustomMobileVersion: boolean
+  runOnMobile: boolean
 }
 
 export function useUiSettings() {
