@@ -156,8 +156,11 @@ export default function ClientsPage() {
   // (لأن إدارتهم في صفحتهم المستقلة)، و«كل العملاء» إذا كانت معطّلة
   const { data: uiSettings } = useUiSettings()
   const [clientTypeFilterOverride, setClientTypeFilterOverride] = useState<string | null>(null)
+  // عندما تكون صفحة «تحت الإجراء» فعّالة يُدار عملاؤها في صفحتهم المستقلة،
+  // فنخفي فلتر الحالة من هنا ونثبّت العرض على المكتملين
+  const underProcedurePageActive = uiSettings?.showUnderProcedurePage !== false
   const clientTypeFilter =
-    clientTypeFilterOverride ?? (uiSettings?.showUnderProcedurePage === false ? '' : 'completed')
+    clientTypeFilterOverride ?? (underProcedurePageActive ? 'completed' : '')
   const [showAdd, setShowAdd] = useState(false)
   const [detailId, setDetailId] = useState<number | null>(null)
   const [modalView, setModalView] = useState<'detail' | 'payments' | 'steps' | 'issue-iqama'>('detail')
@@ -508,7 +511,7 @@ export default function ClientsPage() {
         </div>
 
         {/* ── Filters ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 mb-4 md:shrink-0">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${underProcedurePageActive ? 'lg:grid-cols-4' : 'lg:grid-cols-5'} gap-2.5 mb-4 md:shrink-0`}>
           <div className="relative">
             <svg className="pointer-events-none absolute inset-y-0 inset-e-3 my-auto w-4 h-4 text-gray-400"
               fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -547,11 +550,13 @@ export default function ClientsPage() {
             ))}
           </select>
 
-          <select value={clientTypeFilter} onChange={(e) => setClientTypeFilterOverride(e.target.value)} className={inputCls}>
-            <option value="">الكل</option>
-            <option value="under-procedure">تحت الإجراء</option>
-            <option value="completed">المكتملين</option>
-          </select>
+          {!underProcedurePageActive && (
+            <select value={clientTypeFilter} onChange={(e) => setClientTypeFilterOverride(e.target.value)} className={inputCls}>
+              <option value="">الكل</option>
+              <option value="under-procedure">تحت الإجراء</option>
+              <option value="completed">المكتملين</option>
+            </select>
+          )}
         </div>
 
         {isError && (

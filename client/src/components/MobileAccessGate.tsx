@@ -49,9 +49,6 @@ export default function MobileAccessGate() {
             </svg>
           </div>
           <h1 className="text-lg font-bold text-gray-900">هذا الموقع يعمل على الكمبيوتر فقط</h1>
-          <p className="text-sm text-gray-500 leading-relaxed">
-            تم إيقاف فتح الموقع على الهاتف. افتحه من جهاز كمبيوتر للمتابعة.
-          </p>
         </div>
       </div>
     )
