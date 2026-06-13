@@ -81,13 +81,14 @@ export default function MobileMuqeemPage() {
     gcTime: 0,
   })
 
-  // تسليح التعبئة — يجري بالتوازي مع فتح الموقع: الفتح يجب أن يكون متزامناً مع
-  // ضغطة المستخدم وإلا حجبه Safari، والتسليح ينتهي قبل وصوله لصفحة الدخول بكثير
+  // تسليح التعبئة — يجري لحظة اختيار المؤسسة، والتطبيق ما زال في المقدمة، فيكمل
+  // الطلب بأمان. لو سُلّح وقت ضغط «فتح مقيم» لجمّد iOS التطبيق عند فتح المتصفح
+  // الداخلي قبل وصول الطلب للسيرفر. نُكرّره أيضاً عند الفتح كاحتياط يجدّد المهلة.
   const armFill = useMutation({
-    mutationFn: () =>
+    mutationFn: (organizationId: number) =>
       apiFetch('/api/mobile-fill/arm', {
         method: 'POST',
-        body: JSON.stringify({ organizationId: selectedOrgId, platform: 'muqeem' }),
+        body: JSON.stringify({ organizationId, platform: 'muqeem' }),
       }),
   })
 
@@ -123,8 +124,11 @@ export default function MobileMuqeemPage() {
                   key={org.id}
                   type="button"
                   onClick={() => {
-                    setSelectedOrgId(selected ? null : org.id)
+                    const next = selected ? null : org.id
+                    setSelectedOrgId(next)
                     setShowPassword(false)
+                    // سلّح فور الاختيار — التطبيق ما زال مفتوحاً فيصل الطلب بأمان
+                    if (next !== null) armFill.mutate(next)
                   }}
                   className={`w-full flex items-center gap-3 px-5 py-4 border-b border-gray-50 last:border-0
                               text-start transition-colors ${
@@ -214,7 +218,7 @@ export default function MobileMuqeemPage() {
                     href={muqeem.loginUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => armFill.mutate()}
+                    onClick={() => armFill.mutate(selectedOrg.id)}
                     className="flex items-center justify-center gap-2 w-full rounded-xl
                                bg-sky-500 active:bg-sky-600
                                text-white text-sm font-semibold py-3 min-h-12
