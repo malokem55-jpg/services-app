@@ -6,14 +6,20 @@ function getToken(): string | null {
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken()
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init?.headers,
-    },
-  })
+  let res: Response
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
+    })
+  } catch {
+    // فشل الاتصال بالشبكة قبل وصول الطلب للخادم
+    throw new Error('لا يوجد اتصال بالإنترنت، تحقق من الشبكة وحاول مجدداً')
+  }
   if (res.status === 401 && token) {
     // الجلسة منتهية: احذف التوكن وارجع لصفحة الدخول
     localStorage.removeItem('token')

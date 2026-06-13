@@ -55,6 +55,16 @@ model LoginPlatform {
   @@map("login_platforms")
 }
 
+// مدن الغرفة التجارية (الرياض/نجران/عنيزة): رابط دخول قابل للتعديل لكل مدينة.
+// المؤسسة تتبع مدينة واحدة، وزر الدخول يفتح رابط مدينتها.
+model ChamberCity {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique // riyadh | najran | onaizah
+  loginUrl  String   @default("") @map("login_url") @db.VarChar(500)
+
+  @@map("chamber_cities")
+}
+
 // بيانات دخول المؤسسة على منصة خارجية — كلمة المرور مشفّرة AES-256-GCM
 // (تشفير قابل للفك لأن الميزة تتطلب استرجاعها للتعبئة، وليس bcrypt)
 model OrganizationCredential {
@@ -63,6 +73,7 @@ model OrganizationCredential {
   platform       String // muqeem | chamber
   username       String
   passwordEnc    String       @map("password_enc") @db.Text
+  city           String?      @db.VarChar(32) // مدينة الغرفة (riyadh|najran|onaizah) — للمنصة chamber فقط
   createdAt      DateTime?    @map("created_at")
   updatedAt      DateTime?    @map("updated_at")
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)

@@ -8,9 +8,12 @@ import { openLoginWithExtension } from '../lib/loginExtension'
 import {
   useLoginPlatforms,
   useCredentialSummaries,
+  useChamberCities,
   PLATFORM_LABELS,
   VISIBLE_PLATFORMS,
+  CHAMBER_CITY_LABELS,
   type LoginPlatform,
+  type ChamberCityKey,
 } from '../hooks/useLoginPlatforms'
 import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
@@ -147,9 +150,9 @@ function OrgClientsModal({
             <>
               {/* ── Desktop table ── */}
               <div className="hidden sm:block rounded-xl overflow-hidden border border-gray-200">
-                <div className="overflow-x-auto">
+                <div className="overflow-auto max-h-[75vh]">
                   <table className="w-full text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10">
                       <tr className="bg-sky-600 text-white text-right">
                         <th className="px-3 py-3 text-xs font-semibold">اسم العميل</th>
                         <th className="px-3 py-3 text-xs font-semibold">رقم الهاتف</th>
@@ -294,6 +297,7 @@ export default function OrganizationsPage() {
   // منصات الدخول الخارجية المفعّلة (مقيم / الغرفة) — تعطيل المنصة يخفي عمودها
   const { data: platforms = [] } = useLoginPlatforms()
   const { data: credSummaries = [] } = useCredentialSummaries()
+  const { data: chamberCities = [] } = useChamberCities()
   const enabledPlatforms = platforms.filter((p) => p.enabled && VISIBLE_PLATFORMS.includes(p.key))
   const [loginNotice, setLoginNotice] = useState<string | null>(null)
   const [loginPendingKey, setLoginPendingKey] = useState<string | null>(null)
@@ -310,19 +314,30 @@ export default function OrganizationsPage() {
   }
 
   async function handlePlatformLogin(org: OrgItem, platform: LoginPlatform) {
-    if (!platform.loginUrl) {
-      setConfirmLogin(null)
-      setLoginNotice(`رابط صفحة دخول ${PLATFORM_LABELS[platform.key]} غير مضبوط — اضبطه من الملف الشخصي`)
-      return
-    }
     const pendingKey = `${org.id}-${platform.key}`
     setLoginPendingKey(pendingKey)
     try {
-      const cred = await apiFetch<{ username: string; password: string }>(
+      const cred = await apiFetch<{ username: string; password: string; city: ChamberCityKey | null }>(
         `/api/org-credentials/${org.id}/${platform.key}`,
       )
+      // الغرفة: الرابط يُحدَّد حسب مدينة المؤسسة، لا من رابط ثابت للمنصة
+      let loginUrl = platform.loginUrl
+      if (platform.key === 'chamber') {
+        if (!cred.city) {
+          setLoginNotice('لم تُحدَّد مدينة الغرفة لهذه المؤسسة — عدّلها من الملف الشخصي')
+          return
+        }
+        loginUrl = chamberCities.find((c) => c.key === cred.city)?.loginUrl ?? ''
+        if (!loginUrl) {
+          setLoginNotice(`رابط دخول غرفة ${CHAMBER_CITY_LABELS[cred.city]} غير مضبوط — اضبطه من الملف الشخصي`)
+          return
+        }
+      } else if (!loginUrl) {
+        setLoginNotice(`رابط صفحة دخول ${PLATFORM_LABELS[platform.key]} غير مضبوط — اضبطه من الملف الشخصي`)
+        return
+      }
       const filled = await openLoginWithExtension({
-        url: platform.loginUrl,
+        url: loginUrl,
         username: cred.username,
         password: cred.password,
       })
@@ -346,7 +361,7 @@ export default function OrganizationsPage() {
           className={`${fullWidth ? 'w-full flex' : 'inline-flex'} items-center justify-center rounded-lg px-3 py-1.5
                       text-xs font-medium border border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed`}
         >
-          لم تسجل بيانات الدخول
+          غير مسجّل
         </button>
       )
     }
@@ -357,12 +372,12 @@ export default function OrganizationsPage() {
                     text-xs font-semibold border border-sky-200 bg-sky-50 text-sky-700
                     hover:bg-sky-100 transition-colors`}
       >
-        <svg className="w-3.5 h-3.5 inline-block me-1" fill="none" viewBox="0 0 24 24"
+        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24"
           stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round"
             d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
         </svg>
-        دخول {PLATFORM_LABELS[platform.key]}
+        {fullWidth ? `دخول ${PLATFORM_LABELS[platform.key]}` : 'دخول'}
       </button>
     )
   }
@@ -440,13 +455,14 @@ export default function OrganizationsPage() {
   const mutationError = createOrg.error ?? updateOrg.error
 
   return (
-    <div className="min-h-screen bg-gray-50/80">
+    <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col bg-gray-50/80">
       <Navbar />
 
-      <main className="mx-auto max-w-5xl px-4 py-6 page-enter">
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 md:py-4 page-enter
+                       md:flex-1 md:min-h-0 md:flex md:flex-col md:overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-4 md:shrink-0">
           <div>
             <h2 className="text-xl font-bold text-gray-900">المؤسسات</h2>
             {!isLoading && (
@@ -483,7 +499,7 @@ export default function OrganizationsPage() {
         </div>
 
         {/* Search */}
-        <div className="relative mb-5">
+        <div className="relative mb-4 md:shrink-0">
           <svg className="pointer-events-none absolute inset-y-0 inset-e-3 my-auto w-4 h-4 text-gray-400"
             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round"
@@ -621,20 +637,20 @@ export default function OrganizationsPage() {
         </div>
 
         {/* ── Desktop: table ── */}
-        <div className="hidden md:block bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="hidden md:flex md:flex-col md:flex-1 md:min-h-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-sky-100 bg-sky-50 text-right">
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">اسم المؤسسة</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center w-20">الأفراد</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center">الكروت المسحوبة</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center">الكروت المتبقية</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">رقم السجل</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">انتهاء السجل</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">اسم المؤسسة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center w-20">الأفراد</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center">الكروت المسحوبة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center">الكروت المتبقية</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">رقم السجل</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">انتهاء السجل</th>
                   {enabledPlatforms.map((p) => (
-                    <th key={p.key} className="px-4 py-3 text-xs font-semibold text-sky-700 text-center">
-                      تسجيل الدخول لـ{PLATFORM_LABELS[p.key]}
+                    <th key={p.key} className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center whitespace-nowrap">
+                      دخول {PLATFORM_LABELS[p.key]}
                     </th>
                   ))}
                   <th className="px-4 py-3 w-32" />
@@ -645,7 +661,7 @@ export default function OrganizationsPage() {
                   ? Array.from({ length: 5 }).map((_, i) => (
                       <tr key={i} className="border-b border-gray-100">
                         {Array.from({ length: 6 }).map((__, j) => (
-                          <td key={j} className="px-4 py-3.5">
+                          <td key={j} className="px-4 py-2.5">
                             <div className="h-4 bg-gray-100 rounded animate-pulse" style={{ width: `${55 + j * 10}%` }} />
                           </td>
                         ))}
@@ -677,39 +693,39 @@ export default function OrganizationsPage() {
                       className="border-b border-gray-100 hover:bg-sky-50/60 cursor-pointer transition-colors"
                       onClick={() => setClientsModal({ orgId: org.id, orgName: org.name ?? '—' })}
                     >
-                      <td className="px-4 py-3.5 font-semibold text-gray-900">{org.name ?? '—'}</td>
-                      <td className="px-4 py-3.5 text-center">
+                      <td className="px-4 py-2.5 font-semibold text-gray-900">{org.name ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-center">
                         <span className="inline-flex items-center justify-center min-w-7 h-7 rounded-full
                                          bg-sky-100 text-xs font-semibold text-sky-700 px-2">
                           {org._count.clients}
                         </span>
                       </td>
                       {/* خليتا الكروت محايدتان: النقر لا يفتح نافذة العملاء — سجل الكروت من أيقونته فقط */}
-                      <td className="px-4 py-3.5 text-center cursor-default" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2.5 text-center cursor-default" onClick={(e) => e.stopPropagation()}>
                         <span className="inline-flex items-center justify-center h-7 rounded-full
                                          bg-amber-100 text-xs font-semibold text-amber-700 px-2.5">
                           {formatYears(org.cardsWithdrawn)}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-center cursor-default" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2.5 text-center cursor-default" onClick={(e) => e.stopPropagation()}>
                         <span className={`inline-flex items-center justify-center h-7 rounded-full px-2.5 text-xs font-semibold
                           ${org.cardsRemaining <= 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
                           {formatYears(org.cardsRemaining)}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 font-mono text-xs text-gray-500 tracking-wide">
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500 tracking-wide">
                         {org.number ?? '—'}
                       </td>
-                      <td className="px-4 py-3.5 text-gray-600 text-sm whitespace-nowrap">
+                      <td className="px-4 py-2.5 text-gray-600 text-sm whitespace-nowrap">
                         {formatDate(org.expiredDate)}
                       </td>
                       {enabledPlatforms.map((p) => (
-                        <td key={p.key} className="px-4 py-3.5 text-center cursor-default whitespace-nowrap"
+                        <td key={p.key} className="px-4 py-2.5 text-center cursor-default whitespace-nowrap"
                           onClick={(e) => e.stopPropagation()}>
                           {renderLoginButton(org, p)}
                         </td>
                       ))}
-                      <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
                         {deleteConfirmId === org.id ? (
                           <div className="flex items-center gap-2 justify-end">
                             <span className="text-xs text-red-600 font-medium whitespace-nowrap">تأكيد الحذف؟</span>

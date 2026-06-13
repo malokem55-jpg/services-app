@@ -2,6 +2,7 @@ import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { PLATFORM_KEYS } from '../services/login-platforms.service.js';
+import { CHAMBER_CITY_KEYS } from '../services/chamber-cities.service.js';
 import {
   listCredentialSummaries,
   getCredential,
@@ -43,12 +44,18 @@ router.get('/:orgId/:platform', async (req: AuthRequest, res: Response, next: Ne
 const bodySchema = z.object({
   username: z.string().min(1, 'اسم المستخدم مطلوب').max(255),
   password: z.string().min(1, 'كلمة المرور مطلوبة').max(255),
+  city: z.enum(CHAMBER_CITY_KEYS).optional(),
 });
 
 router.put('/:orgId/:platform', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { orgId, platform } = paramsSchema.parse(req.params);
     const body = bodySchema.parse(req.body);
+    // المدينة إجبارية للغرفة: لا تُحفظ بيانات دخول دون اختيار مدينة
+    if (platform === 'chamber' && !body.city) {
+      res.status(400).json({ error: 'يجب اختيار المدينة' });
+      return;
+    }
     const result = await upsertCredential(orgId, platform, body);
     res.json({ organizationId: orgId, platform, ...result });
   } catch (err) {

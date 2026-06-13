@@ -403,12 +403,13 @@ export default function UnderProcedureClientsPage() {
   const labelCls = 'block text-xs font-medium text-gray-500 mb-1.5'
 
   return (
-    <div className="min-h-screen bg-gray-50/80">
+    <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col bg-gray-50/80">
       <Navbar />
 
-      <main className="mx-auto max-w-6xl px-4 py-6 page-enter">
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 md:py-4 page-enter
+                       md:flex-1 md:min-h-0 md:flex md:flex-col md:overflow-hidden">
         {/* ── Page header ── */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-4 md:shrink-0">
           <div>
             <h2 className="text-xl font-bold text-gray-900">العملاء تحت الإجراء</h2>
             {!isLoading && (
@@ -432,7 +433,7 @@ export default function UnderProcedureClientsPage() {
         </div>
 
         {/* ── Filters ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-4 md:shrink-0">
           <div className="relative">
             <svg className="pointer-events-none absolute inset-y-0 inset-e-3 my-auto w-4 h-4 text-gray-400"
               fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -554,19 +555,19 @@ export default function UnderProcedureClientsPage() {
         </div>
 
         {/* ── Desktop: table ── */}
-        <div className="hidden md:block bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="hidden md:flex md:flex-col md:flex-1 md:min-h-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-sky-100 bg-sky-50 text-right">
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">اسم العميل</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">اسم المؤسسة</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">رقم المؤسسة</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">رقم الجواز</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">رقم الحدود</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">جهة القدوم</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center">إصدار إقامة</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center">تفاصيل</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">اسم العميل</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">اسم المؤسسة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">رقم المؤسسة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">رقم الجواز</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">رقم الحدود</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">جهة القدوم</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center">إصدار إقامة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center">تفاصيل</th>
                 </tr>
               </thead>
               <tbody>
@@ -574,7 +575,7 @@ export default function UnderProcedureClientsPage() {
                   Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i} className="border-b border-gray-100">
                       {[40, 28, 20, 28, 24, 24, 16, 16].map((w, j) => (
-                        <td key={j} className="px-4 py-3.5">
+                        <td key={j} className="px-4 py-2.5">
                           <div className="h-4 bg-gray-100 rounded animate-pulse" style={{ width: `${w * 3}px` }} />
                         </td>
                       ))}
@@ -602,15 +603,15 @@ export default function UnderProcedureClientsPage() {
                       className="border-b border-gray-100 hover:bg-sky-50/40 cursor-pointer transition-colors"
                       onClick={() => openDetailPage(c.id)}
                     >
-                      <td className="px-4 py-3.5 font-semibold text-gray-900">{c.name ?? '—'}</td>
-                      <td className="px-4 py-3.5 text-gray-700 font-medium text-sm">{c.organization?.name ?? '—'}</td>
-                      <td className="px-4 py-3.5 font-mono text-xs text-gray-400 tracking-wide">
+                      <td className="px-4 py-2.5 font-semibold text-gray-900">{c.name ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-700 font-medium text-sm">{c.organization?.name ?? '—'}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-400 tracking-wide">
                         {c.organization?.number ?? '—'}
                       </td>
-                      <td className="px-4 py-3.5 font-mono text-xs text-gray-500 tracking-wide">{c.passport ?? '—'}</td>
-                      <td className="px-4 py-3.5 font-mono text-xs text-gray-500 tracking-wide">{c.boardNumber ?? '—'}</td>
-                      <td className="px-4 py-3.5 text-gray-600 text-sm">{c.arrivalPlace?.name ?? '—'}</td>
-                      <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500 tracking-wide">{c.passport ?? '—'}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500 tracking-wide">{c.boardNumber ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-600 text-sm">{c.arrivalPlace?.name ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={(e) => { e.stopPropagation(); setDetailId(c.id); setModalView('issue-iqama') }}
                           className="rounded-lg px-3 py-1.5 text-xs font-semibold text-emerald-700
@@ -619,7 +620,7 @@ export default function UnderProcedureClientsPage() {
                           إصدار
                         </button>
                       </td>
-                      <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={(e) => { e.stopPropagation(); setDetailId(c.id) }}
                           aria-label="عرض التفاصيل"

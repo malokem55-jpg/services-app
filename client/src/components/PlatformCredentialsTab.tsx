@@ -5,10 +5,14 @@ import Modal from './Modal'
 import {
   useLoginPlatforms,
   useCredentialSummaries,
+  useChamberCities,
   PLATFORM_LABELS,
   VISIBLE_PLATFORMS,
+  CHAMBER_CITY_KEYS,
+  CHAMBER_CITY_LABELS,
   type PlatformKey,
   type LoginPlatform,
+  type ChamberCityKey,
 } from '../hooks/useLoginPlatforms'
 
 interface OrgLite {
@@ -33,13 +37,19 @@ function CredentialModal({
   onClose: () => void
 }) {
   const qc = useQueryClient()
+  const isChamber = platform === 'chamber'
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [city, setCity] = useState<ChamberCityKey | ''>('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
 
   // تعبئة الحقول بالبيانات المحفوظة عند التعديل
-  const { data: existing, isLoading } = useQuery<{ username: string; password: string }>({
+  const { data: existing, isLoading } = useQuery<{
+    username: string
+    password: string
+    city: ChamberCityKey | null
+  }>({
     queryKey: ['org-credentials', orgId, platform],
     queryFn: () => apiFetch(`/api/org-credentials/${orgId}/${platform}`),
     enabled: hasCredentials,
@@ -51,11 +61,12 @@ function CredentialModal({
     if (existing) {
       setUsername(existing.username)
       setPassword(existing.password)
+      setCity(existing.city ?? '')
     }
   }, [existing])
 
   const save = useMutation({
-    mutationFn: (body: { username: string; password: string }) =>
+    mutationFn: (body: { username: string; password: string; city?: ChamberCityKey }) =>
       apiFetch(`/api/org-credentials/${orgId}/${platform}`, {
         method: 'PUT',
         body: JSON.stringify(body),
@@ -82,7 +93,16 @@ function CredentialModal({
       setError('اسم المستخدم وكلمة المرور مطلوبان')
       return
     }
-    save.mutate({ username: username.trim(), password })
+    // المدينة إجبارية للغرفة: لا حفظ دون اختيارها
+    if (isChamber && !city) {
+      setError('يجب اختيار المدينة')
+      return
+    }
+    save.mutate({
+      username: username.trim(),
+      password,
+      ...(isChamber ? { city: city as ChamberCityKey } : {}),
+    })
   }
 
   const mutationError = save.error ?? remove.error
@@ -143,6 +163,22 @@ function CredentialModal({
             </div>
           </div>
 
+          {isChamber && (
+            <div>
+              <label className={labelCls}>المدينة (الغرفة التي تتبعها المؤسسة)</label>
+              <select
+                value={city}
+                onChange={(e) => setCity(e.target.value as ChamberCityKey | '')}
+                className={inputCls}
+              >
+                <option value="" disabled>اختر المدينة</option>
+                {CHAMBER_CITY_KEYS.map((c) => (
+                  <option key={c} value={c}>{CHAMBER_CITY_LABELS[c]}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {(error || mutationError) && (
             <p className="text-sm text-red-600">
               {error || (mutationError instanceof Error ? mutationError.message : 'حدث خطأ غير متوقع')}
@@ -184,13 +220,153 @@ function CredentialModal({
   )
 }
 
-/* ─── إعدادات منصة واحدة (تفعيل + رابط صفحة الدخول) ────────────────────────── */
+/* ─── محرّر رابط واحد (عرض + تعديل) — يُعاد استخدامه لرابط المنصة ولروابط مدن الغرفة ─── */
+function UrlEditor({
+  label, value, onSave, saving, error,
+}: {
+  label: string
+  value: string
+  onSave: (url: string) => Promise<unknown>
+  saving: boolean
+  error?: string | null
+}) {
+  const [draft, setDraft] = useState(value)
+  const [editing, setEditing] = useState(false)
+
+  useEffect(() => setDraft(value), [value])
+
+  async function save() {
+    try {
+      await onSave(draft.trim())
+      setEditing(false)
+    } catch {
+      /* الخطأ يُعرض أسفل الحقل عبر prop error */
+    }
+  }
+
+  return (
+    <div>
+      <label className={labelCls}>{label}</label>
+      {editing ? (
+        <div className="flex gap-2">
+          <input
+            type="url"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="https://..."
+            title={label}
+            dir="ltr"
+            autoFocus
+            className={inputCls}
+          />
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            className="shrink-0 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
+                       text-white text-sm font-semibold px-4 min-h-11 transition-colors"
+          >
+            {saving ? '...' : 'حفظ'}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setEditing(false); setDraft(value) }}
+            disabled={saving}
+            aria-label="إلغاء تعديل الرابط"
+            className="shrink-0 rounded-xl border border-gray-200 bg-white hover:bg-gray-50
+                       disabled:opacity-60 text-gray-500 px-3 min-h-11 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <div className="relative" dir="ltr">
+          <div
+            title={value || 'لم يُضبط الرابط بعد'}
+            className="rounded-xl border border-gray-200 bg-gray-100/70
+                       ps-3 pe-10 py-2.5 text-sm text-gray-500 min-h-11
+                       flex items-center select-all"
+          >
+            <span className="truncate">{value || '—'}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setDraft(value); setEditing(true) }}
+            aria-label="تعديل الرابط"
+            title="تعديل الرابط"
+            className="absolute inset-y-0 inset-e-1.5 my-auto h-8 w-8 flex items-center justify-center
+                       rounded-lg text-gray-400 hover:text-sky-600 hover:bg-sky-100/70 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
+        </div>
+      )}
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+    </div>
+  )
+}
+
+/* ─── روابط دخول مدن الغرفة الثلاث (الرياض/نجران/عنيزة) ───────────────────────── */
+function ChamberCitiesEditor() {
+  const qc = useQueryClient()
+  const { data: cities = [], isLoading } = useChamberCities()
+  const [savingKey, setSavingKey] = useState<ChamberCityKey | null>(null)
+  const [errorKey, setErrorKey] = useState<{ key: ChamberCityKey; msg: string } | null>(null)
+
+  const update = useMutation({
+    mutationFn: ({ key, loginUrl }: { key: ChamberCityKey; loginUrl: string }) =>
+      apiFetch(`/api/chamber-cities/${key}`, { method: 'PUT', body: JSON.stringify({ loginUrl }) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['chamber-cities'] }),
+  })
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {CHAMBER_CITY_KEYS.map((c) => <div key={c} className="h-11 bg-gray-100 rounded-xl animate-pulse" />)}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3.5">
+      <p className="text-xs text-gray-400">رابط صفحة الدخول لكل مدينة — يُفتح حسب المدينة التي تتبعها المؤسسة</p>
+      {CHAMBER_CITY_KEYS.map((key) => {
+        const city = cities.find((c) => c.key === key)
+        return (
+          <UrlEditor
+            key={key}
+            label={`رابط دخول ${CHAMBER_CITY_LABELS[key]}`}
+            value={city?.loginUrl ?? ''}
+            saving={savingKey === key}
+            error={errorKey?.key === key ? errorKey.msg : null}
+            onSave={async (loginUrl) => {
+              setSavingKey(key)
+              setErrorKey(null)
+              try {
+                await update.mutateAsync({ key, loginUrl })
+              } catch (e) {
+                setErrorKey({ key, msg: e instanceof Error ? e.message : 'حدث خطأ' })
+                throw e
+              } finally {
+                setSavingKey(null)
+              }
+            }}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+/* ─── إعدادات منصة واحدة (تفعيل + رابط/روابط الدخول) ────────────────────────── */
 function PlatformSettingsCard({ platform }: { platform: LoginPlatform }) {
   const qc = useQueryClient()
-  const [loginUrl, setLoginUrl] = useState(platform.loginUrl)
-  const [editingUrl, setEditingUrl] = useState(false)
-
-  useEffect(() => setLoginUrl(platform.loginUrl), [platform.loginUrl])
+  const isChamber = platform.key === 'chamber'
 
   const update = useMutation({
     mutationFn: (patch: { enabled?: boolean; loginUrl?: string }) =>
@@ -200,20 +376,6 @@ function PlatformSettingsCard({ platform }: { platform: LoginPlatform }) {
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['login-platforms'] }),
   })
-
-  function startEditUrl() {
-    setLoginUrl(platform.loginUrl)
-    setEditingUrl(true)
-  }
-
-  function cancelEditUrl() {
-    setEditingUrl(false)
-    setLoginUrl(platform.loginUrl)
-  }
-
-  function saveUrl() {
-    update.mutate({ loginUrl: loginUrl.trim() }, { onSuccess: () => setEditingUrl(false) })
-  }
 
   return (
     <div className="border-b border-gray-50 last:border-0 px-5 py-4 space-y-3.5">
@@ -259,73 +421,17 @@ function PlatformSettingsCard({ platform }: { platform: LoginPlatform }) {
         </button>
       </div>
 
-      <div>
-        <label className={labelCls}>رابط صفحة تسجيل الدخول</label>
-        {editingUrl ? (
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={loginUrl}
-              onChange={(e) => setLoginUrl(e.target.value)}
-              placeholder="https://..."
-              title="رابط صفحة تسجيل الدخول"
-              dir="ltr"
-              autoFocus
-              className={inputCls}
-            />
-            <button
-              type="button"
-              onClick={saveUrl}
-              disabled={update.isPending}
-              className="shrink-0 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
-                         text-white text-sm font-semibold px-4 min-h-11 transition-colors"
-            >
-              {update.isPending ? '...' : 'حفظ'}
-            </button>
-            <button
-              type="button"
-              onClick={cancelEditUrl}
-              disabled={update.isPending}
-              aria-label="إلغاء تعديل الرابط"
-              className="shrink-0 rounded-xl border border-gray-200 bg-white hover:bg-gray-50
-                         disabled:opacity-60 text-gray-500 px-3 min-h-11 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        ) : (
-          <div className="relative" dir="ltr">
-            <div
-              title={platform.loginUrl || 'لم يُضبط الرابط بعد'}
-              className="rounded-xl border border-gray-200 bg-gray-100/70
-                         ps-3 pe-10 py-2.5 text-sm text-gray-500 min-h-11
-                         flex items-center select-all"
-            >
-              <span className="truncate">{platform.loginUrl || '—'}</span>
-            </div>
-            <button
-              type="button"
-              onClick={startEditUrl}
-              aria-label="تعديل الرابط"
-              title="تعديل الرابط"
-              className="absolute inset-y-0 inset-e-1.5 my-auto h-8 w-8 flex items-center justify-center
-                         rounded-lg text-gray-400 hover:text-sky-600 hover:bg-sky-100/70 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round"
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
-          </div>
-        )}
-        {update.isError && (
-          <p className="mt-1 text-xs text-red-500">
-            {update.error instanceof Error ? update.error.message : 'حدث خطأ'}
-          </p>
-        )}
-      </div>
+      {isChamber ? (
+        <ChamberCitiesEditor />
+      ) : (
+        <UrlEditor
+          label="رابط صفحة تسجيل الدخول"
+          value={platform.loginUrl}
+          saving={update.isPending}
+          error={update.isError ? (update.error instanceof Error ? update.error.message : 'حدث خطأ') : null}
+          onSave={(loginUrl) => update.mutateAsync({ loginUrl })}
+        />
+      )}
     </div>
   )
 }
@@ -458,9 +564,9 @@ export default function PlatformCredentialsTab() {
             لا توجد مؤسسة مطابقة لـ «{search.trim()}»
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[75vh]">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-sky-100 bg-sky-50 text-right">
                   <th className="px-4 py-3 md:py-2.5 text-xs font-semibold text-sky-700">اسم المؤسسة</th>
                   {visiblePlatforms.map((p) => (
@@ -517,10 +623,11 @@ export default function PlatformCredentialsTab() {
               {[
                 <>فك ضغط الملف في مجلد دائم لا يُحذف، مثل{' '}
                   <span dir="ltr" className="font-mono text-gray-700">C:\muqeem-extension</span></>,
-                <>افتح في Chrome الصفحة{' '}
+                <>افتح في المتصفح الصفحة{' '}
                   <span dir="ltr" className="font-mono text-gray-700">chrome://extensions</span>
-                  {' '}وفعّل <span className="font-semibold text-gray-700">Developer mode</span></>,
-                <>اضغط <span className="font-semibold text-gray-700">Load unpacked</span>{' '}
+                  {' '}وفعّل <span className="font-semibold text-gray-700">«وضع المطوّر» (Developer mode)</span>{' '}
+                  من أعلى الصفحة</>,
+                <>اضغط زر <span className="font-semibold text-gray-700">«تحميل غير مضغوطة» (Load unpacked)</span>{' '}
                   واختر المجلد الذي فككت فيه الضغط</>,
                 <>حدّث صفحة الموقع — انتهى، ولن تحتاج تكرارها على هذا الجهاز</>,
               ].map((step, i) => (

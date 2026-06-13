@@ -16,7 +16,7 @@ const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'pages', label: 'الصفحات' },
   { id: 'bells', label: 'التنبيهات' },
   { id: 'push', label: 'اشعارات الهاتف' },
-  { id: 'pwa', label: 'تطبيق PWA' },
+  { id: 'pwa', label: 'تطبيق الموبايل' },
 ]
 
 const BELL_OPTIONS: { key: keyof UiSettings; label: string; description: string; accent: string }[] = [
@@ -56,7 +56,7 @@ const PAGE_OPTIONS: { key: keyof UiSettings; label: string; description: string;
   {
     key: 'showIqamaAlertsPage',
     label: 'صفحة عملاء تنبيهات الإقامات',
-    description: 'عند إظهارها يُخفى جرسا الإقامات تلقائياً ويعودان عند إخفائها',
+    description: 'تحل محل جرسي تنبيهات الإقامات',
     accent: 'bg-orange-500',
   },
   {
@@ -172,7 +172,7 @@ export default function SettingsPage() {
                 key={key}
                 label={label}
                 description={lockedByIqamaPage
-                  ? 'مخفي إجبارياً لأن صفحة عملاء تنبيهات الإقامات ظاهرة'
+                  ? 'مخفي تلقائياً لأن صفحة تنبيهات الإقامات ظاهرة'
                   : description}
                 accent={accent}
                 checked={lockedByIqamaPage
@@ -195,7 +195,7 @@ export default function SettingsPage() {
       <main className="mx-auto max-w-2xl px-4 py-6 md:py-5 space-y-5 md:space-y-4 page-enter">
         <div>
           <h2 className="text-xl font-bold text-gray-900">الإعدادات</h2>
-          <p className="text-sm text-gray-500 mt-0.5">إدارة جهات القدوم وإدارة إظهار وإخفاء الصفحات والتنبيهات</p>
+          <p className="text-sm text-gray-500 mt-0.5">تخصيص الصفحات والتنبيهات والتطبيق</p>
         </div>
 
         <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} ariaLabel="أقسام الإعدادات" />

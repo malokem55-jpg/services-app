@@ -15,13 +15,13 @@ interface Me { name: string | null; username: string | null }
 
 const NAV_LINKS = [
   { to: '/', label: 'الرئيسية', end: true },
+  { to: '/organizations', label: 'المؤسسات', end: false },
   // مطابقة تامة حتى لا يُميَّز "العملاء" تلقائياً في /clients/:id — التمييز هناك يتبع الصفحة المصدر
   { to: '/clients', label: 'العملاء', end: true },
   { to: '/under-procedure-clients', label: 'تحت الإجراء', end: false },
-  { to: '/organizations', label: 'المؤسسات', end: false },
-  { to: '/services', label: 'الخطوات', end: false },
-  { to: '/deleted-client-dues', label: 'ديون المحذوفين', end: false },
   { to: '/iqama-alerts-clients', label: 'تنبيهات الإقامات', end: false },
+  { to: '/deleted-client-dues', label: 'ديون المحذوفين', end: false },
+  { to: '/services', label: 'الخطوات', end: false },
 ]
 
 function fmtDate(s: string | null | undefined): string {

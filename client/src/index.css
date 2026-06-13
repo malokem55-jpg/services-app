@@ -9,6 +9,9 @@ body {
   font-family: 'Cairo', system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  /* Disable pinch-zoom and double-tap zoom for a native-app feel */
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
 }
 
 /* Safe-area padding for notched iPhones */
@@ -18,6 +21,52 @@ body {
 
 #root {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Native-app feel: no text selection or long-press callout menus.
+   Inputs and textareas stay selectable so typing/editing works. */
+* {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+img,
+a {
+  -webkit-user-drag: none;
+}
+
+/* Instant press feedback on touch (no hover on mobile).
+   In @layer base so component utility classes can still override it. */
+@layer base {
+  button,
+  [role='button'] {
+    transition: transform 0.1s ease;
+  }
+
+  button:active,
+  [role='button']:active {
+    transform: scale(0.97);
+  }
+}
+
+/* Use dynamic viewport height so layouts don't jump when the
+   keyboard or browser chrome appears (iOS 15.4+, falls back to vh) */
+.h-screen {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.min-h-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Hide scrollbars globally for PWA feel */

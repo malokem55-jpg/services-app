@@ -243,12 +243,13 @@ export default function IqamaAlertsClientsPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50/80">
+    <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col bg-gray-50/80">
       <Navbar />
 
-      <main className="mx-auto max-w-6xl px-4 py-6 page-enter">
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 md:py-4 page-enter
+                       md:flex-1 md:min-h-0 md:flex md:flex-col md:overflow-hidden">
         {/* ── Page header ── */}
-        <div className="mb-5">
+        <div className="mb-4 md:shrink-0">
           <h2 className="text-xl font-bold text-gray-900">عملاء تنبيهات الإقامات</h2>
           {!isLoading && (
             <p className="text-sm text-gray-500 mt-0.5">{rows.length} عميل</p>
@@ -256,7 +257,7 @@ export default function IqamaAlertsClientsPage() {
         </div>
 
         {/* ── Filter buttons ── */}
-        <div className="flex flex-wrap gap-2 mb-5">
+        <div className="flex flex-wrap gap-2 mb-4 md:shrink-0">
           {FILTERS.map(({ key, label, count, activeCls }) => (
             <button
               key={key}
@@ -362,19 +363,19 @@ export default function IqamaAlertsClientsPage() {
         </div>
 
         {/* ── Desktop: table ── */}
-        <div className="hidden md:block bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="hidden md:flex md:flex-col md:flex-1 md:min-h-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-sky-100 bg-sky-50 text-right">
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">اسم العميل</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">رقم الإقامة</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">تاريخ الانتهاء</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">المؤسسة</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">طريقة الدفع</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">الحالة</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center">تجديد الإقامة</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center">تفاصيل</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">اسم العميل</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">رقم الإقامة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">تاريخ الانتهاء</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">المؤسسة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">طريقة الدفع</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">الحالة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center">تجديد الإقامة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center">تفاصيل</th>
                 </tr>
               </thead>
               <tbody>
@@ -382,7 +383,7 @@ export default function IqamaAlertsClientsPage() {
                   Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i} className="border-b border-gray-100">
                       {[40, 28, 24, 24, 16, 16, 14, 12].map((w, j) => (
-                        <td key={j} className="px-4 py-3.5">
+                        <td key={j} className="px-4 py-2.5">
                           <div className="h-4 bg-gray-100 rounded animate-pulse" style={{ width: `${w * 3}px` }} />
                         </td>
                       ))}
@@ -409,13 +410,13 @@ export default function IqamaAlertsClientsPage() {
                       className="border-b border-gray-100 hover:bg-sky-50/40 cursor-pointer transition-colors"
                       onClick={() => openDetailPage(c.id)}
                     >
-                      <td className="px-4 py-3.5 font-semibold text-gray-900">{c.name ?? '—'}</td>
-                      <td className="px-4 py-3.5 font-mono text-xs text-gray-500 tracking-wide">{c.iqamaNumber ?? '—'}</td>
-                      <td className="px-4 py-3.5 text-gray-700">{fmtDate(c.iqamaEndDate)}</td>
-                      <td className="px-4 py-3.5 text-gray-700 font-medium">{c.organization?.name ?? '—'}</td>
-                      <td className="px-4 py-3.5 text-gray-500">{c.paymentType ?? '—'}</td>
-                      <td className="px-4 py-3.5"><KindBadge kind={c.kind} /></td>
-                      <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2.5 font-semibold text-gray-900">{c.name ?? '—'}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500 tracking-wide">{c.iqamaNumber ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-700">{fmtDate(c.iqamaEndDate)}</td>
+                      <td className="px-4 py-2.5 text-gray-700 font-medium">{c.organization?.name ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{c.paymentType ?? '—'}</td>
+                      <td className="px-4 py-2.5"><KindBadge kind={c.kind} /></td>
+                      <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={(e) => { e.stopPropagation(); setRenewalId(c.id) }}
                           className="rounded-lg px-3 py-1.5 text-xs font-semibold text-emerald-700
@@ -424,7 +425,7 @@ export default function IqamaAlertsClientsPage() {
                           تجديد
                         </button>
                       </td>
-                      <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={(e) => { e.stopPropagation(); setDetailId(c.id) }}
                           aria-label="عرض التفاصيل"

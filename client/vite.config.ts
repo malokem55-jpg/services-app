@@ -13,7 +13,7 @@ export default defineConfig({
       srcDir: 'public',
       filename: 'sw.js',
       injectManifest: {
-        injectionPoint: undefined,
+        globPatterns: ['**/*.{js,css,html,woff2}', 'icons/*.png'],
       },
       manifest: {
         name: 'كيان',
@@ -22,6 +22,7 @@ export default defineConfig({
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
+        orientation: 'portrait',
         start_url: '/',
         dir: 'rtl',
         lang: 'ar',

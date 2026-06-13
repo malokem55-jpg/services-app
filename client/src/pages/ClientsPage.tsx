@@ -478,12 +478,13 @@ export default function ClientsPage() {
   const labelCls = 'block text-xs font-medium text-gray-500 mb-1.5'
 
   return (
-    <div className="min-h-screen bg-gray-50/80">
+    <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col bg-gray-50/80">
       <Navbar />
 
-      <main className="mx-auto max-w-6xl px-4 py-6 page-enter">
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 md:py-4 page-enter
+                       md:flex-1 md:min-h-0 md:flex md:flex-col md:overflow-hidden">
         {/* ── Page header ── */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-4 md:shrink-0">
           <div>
             <h2 className="text-xl font-bold text-gray-900">العملاء</h2>
             {!isLoading && (
@@ -507,7 +508,7 @@ export default function ClientsPage() {
         </div>
 
         {/* ── Filters ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 mb-4 md:shrink-0">
           <div className="relative">
             <svg className="pointer-events-none absolute inset-y-0 inset-e-3 my-auto w-4 h-4 text-gray-400"
               fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -670,19 +671,19 @@ export default function ClientsPage() {
         </div>
 
         {/* ── Desktop: table ── */}
-        <div className="hidden md:block bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="hidden md:flex md:flex-col md:flex-1 md:min-h-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-sky-100 bg-sky-50 text-right">
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">اسم العميل</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">رقم الإقامة</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">انتهاء الإقامة</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">كرت العمل</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">المؤسسة</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">رقم السجل</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center">تجديد</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center">تفاصيل</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">اسم العميل</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">رقم الإقامة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">انتهاء الإقامة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">كرت العمل</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">المؤسسة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">رقم السجل</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center">تجديد</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center">تفاصيل</th>
                 </tr>
               </thead>
               <tbody>
@@ -690,7 +691,7 @@ export default function ClientsPage() {
                   Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i} className="border-b border-gray-100">
                       {[40, 28, 32, 20, 24, 20, 16, 16].map((w, j) => (
-                        <td key={j} className="px-4 py-3.5">
+                        <td key={j} className="px-4 py-2.5">
                           <div className={`h-4 bg-gray-100 rounded animate-pulse`} style={{ width: `${w * 3}px` }} />
                         </td>
                       ))}
@@ -720,8 +721,8 @@ export default function ClientsPage() {
                         className="border-b border-gray-100 hover:bg-sky-50/40 cursor-pointer transition-colors"
                         onClick={() => navigate(`/clients/${c.id}`, { state: { from: '/clients' } })}
                       >
-                        <td className="px-4 py-3.5 font-semibold text-gray-900">{c.name ?? '—'}</td>
-                        <td className="px-4 py-3.5 font-mono text-xs text-gray-500 tracking-wide">
+                        <td className="px-4 py-2.5 font-semibold text-gray-900">{c.name ?? '—'}</td>
+                        <td className="px-4 py-2.5 font-mono text-xs text-gray-500 tracking-wide">
                           {c.iqamaNumber ?? (
                             <span className="inline-flex items-center rounded-full bg-sky-100 text-sky-700
                                              px-2 py-0.5 text-xs font-semibold">
@@ -729,15 +730,15 @@ export default function ClientsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3.5">
+                        <td className="px-4 py-2.5">
                           <IqamaBadge dateStr={c.iqamaEndDate} />
                         </td>
-                        <td className="px-4 py-3.5 text-gray-600 text-sm">{c.cardType ?? '—'}</td>
-                        <td className="px-4 py-3.5 text-gray-700 font-medium text-sm">{c.organization?.name ?? '—'}</td>
-                        <td className="px-4 py-3.5 font-mono text-xs text-gray-400 tracking-wide">
+                        <td className="px-4 py-2.5 text-gray-600 text-sm">{c.cardType ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-gray-700 font-medium text-sm">{c.organization?.name ?? '—'}</td>
+                        <td className="px-4 py-2.5 font-mono text-xs text-gray-400 tracking-wide">
                           {c.organization?.number ?? '—'}
                         </td>
-                        <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                           {c.iqamaNumber && (
                             <button
                               onClick={(e) => { e.stopPropagation(); setRenewalId(c.id) }}
@@ -748,7 +749,7 @@ export default function ClientsPage() {
                             </button>
                           )}
                         </td>
-                        <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={(e) => { e.stopPropagation(); setDetailId(c.id) }}
                             aria-label="عرض التفاصيل"

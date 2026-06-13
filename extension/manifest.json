@@ -1,11 +1,20 @@
 {
   "manifest_version": 3,
   "name": "مساعد تسجيل دخول المؤسسات",
-  "description": "يفتح صفحة تسجيل دخول المنصة (مقيم) ويملأ اسم المستخدم وكلمة المرور ببيانات المؤسسة المختارة من نظام الخدمات. لا يضغط زر الدخول.",
-  "version": "1.0.0",
+  "description": "يفتح صفحة تسجيل دخول المنصة (مقيم أو الغرفة التجارية) ويملأ اسم المستخدم وكلمة المرور ببيانات المؤسسة المختارة من نظام الخدمات. لا يضغط زر الدخول.",
+  "version": "1.1.0",
   "background": { "service_worker": "background.js" },
   "permissions": ["storage"],
-  "host_permissions": ["https://muqeem.sa/*", "https://*.muqeem.sa/*"],
+  "host_permissions": [
+    "https://muqeem.sa/*",
+    "https://*.muqeem.sa/*",
+    "https://mybusiness.chamber.sa/*",
+    "https://*.chamber.sa/*",
+    "https://eservices.najcci.org.sa/*",
+    "https://*.najcci.org.sa/*",
+    "https://eservices.ucci.org.sa/*",
+    "https://*.ucci.org.sa/*"
+  ],
   "content_scripts": [
     {
       "matches": [
@@ -19,7 +28,16 @@
       "run_at": "document_start"
     },
     {
-      "matches": ["https://muqeem.sa/*", "https://*.muqeem.sa/*"],
+      "matches": [
+        "https://muqeem.sa/*",
+        "https://*.muqeem.sa/*",
+        "https://mybusiness.chamber.sa/*",
+        "https://*.chamber.sa/*",
+        "https://eservices.najcci.org.sa/*",
+        "https://*.najcci.org.sa/*",
+        "https://eservices.ucci.org.sa/*",
+        "https://*.ucci.org.sa/*"
+      ],
       "js": ["content-fill.js"],
       "all_frames": true,
       "run_at": "document_idle"

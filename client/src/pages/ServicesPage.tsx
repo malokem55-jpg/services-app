@@ -23,12 +23,13 @@ export default function ServicesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/80">
+    <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col bg-gray-50/80">
       <Navbar />
 
-      <main className="mx-auto max-w-5xl px-4 py-6 page-enter">
+      <main className="mx-auto w-full max-w-5xl px-4 py-6 md:py-4 page-enter
+                       md:flex-1 md:min-h-0 md:flex md:flex-col md:overflow-hidden">
 
-        <div className="mb-5">
+        <div className="mb-4 md:shrink-0">
           <h2 className="text-xl font-bold text-gray-900">الخطوات</h2>
           <p className="text-sm text-gray-500 mt-0.5">إدارة خدمات المكتب وخطواتها</p>
         </div>
@@ -39,14 +40,14 @@ export default function ServicesPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="md:flex md:flex-col md:flex-1 md:min-h-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-sky-100 bg-sky-50 text-right">
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700">الخدمة</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center w-24">الخطوات</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-sky-700 text-center w-24">العملاء</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">الخدمة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center w-24">الخطوات</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center w-24">العملاء</th>
                   <th className="px-4 py-3 w-10" />
                 </tr>
               </thead>
@@ -54,13 +55,13 @@ export default function ServicesPage() {
                 {isLoading
                   ? Array.from({ length: 3 }).map((_, i) => (
                       <tr key={i} className="border-b border-gray-100">
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-2.5">
                           <div className="h-4 w-40 bg-gray-100 rounded animate-pulse" />
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-2.5">
                           <div className="h-6 w-7 bg-gray-100 rounded-full animate-pulse mx-auto" />
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-2.5">
                           <div className="h-6 w-7 bg-gray-100 rounded-full animate-pulse mx-auto" />
                         </td>
                         <td />
@@ -93,7 +94,7 @@ export default function ServicesPage() {
                               ${isExpanded ? 'bg-sky-50/60' : ''}`}
                             onClick={() => hasSteps && toggleExpand(svc.id)}
                           >
-                            <td className="px-4 py-4">
+                            <td className="px-4 py-2.5">
                               <div className="flex items-center gap-3">
                                 <div className={`w-2 h-2 rounded-full shrink-0 ${
                                   hasSteps ? 'bg-sky-400' : 'bg-gray-300'
@@ -101,7 +102,7 @@ export default function ServicesPage() {
                                 <span className="font-semibold text-gray-900">{svc.name ?? '—'}</span>
                               </div>
                             </td>
-                            <td className="px-4 py-4 text-center">
+                            <td className="px-4 py-2.5 text-center">
                               {hasSteps ? (
                                 <span className="inline-flex items-center justify-center min-w-7 h-7 rounded-full
                                                  bg-sky-100 text-sky-700 text-xs font-bold px-2">
@@ -111,13 +112,13 @@ export default function ServicesPage() {
                                 <span className="text-xs text-gray-300">—</span>
                               )}
                             </td>
-                            <td className="px-4 py-4 text-center">
+                            <td className="px-4 py-2.5 text-center">
                               <span className="inline-flex items-center justify-center min-w-7 h-7 rounded-full
                                                bg-gray-100 text-gray-600 text-xs font-semibold px-2">
                                 {svc._count.clients}
                               </span>
                             </td>
-                            <td className="px-4 py-4 text-gray-400">
+                            <td className="px-4 py-2.5 text-gray-400">
                               {hasSteps && (
                                 <svg
                                   className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}

@@ -46,7 +46,7 @@ export default function PwaSettingsSection() {
       {/* ── مفتاح النسخة المخصصة ── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-4 md:py-3 border-b border-gray-100 bg-gray-50/50">
-          <h3 className="text-sm font-semibold text-sky-700">تطبيق الموبايل (PWA)</h3>
+          <h3 className="text-sm font-semibold text-sky-700">تطبيق الموبايل</h3>
           <p className="text-xs text-gray-400 mt-0.5">
             تخصيص شكل التطبيق المثبت على الهاتف
           </p>
@@ -64,12 +64,10 @@ export default function PwaSettingsSection() {
             <span className="w-1.5 h-9 md:h-8 rounded-full shrink-0 bg-sky-500" />
             <span className="flex-1 min-w-0">
               <span className="block text-sm font-semibold text-gray-800">
-                النسخة المخصصة لتصميم التطبيق
+                نسخة الموبايل المخصصة
               </span>
               <span className="block text-xs text-gray-400 mt-0.5">
-                تعمل فقط في تطبيق PWA المثبت على الموبايل: واجهة مختصرة بثلاث مهام
-                (منصة مقيم، الدفعات الشهرية، تجديد الإقامة). المتصفح والكمبيوتر يبقيان
-                بالنسخة الكاملة دائماً
+                عند الإيقاف يظهر الموقع الكامل في التطبيق
               </span>
             </span>
             <input
