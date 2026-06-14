@@ -285,6 +285,7 @@ export default function OrganizationsPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
+  const [copiedId, setCopiedId] = useState<number | null>(null)
   const [clientsModal, setClientsModal] = useState<{ orgId: number; orgName: string } | null>(null)
   const [cardsModal, setCardsModal] = useState<{ orgId: number; orgName: string } | null>(null)
   const [showNewYear, setShowNewYear] = useState(false)
@@ -393,9 +394,23 @@ export default function OrganizationsPage() {
   })
 
   const filteredOrgs = useMemo(() => {
-    if (!search.trim()) return orgs
-    return orgs.filter((o) => o.name?.includes(search.trim()))
+    const q = search.trim()
+    if (!q) return orgs
+    return orgs.filter((o) => o.name?.includes(q) || o.number?.includes(q))
   }, [orgs, search])
+
+  // نسخ رقم السجل إلى الحافظة مع تأكيد بصري قصير — يمنع فتح نافذة العملاء عند الضغط
+  async function copyNumber(e: React.MouseEvent, org: OrgItem) {
+    e.stopPropagation()
+    if (!org.number) return
+    try {
+      await navigator.clipboard.writeText(org.number)
+      setCopiedId(org.id)
+      setTimeout(() => setCopiedId((c) => (c === org.id ? null : c)), 1500)
+    } catch {
+      /* الحافظة غير متاحة — نتجاهل بصمت */
+    }
+  }
 
   function openAdd() { setForm(EMPTY_FORM); setModal({ open: true, org: null }) }
   function openEdit(org: OrgItem) { setForm(orgToForm(org)); setModal({ open: true, org }) }
@@ -506,7 +521,7 @@ export default function OrganizationsPage() {
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="بحث باسم المؤسسة..."
+            placeholder="بحث باسم المؤسسة أو رقم السجل..."
             className="w-full rounded-xl border border-gray-200 bg-white pe-10 ps-4 py-2.5 text-sm
                        focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 min-h-11" />
         </div>
@@ -567,7 +582,25 @@ export default function OrganizationsPage() {
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-500">
-                    {org.number && <span className="font-mono">{org.number}</span>}
+                    {org.number && (
+                      <span className="font-mono inline-flex items-center gap-1">
+                        {org.number}
+                        <button onClick={(e) => copyNumber(e, org)}
+                          aria-label="نسخ رقم السجل"
+                          className="shrink-0 text-gray-300 hover:text-sky-600 active:text-sky-700 transition-colors p-0.5">
+                          {copiedId === org.id ? (
+                            <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                          )}
+                        </button>
+                      </span>
+                    )}
                     {org.expiredDate && <span>{formatDate(org.expiredDate)}</span>}
                     <span className="text-amber-600 font-medium">
                       مسحوبة: {formatYears(org.cardsWithdrawn)}
@@ -713,8 +746,29 @@ export default function OrganizationsPage() {
                           {formatYears(org.cardsRemaining)}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500 tracking-wide">
-                        {org.number ?? '—'}
+                      <td className="px-4 py-2.5">
+                        {org.number ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs text-gray-500 tracking-wide">{org.number}</span>
+                            <button onClick={(e) => copyNumber(e, org)}
+                              aria-label="نسخ رقم السجل"
+                              title={copiedId === org.id ? 'تم النسخ' : 'نسخ رقم السجل'}
+                              className="rounded-md p-1 text-gray-300 hover:text-sky-600 hover:bg-sky-50 transition-colors">
+                              {copiedId === org.id ? (
+                                <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : (
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                              )}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="font-mono text-xs text-gray-500">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-gray-600 text-sm whitespace-nowrap">
                         {formatDate(org.expiredDate)}
