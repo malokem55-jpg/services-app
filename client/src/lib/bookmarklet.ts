@@ -39,8 +39,9 @@ export function buildUnifiedFillBookmarklet(orgs: FillOrg[]): string {
     FILL_HELPERS +
     // تطبيع عربي للبحث: يتجاهل التشكيل ويوحّد أ‑إ‑آ→ا، ى→ي، ة→ه
     `function N(s){return(s||'').replace(/[\\u064B-\\u0652]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\\u0640/g,'').toLowerCase().trim()}` +
-    // اختيار مؤسسة: يُزيل القائمة ثم ينتظر خانة الدخول ويعبّي
-    `function pick(o){box.remove();var t=setInterval(function(){var g=F();if(g){clearInterval(t);if(g.u)S(g.u,o.u);S(g.p,o.p)}else if(Date.now()>D){clearInterval(t);${NO_LOGIN_ALERT}}},400)}` +
+    // اختيار مؤسسة: يطلب تأكيدًا باسم المؤسسة قبل التعبئة (إلغاء = تبقى القائمة لإعادة الاختيار)،
+    // ثم يُزيل القائمة وينتظر خانة الدخول ويعبّي
+    `function pick(o){if(!confirm('تعبئة بيانات: '+o.n+' ؟'))return;box.remove();var t=setInterval(function(){var g=F();if(g){clearInterval(t);if(g.u)S(g.u,o.u);S(g.p,o.p)}else if(Date.now()>D){clearInterval(t);${NO_LOGIN_ALERT}}},400)}` +
     // بناء قائمة البحث فوق الصفحة (أنماط سطرية — مسموحة بـ style-src 'unsafe-inline')
     `var box=document.createElement('div');box.setAttribute('style','position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:40px 12px;font-family:-apple-system,BlinkMacSystemFont,sans-serif');` +
     `var card=document.createElement('div');card.setAttribute('style','background:#fff;border-radius:16px;width:100%;max-width:420px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.3)');` +

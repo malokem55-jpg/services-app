@@ -46,6 +46,7 @@ const updateSchema = z
     showBellMonthlyPayments: z.boolean(),
     showBellIqamaSoon: z.boolean(),
     showBellIqamaExpired: z.boolean(),
+    showBellTafweed: z.boolean(),
     showUnderProcedurePage: z.boolean(),
     showDeletedDuesPage: z.boolean(),
     showIqamaAlertsPage: z.boolean(),
