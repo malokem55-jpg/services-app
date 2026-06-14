@@ -5,6 +5,7 @@ import MobileHomePage from './pages/MobileHomePage'
 import MobilePaymentsPage from './pages/MobilePaymentsPage'
 import MobileIqamaPage from './pages/MobileIqamaPage'
 import MobileSettingsPage from './pages/MobileSettingsPage'
+import MobileChatConfirmPage from './pages/MobileChatConfirmPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import CustomModeGate from './components/CustomModeGate'
 import MobileAccessGate from './components/MobileAccessGate'
@@ -58,6 +59,8 @@ function App() {
             <Route path="/m/payments" element={<MobilePaymentsPage />} />
             <Route path="/m/iqama" element={<MobileIqamaPage />} />
             <Route path="/m/settings" element={<MobileSettingsPage />} />
+            {/* شاشة تأكيد فتح محادثة الواتساب — تُفتح من إشعار الدفعة الشهرية على آيفون */}
+            <Route path="/m/chat" element={<MobileChatConfirmPage />} />
           </Route>
         </Route>
       </Route>
