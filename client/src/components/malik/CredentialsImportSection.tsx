@@ -116,6 +116,19 @@ export default function CredentialsImportSection() {
   const [orgSearch, setOrgSearch] = useState<Record<string, string>>({})
   // مفتاح الصف الذي قائمته المنسدلة مفتوحة حاليًا (واحدة فقط في كل مرة)
   const [openCombo, setOpenCombo] = useState<string | null>(null)
+  // مفتاح الصف الذي نُسخ اسمه المستورد للتو (لإظهار «تم النسخ» مؤقتًا)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+
+  // نسخ الاسم المستورد من الملف إلى الحافظة لتسهيل البحث عن المؤسسة
+  const copyRaw = async (key: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedKey(key)
+      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500)
+    } catch {
+      /* تجاهل: قد تُحجب الحافظة في بعض المتصفحات */
+    }
+  }
 
   const { data: orgs = [] } = useQuery<OrgLite[]>({
     queryKey: ['organizations'],
@@ -575,6 +588,27 @@ export default function CredentialsImportSection() {
                           <span className="text-gray-400 truncate" title={r.orgNameRaw}>
                             من الملف: {r.orgNameRaw || '—'}
                           </span>
+                          {unmatched && r.orgNameRaw ? (
+                            <button
+                              type="button"
+                              onClick={() => copyRaw(r.key, r.orgNameRaw)}
+                              aria-label="نسخ الاسم المستورد من الملف"
+                              title="نسخ الاسم المستورد"
+                              className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-md border border-gray-200
+                                         bg-white text-gray-400 hover:text-sky-600 hover:border-sky-200 hover:bg-sky-50
+                                         transition-colors"
+                            >
+                              {copiedKey === r.key ? (
+                                <svg className="w-3 h-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : (
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7a2 2 0 012-2h4.586a1 1 0 01.707.293l2.414 2.414a1 1 0 01.293.707V13a2 2 0 01-2 2H10a2 2 0 01-2-2V7z" />
+                                </svg>
+                              )}
+                            </button>
+                          ) : null}
                           {unmatched ? (
                             <span className="text-amber-600 font-semibold">غير مطابقة</span>
                           ) : (
