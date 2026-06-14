@@ -112,6 +112,10 @@ export default function CredentialsImportSection() {
   const qc = useQueryClient()
   const [file, setFile] = useState<File | null>(null)
   const [rows, setRows] = useState<EditRow[]>([])
+  // نص البحث لتصفية قائمة المؤسسات في كل صف غير مطابق (مفتاح الصف → النص)
+  const [orgSearch, setOrgSearch] = useState<Record<string, string>>({})
+  // مفتاح الصف الذي قائمته المنسدلة مفتوحة حاليًا (واحدة فقط في كل مرة)
+  const [openCombo, setOpenCombo] = useState<string | null>(null)
 
   const { data: orgs = [] } = useQuery<OrgLite[]>({
     queryKey: ['organizations'],
@@ -453,6 +457,11 @@ export default function CredentialsImportSection() {
                   const unmatched = r.orgId === null
                   const chamberFilled = r.chamberUser.trim() && r.chamberPass
                   const suggestions = unmatched ? suggestFor(r.orgNameRaw) : []
+                  // قائمة الاختيار للصف غير المطابق: نتائج البحث إن وُجد نص، وإلا الأسماء الأقرب
+                  const search = normalizeAr(orgSearch[r.key] ?? '')
+                  const comboList = search
+                    ? sortedOrgs.filter((o) => normalizeAr(o.name ?? '').includes(search))
+                    : suggestions
                   // اكتمال كل منصة + كشف الصف الناقص (منصة واحدة فقط) لعرض خانة الموافقة
                   const muqeemComplete = !!(r.muqeemUser.trim() && r.muqeemPass)
                   const chamberComplete = !!(r.chamberUser.trim() && r.chamberPass && r.city)
@@ -469,35 +478,84 @@ export default function CredentialsImportSection() {
                       <td className="px-3 py-2 text-gray-400">{r.rowNumber}</td>
 
                       {/* اختيار المؤسسة */}
-                      <td className="px-3 py-2 min-w-[200px]">
-                        <div className="flex items-center gap-1">
-                          <select
-                            value={r.orgId ?? ''}
-                            onChange={(e) =>
-                              patchRow(r.key, { orgId: e.target.value ? Number(e.target.value) : null })
-                            }
-                            className={`${cellInput} ${unmatched ? 'border-amber-300 bg-amber-50/60' : ''}`}
-                          >
-                            <option value="">— تجاهل هذا الصف —</option>
-                            {unmatched && suggestions.length > 0 && (
-                              <optgroup label="الأقرب للاسم المستورد">
-                                {suggestions.map((o) => (
-                                  <option key={`s-${o.id}`} value={o.id}>
-                                    {o.name ?? `#${o.id}`}
-                                  </option>
-                                ))}
-                              </optgroup>
+                      <td className="px-3 py-2 min-w-50">
+                        {unmatched ? (
+                          /* صف غير مطابق: قائمة منسدلة بداخلها صندوق بحث فوق الأسماء المقترحة */
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setOpenCombo((k) => (k === r.key ? null : r.key))}
+                              className={`${cellInput} flex items-center justify-between gap-2 text-right
+                                          border-amber-300 bg-amber-50/60 text-gray-500`}
+                            >
+                              <span>اختر مؤسسة لربطها…</span>
+                              <svg className="w-3.5 h-3.5 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+
+                            {openCombo === r.key && (
+                              <>
+                                {/* خلفية شفافة تُغلق القائمة عند الضغط خارجها */}
+                                <div className="fixed inset-0 z-10" onClick={() => setOpenCombo(null)} />
+                                <div className="absolute z-20 mt-1 w-full min-w-55 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+                                  <div className="p-2 border-b border-gray-100">
+                                    <input
+                                      type="search"
+                                      autoFocus
+                                      value={orgSearch[r.key] ?? ''}
+                                      onChange={(e) =>
+                                        setOrgSearch((prev) => ({ ...prev, [r.key]: e.target.value }))
+                                      }
+                                      placeholder="ابحث عن المؤسسة بالاسم..."
+                                      className={cellInput}
+                                    />
+                                    <p className="mt-1 text-[10px] text-gray-400">
+                                      {search ? 'نتائج البحث' : 'الأقرب للاسم المستورد'}
+                                    </p>
+                                  </div>
+                                  <div className="max-h-52 overflow-y-auto divide-y divide-gray-50">
+                                    {comboList.length === 0 ? (
+                                      <p className="px-3 py-2.5 text-[11px] text-gray-400">لا توجد نتائج مطابقة</p>
+                                    ) : (
+                                      comboList.map((o) => (
+                                        <button
+                                          key={o.id}
+                                          type="button"
+                                          onClick={() => {
+                                            patchRow(r.key, { orgId: o.id })
+                                            setOpenCombo(null)
+                                          }}
+                                          className="block w-full text-right px-3 py-1.5 text-xs text-gray-700
+                                                     hover:bg-sky-50 hover:text-sky-700 transition-colors"
+                                        >
+                                          {o.name ?? `#${o.id}`}
+                                        </button>
+                                      ))
+                                    )}
+                                  </div>
+                                </div>
+                              </>
                             )}
-                            <optgroup label="كل المؤسسات">
+                          </div>
+                        ) : (
+                          /* صف مطابق: المؤسسة المختارة مع إمكانية تغييرها أو إلغائها */
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={r.orgId ?? ''}
+                              onChange={(e) =>
+                                patchRow(r.key, { orgId: e.target.value ? Number(e.target.value) : null })
+                              }
+                              className={cellInput}
+                            >
+                              <option value="">— تجاهل هذا الصف —</option>
                               {sortedOrgs.map((o) => (
                                 <option key={o.id} value={o.id}>
                                   {o.name ?? `#${o.id}`}
                                 </option>
                               ))}
-                            </optgroup>
-                          </select>
-                          {/* إلغاء الاختيار: يعيد الحقل فارغًا فيرجع الصف غير مطابق وتظهر الاقتراحات */}
-                          {r.orgId !== null && (
+                            </select>
+                            {/* إلغاء الاختيار: يفرّغ الحقل فيرجع الصف غير مطابق ويظهر البحث */}
                             <button
                               type="button"
                               onClick={() => patchRow(r.key, { orgId: null })}
@@ -511,8 +569,8 @@ export default function CredentialsImportSection() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                               </svg>
                             </button>
-                          )}
-                        </div>
+                          </div>
+                        )}
                         <div className="mt-1 flex items-center gap-1.5 flex-wrap text-[10px]">
                           <span className="text-gray-400 truncate" title={r.orgNameRaw}>
                             من الملف: {r.orgNameRaw || '—'}
