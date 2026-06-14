@@ -9,6 +9,7 @@ import WhatsAppButton from './WhatsAppButton'
 import { useNotifications, isIqamaExpired } from '../hooks/useNotifications'
 import type { MonthlyPaymentAlert, CustomPaymentAlert, IqamaAlert, TafweedAlert } from '../hooks/useNotifications'
 import { arabicDayName } from '../lib/clientForm'
+import { paymentReminderMessage } from '../lib/paymentReminder'
 import { useUiSettings } from '../hooks/useUiSettings'
 
 interface Me { name: string | null; username: string | null }
@@ -27,14 +28,6 @@ const NAV_LINKS = [
 function fmtDate(s: string | null | undefined): string {
   if (!s) return '—'
   return s.slice(0, 10)
-}
-
-// رسالة تذكير الدفعة التي تُعبَّأ مسبقاً في محادثة واتساب مع العميل
-function paymentReminderMessage(item: MonthlyPaymentAlert): string {
-  const name = item.client?.name ?? ''
-  const amount = item.amount != null ? `${item.amount} ريال` : ''
-  const date = item.receivedDate ? item.receivedDate.slice(0, 10) : ''
-  return `السلام عليكم ${name}،\nنذكّركم بدفعتكم الشهرية المستحقة بتاريخ ${date} بمبلغ ${amount}.\nنشكر لكم تعاونكم.`
 }
 
 function MonthlyItem({ item }: { item: MonthlyPaymentAlert }) {

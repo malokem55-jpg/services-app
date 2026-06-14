@@ -3,8 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import MobileScreenHeader from '../components/MobileScreenHeader'
 import Modal from '../components/Modal'
 import HijriDateInput from '../components/HijriDateInput'
+import FilterChip from '../components/FilterChip'
 import { apiFetch } from '../lib/api'
 import { useNotifications } from '../hooks/useNotifications'
+
+type IqamaFilter = 'all' | 'expired' | 'soon'
 
 // عميل قابل للتجديد: من تنبيهات الإقامات أو من نتائج البحث — نفس الحقول المطلوبة للنافذة
 interface RenewTarget {
@@ -43,6 +46,7 @@ function fmtDate(s: string | null | undefined): string {
 export default function MobileIqamaPage() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<IqamaFilter>('all')
   const [renewTarget, setRenewTarget] = useState<RenewTarget | null>(null)
 
   // ── حقول نافذة التجديد (نفس فورم النسخة الكاملة) ──
@@ -87,6 +91,10 @@ export default function MobileIqamaPage() {
       (a.iqamaEndDate ?? '').localeCompare(b.iqamaEndDate ?? ''))
   }, [notifs])
 
+  // عدّادات الفلاتر من التنبيهات (لا تتأثر بالبحث)
+  const expiredCount = alertRows.filter((c) => c.kind === 'expired').length
+  const soonCount = alertRows.length - expiredCount
+
   const rows: RenewTarget[] = searching
     ? searchResults.map((c) => ({
         id: c.id,
@@ -96,7 +104,7 @@ export default function MobileIqamaPage() {
         paymentType: c.paymentType,
         organizationName: c.organization?.name ?? null,
       }))
-    : alertRows
+    : alertRows.filter((c) => filter === 'all' || c.kind === filter)
 
   function closeRenewal() {
     setRenewTarget(null)
@@ -197,6 +205,21 @@ export default function MobileIqamaPage() {
             : 'العملاء بإقامات منتهية أو تنتهي خلال 30 يوماً'}
         </p>
 
+        {/* أزرار الفلتر مع العدد — في وضع التنبيهات فقط (لا أثناء البحث) */}
+        {!searching && !isLoading && alertRows.length > 0 && (
+          <div className="flex gap-2">
+            <FilterChip label="الكل" count={alertRows.length} active={filter === 'all'}
+              onClick={() => setFilter('all')}
+              activeCls="bg-gray-800 text-white" />
+            <FilterChip label="منتهية" count={expiredCount} active={filter === 'expired'}
+              onClick={() => setFilter('expired')}
+              activeCls="bg-red-500 text-white" />
+            <FilterChip label="خلال 30 يوم" count={soonCount} active={filter === 'soon'}
+              onClick={() => setFilter('soon')}
+              activeCls="bg-amber-500 text-white" />
+          </div>
+        )}
+
         {isError && !searching && (
           <div role="alert" className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
             تعذّر تحميل التنبيهات، حاول تحديث الصفحة.
@@ -220,7 +243,11 @@ export default function MobileIqamaPage() {
               </svg>
             </div>
             <p className="text-gray-500 font-medium">
-              {searching ? `لا توجد نتيجة لـ «${query}»` : 'لا توجد إقامات تحتاج تجديداً'}
+              {searching
+                ? `لا توجد نتيجة لـ «${query}»`
+                : alertRows.length > 0
+                  ? 'لا توجد إقامات بهذا الفلتر'
+                  : 'لا توجد إقامات تحتاج تجديداً'}
             </p>
           </div>
         ) : (
