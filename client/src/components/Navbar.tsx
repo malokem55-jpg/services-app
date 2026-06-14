@@ -6,10 +6,10 @@ import Logo from './Logo'
 import Modal from './Modal'
 import NotificationBell from './NotificationBell'
 import WhatsAppButton from './WhatsAppButton'
-import { useNotifications, isIqamaExpired } from '../hooks/useNotifications'
-import type { MonthlyPaymentAlert, CustomPaymentAlert, IqamaAlert, TafweedAlert } from '../hooks/useNotifications'
+import { useNotifications, isIqamaExpired, groupMonthlyPayments } from '../hooks/useNotifications'
+import type { MonthlyPaymentAlert, MonthlyPaymentGroup, CustomPaymentAlert, IqamaAlert, TafweedAlert } from '../hooks/useNotifications'
 import { arabicDayName } from '../lib/clientForm'
-import { paymentReminderMessage } from '../lib/paymentReminder'
+import { paymentReminderMessage, groupReminderMessage } from '../lib/paymentReminder'
 import { useUiSettings } from '../hooks/useUiSettings'
 
 interface Me { name: string | null; username: string | null }
@@ -61,6 +61,72 @@ function MonthlyItem({ item }: { item: MonthlyPaymentAlert }) {
             phone={item.client.phone}
             name={item.client.name}
             message={paymentReminderMessage(item)}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// تنبيه دفعات عميل مجمَّع: العميل صاحب عدة دفعات في عنصر واحد قابل للتوسيع،
+// والعميل صاحب دفعة واحدة يُعرض بالشكل المفرد المعتاد.
+function MonthlyGroupItem({ group }: { group: MonthlyPaymentGroup }) {
+  const [open, setOpen] = useState(false)
+
+  if (group.payments.length === 1) {
+    return <MonthlyItem item={group.payments[0]} />
+  }
+
+  return (
+    <div className="flex border-b border-gray-100 last:border-b-0">
+      <div className={`w-1 shrink-0 ${group.iqamaExpired ? 'bg-red-500' : 'bg-violet-500'} rounded-ss`} />
+      <div className="flex-1 px-3 py-4 text-sm text-gray-700 leading-relaxed">
+        <p>
+          لديك {group.payments.length} دفعات قادمة من {group.client?.name ?? '—'}
+          {group.client?.service?.name ? ` [${group.client.service.name}]` : ''}
+          {group.iqamaExpired && (
+            <span className="inline-flex items-center rounded-full bg-red-100 text-red-700
+                             text-[10px] font-bold px-2 py-0.5 ms-1.5 align-middle">
+              إقامة منتهية
+            </span>
+          )}
+        </p>
+        <p className="mt-0.5">
+          <span className="font-semibold text-violet-600">الإجمالي: {group.total}</span>
+          {' '}— أقرب استحقاق ({fmtDate(group.earliestDueDate)})
+        </p>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-700"
+        >
+          {open ? 'إخفاء الدفعات' : 'عرض الدفعات'}
+          <svg className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {open && (
+          <ul className="mt-2 space-y-1.5 border-s-2 border-violet-100 ps-3">
+            {group.payments.map((p) => (
+              <li key={p.id} className="text-xs text-gray-600">
+                {fmtDate(p.receivedDate)} — <span className="font-semibold text-gray-800">{p.amount ?? '—'}</span>
+                {p.carriedOverAmount != null && p.carriedOverAmount > 0 && (
+                  <span className="text-amber-600">
+                    {' '}(تشمل {p.carriedOverAmount} مرحّلة من دفعية بتاريخ {fmtDate(p.carriedFromMonth)})
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {/* زر واتساب برسالة مجمَّعة تسرد كل الدفعات */}
+      {group.client?.phone && (
+        <div className="flex items-center pe-3">
+          <WhatsAppButton
+            phone={group.client.phone}
+            name={group.client.name}
+            message={groupReminderMessage(group.payments)}
           />
         </div>
       )}
@@ -172,6 +238,9 @@ export default function Navbar() {
 
   const { data: notifs } = useNotifications()
   const { data: uiSettings } = useUiSettings()
+
+  // دفعات كل عميل مجمَّعة في تنبيه واحد — عدد التنبيهات = عدد العملاء لا عدد الدفعات
+  const monthlyGroups = groupMonthlyPayments(notifs?.monthlyPayments ?? [])
 
   // في صفحة تفاصيل عميل يُميَّز رابط الصفحة المصدر (تمررها الصفحات في state عند الفتح)،
   // وعند الفتح المباشر دون مصدر يُميَّز "العملاء" افتراضياً
@@ -304,21 +373,17 @@ export default function Navbar() {
 
                 {uiSettings?.showBellMonthlyPayments !== false && (
                   <NotificationBell
-                    count={notifs?.monthlyPayments.length ?? 0}
+                    count={monthlyGroups.length}
                     badgeColor="bg-violet-500"
                     title="تنبيهات الدفعيات الشهرية"
                     ringDelay="0.25s"
                     mobileOpen={openBell === 'monthly'}
                     onMobileToggle={() => toggleBell('monthly')}
                   >
-                    {/* منتهية الإقامة أولاً لأنها الأكثر إلحاحاً، ثم حسب ترتيب الاستحقاق */}
-                    {[...(notifs?.monthlyPayments ?? [])]
-                      .sort((a, b) =>
-                        Number(isIqamaExpired(b.client?.iqamaEndDate)) -
-                        Number(isIqamaExpired(a.client?.iqamaEndDate)))
-                      .map(item => (
-                        <MonthlyItem key={item.id} item={item} />
-                      ))}
+                    {/* دفعات كل عميل مجمَّعة؛ منتهي الإقامة أولاً ثم الأقرب استحقاقاً (مرتَّبة في groupMonthlyPayments) */}
+                    {monthlyGroups.map((group) => (
+                      <MonthlyGroupItem key={group.key} group={group} />
+                    ))}
                   </NotificationBell>
                 )}
 

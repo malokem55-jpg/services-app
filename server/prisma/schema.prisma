@@ -123,8 +123,8 @@ model Client {
   amount          Float?
   // عميل شهري: يوم الاستلام من كل شهر (1-31) — حقل مستقل عن رقم الحدود
   monthlyReceiptDay Int?                 @map("monthly_receipt_day")
-  // عميل شهري: استمرار توليد الدفعيات الشهرية حتى بعد انتهاء الإقامة
-  generateMonthlyAfterIqama Boolean      @default(false) @map("generate_monthly_after_iqama")
+  // عميل شهري: استمرار توليد الدفعيات الشهرية حتى بعد انتهاء الإقامة (مفعَّل افتراضياً)
+  generateMonthlyAfterIqama Boolean      @default(true) @map("generate_monthly_after_iqama")
   // تنبيه التفويض والتصديق (عميل تحت الإجراء): وجود التاريخ مع done=false = التنبيه نشط.
   // زر "تم التفويض" يعلّم done=true (التاريخ يبقى لعرض "تم التفويض" في التفاصيل)،
   // وإعادة التفعيل بتاريخ جديد تعيد done=false

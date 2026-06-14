@@ -157,6 +157,31 @@ function monthlyReminderMessage(payment: {
   return `السلام عليكم ${name}،\nنذكّركم بدفعتكم الشهرية المستحقة بتاريخ ${date} بمبلغ ${amount}.\nنشكر لكم تعاونكم.`;
 }
 
+// رسالة مجمَّعة لعميل عليه عدة دفعات — تطابق client/src/lib/paymentReminder.ts (paymentReminderMessageGrouped).
+function monthlyReminderMessageGrouped(
+  payments: {
+    receivedDate?: Date | string | null;
+    amount?: number | null;
+    carriedOverAmount?: number | null;
+    carriedFromMonth?: Date | string | null;
+    client?: { name?: string | null } | null;
+  }[],
+): string {
+  const name = payments[0]?.client?.name ?? '';
+  const lines = payments.map((p) => {
+    const date = p.receivedDate ? new Date(p.receivedDate).toISOString().slice(0, 10) : '';
+    const amount = p.amount ?? 0;
+    const carried = p.carriedOverAmount ?? 0;
+    const carriedFrom = p.carriedFromMonth
+      ? new Date(p.carriedFromMonth).toISOString().slice(0, 10)
+      : '';
+    const note = carried > 0 ? ` (تشمل ${carried} مرحّلة من دفعة ${carriedFrom})` : '';
+    return `• ${date} : ${amount} ريال${note}`;
+  });
+  const total = payments.reduce((s, p) => s + (p.amount ?? 0), 0);
+  return `السلام عليكم ${name}،\nنذكّركم بدفعاتكم الشهرية المستحقة:\n\n${lines.join('\n')}\n\nالإجمالي: ${total.toLocaleString('en-US')} ريال\nنشكر لكم تعاونكم.`;
+}
+
 export async function runPushNotificationCheck(options: RunPushOptions = {}): Promise<{ failures: number }> {
   const { limit } = options;
   // تحديد عدد التنبيهات يفرض إعادة الإرسال (force) للأحدث بغض النظر عن سجل الإرسال
@@ -184,31 +209,70 @@ export async function runPushNotificationCheck(options: RunPushOptions = {}): Pr
   const candidates: PushCandidate[] = [];
 
   if (channels.pushMonthlyPayment) {
+    // تجميع دفعات نفس العميل في إشعار واحد بدل إشعار منفصل لكل دفعة.
+    // العميل بلا معرّف (نادر) تبقى كل دفعة مجموعةً مستقلة.
+    type MonthlyAlert = (typeof monthlyPayments)[number];
+    const groups = new Map<string, MonthlyAlert[]>();
     for (const payment of monthlyPayments) {
       if (!payment.receivedDate) continue;
-      const refDate = toDateOnly(payment.receivedDate);
-      const dueDate = new Date(payment.receivedDate).toISOString().slice(0, 10); // ميلادي YYYY-MM-DD
-      const carriedNote =
-        payment.carriedOverAmount && payment.carriedOverAmount > 0
-          ? ` (منها ${payment.carriedOverAmount} مرحّلة)`
-          : '';
-      const amountText = payment.amount != null ? `${payment.amount} ر.س` : '—';
-      candidates.push({
-        alertType: 'monthly_payment',
-        refId: payment.id,
-        refDate,
-        sortTime: refDate.getTime(),
-        payload: {
-          type: 'monthly_payment',
-          title: '💳 تذكير دفعة شهرية',
-          body: `العميل: ${payment.client?.name ?? '—'}\nالمبلغ: ${amountText}${carriedNote}\nالاستحقاق: ${dueDate}`,
-          // name لشاشة التأكيد، و phone/message لزر «محادثة العميل»، و timestamp لوقت الإشعار
-          name: payment.client?.name ?? undefined,
-          phone: payment.client?.phone ?? undefined,
-          message: monthlyReminderMessage(payment),
-          timestamp: refDate.getTime(),
-        },
-      });
+      const key = payment.clientId != null ? `c${payment.clientId}` : `p${payment.id}`;
+      const arr = groups.get(key);
+      if (arr) arr.push(payment);
+      else groups.set(key, [payment]);
+    }
+
+    for (const payments of groups.values()) {
+      payments.sort(
+        (a, b) => new Date(a.receivedDate!).getTime() - new Date(b.receivedDate!).getTime(),
+      );
+      const first = payments[0];
+      // مفتاح منع التكرار: معرّف العميل + أقرب استحقاق (لا معرّف الدفعة) ليبقى الإشعار واحداً
+      const refId = first.clientId ?? first.id;
+      const refDate = toDateOnly(first.receivedDate!);
+      const name = first.client?.name ?? '—';
+
+      if (payments.length === 1) {
+        const dueDate = new Date(first.receivedDate!).toISOString().slice(0, 10);
+        const carriedNote =
+          first.carriedOverAmount && first.carriedOverAmount > 0
+            ? ` (منها ${first.carriedOverAmount} مرحّلة)`
+            : '';
+        const amountText = first.amount != null ? `${first.amount} ر.س` : '—';
+        candidates.push({
+          alertType: 'monthly_payment',
+          refId,
+          refDate,
+          sortTime: refDate.getTime(),
+          payload: {
+            type: 'monthly_payment',
+            title: '💳 تذكير دفعة شهرية',
+            body: `العميل: ${name}\nالمبلغ: ${amountText}${carriedNote}\nالاستحقاق: ${dueDate}`,
+            // name لشاشة التأكيد، و phone/message لزر «محادثة العميل», و timestamp لوقت الإشعار
+            name: first.client?.name ?? undefined,
+            phone: first.client?.phone ?? undefined,
+            message: monthlyReminderMessage(first),
+            timestamp: refDate.getTime(),
+          },
+        });
+      } else {
+        const total = payments.reduce((s, p) => s + (p.amount ?? 0), 0);
+        const earliest = new Date(first.receivedDate!).toISOString().slice(0, 10);
+        candidates.push({
+          alertType: 'monthly_payment',
+          refId,
+          refDate,
+          sortTime: refDate.getTime(),
+          payload: {
+            type: 'monthly_payment',
+            title: '💳 تذكير دفعات شهرية',
+            body: `العميل: ${name}\nعدد الدفعات: ${payments.length}\nالإجمالي: ${total} ر.س\nأقرب استحقاق: ${earliest}`,
+            name: first.client?.name ?? undefined,
+            phone: first.client?.phone ?? undefined,
+            message: monthlyReminderMessageGrouped(payments),
+            timestamp: refDate.getTime(),
+          },
+        });
+      }
     }
   }
 

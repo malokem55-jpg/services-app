@@ -116,7 +116,7 @@ export const EMPTY_CLIENT_FORM: ClientFormData = {
   iqamaNumber: '', iqamaEndDate: '', cardType: 'بدون', paymentType: '',
   amount: '', receivedAmount: '', notes: '', nextPaymentDate: '', monthlyReceiptDay: '',
   serviceId: '', organizationId: '',
-  arrivalPlaceId: '', generateMonthlyAfterIqama: '', tafweedAlertEnabled: '', tafweedAlertDate: '',
+  arrivalPlaceId: '', generateMonthlyAfterIqama: '1', tafweedAlertEnabled: '', tafweedAlertDate: '',
   tafweedDone: '',
 }
 
