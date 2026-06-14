@@ -23,20 +23,21 @@ export default function MobileMuqeemPage() {
 
   const { data: platforms = [] } = useLoginPlatforms()
   const { data: summaries = [], isLoading: summariesLoading } = useCredentialSummaries()
-  const fillList = useMuqeemFillList()
-
   const muqeem = platforms.find((p) => p.key === 'muqeem')
   const muqeemCount = summaries.filter((s) => s.platform === 'muqeem').length
 
-  // يجلب بيانات كل المؤسسات عند الطلب، يبني الزر الموحّد، وينسخه للحافظة
+  // البيانات تُجلب مسبقًا (بمجرد معرفة وجود مؤسسات) حتى يكون النسخ فوريًا داخل اللمسة
+  const fillList = useMuqeemFillList(muqeemCount > 0)
+
+  // النسخ متزامن: لا await قبل clipboard.writeText وإلا رفض Safari الكتابة في الحافظة
   async function copyUnifiedButton() {
     setError(false)
+    const data = fillList.data
+    if (!data || data.length === 0) {
+      setError(true)
+      return
+    }
     try {
-      const { data } = await fillList.refetch()
-      if (!data || data.length === 0) {
-        setError(true)
-        return
-      }
       await navigator.clipboard.writeText(buildUnifiedFillBookmarklet(data))
       setPrepared(true)
       setCopied(true)
@@ -46,7 +47,8 @@ export default function MobileMuqeemPage() {
     }
   }
 
-  const busy = fillList.isFetching
+  // الزر مشغول حتى تكتمل أول جلب للبيانات
+  const busy = muqeemCount > 0 && fillList.isLoading
 
   return (
     <div className="min-h-screen bg-gray-50/80 page-enter">
@@ -98,7 +100,7 @@ export default function MobileMuqeemPage() {
               <button
                 type="button"
                 onClick={copyUnifiedButton}
-                disabled={busy}
+                disabled={busy || !fillList.data}
                 className={`flex items-center justify-center gap-2 w-full rounded-xl
                             text-sm font-semibold py-3 min-h-12 shadow-sm transition-colors disabled:opacity-60 ${
                   copied
@@ -126,9 +128,19 @@ export default function MobileMuqeemPage() {
                 )}
               </button>
 
-              {error && (
+              {fillList.isError && (
+                <button
+                  type="button"
+                  onClick={() => fillList.refetch()}
+                  className="w-full text-sm text-red-600 text-center py-1 active:text-red-700"
+                >
+                  تعذّر تحميل البيانات من الخادم — اضغط لإعادة المحاولة
+                </button>
+              )}
+
+              {error && !fillList.isError && (
                 <p className="text-sm text-red-600 text-center">
-                  تعذّر تجهيز الزر — تأكد من الاتصال وحاول مجدداً
+                  تعذّر النسخ — أعد المحاولة
                 </p>
               )}
 

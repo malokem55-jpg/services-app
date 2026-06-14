@@ -63,13 +63,14 @@ export interface MuqeemFillEntry {
   password: string
 }
 
-// كل بيانات مقيم (بكلمات المرور) لبناء «الزر الموحّد». مُعطّل افتراضيًا ويُجلب عند الطلب
-// فقط (refetch) حتى لا تبقى كلمات المرور في الذاكرة، ولا يُحتفظ به في الكاش (gcTime 0).
-export function useMuqeemFillList() {
+// كل بيانات مقيم (بكلمات المرور) لبناء «الزر الموحّد». يُجلب مسبقًا عند فتح الشاشة حتى
+// يكون النسخ للحافظة فوريًا داخل لمسة المستخدم — Safari على iOS يرفض الكتابة في الحافظة
+// بعد await. لا يُحتفظ به في الكاش بعد إغلاق الشاشة (gcTime 0).
+export function useMuqeemFillList(enabled: boolean) {
   return useQuery<MuqeemFillEntry[]>({
     queryKey: ['muqeem-fill-list'],
     queryFn: () => apiFetch<MuqeemFillEntry[]>('/api/org-credentials/muqeem-fill-list'),
-    enabled: false,
+    enabled,
     staleTime: 0,
     gcTime: 0,
   })
