@@ -22,7 +22,6 @@ import orgCredentialsRouter from './routes/org-credentials.js';
 import orgCredentialsImportRouter from './routes/org-credentials-import.js';
 import credentialImportDraftRouter from './routes/credential-import-draft.js';
 import chamberCitiesRouter from './routes/chamber-cities.js';
-import mobileFillRouter from './routes/mobile-fill.js';
 import dataImportRouter from './routes/data-import.js';
 import malikRouter from './routes/malik.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -60,7 +59,6 @@ app.use('/api/org-credentials', orgCredentialsRouter);
 app.use('/api/org-credentials-import', orgCredentialsImportRouter);
 app.use('/api/credential-import-draft', credentialImportDraftRouter);
 app.use('/api/chamber-cities', chamberCitiesRouter);
-app.use('/api/mobile-fill', mobileFillRouter);
 app.use('/api/data-import', dataImportRouter);
 app.use('/api/malik', malikRouter);
 

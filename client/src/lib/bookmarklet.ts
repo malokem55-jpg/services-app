@@ -52,26 +52,3 @@ export function buildUnifiedFillBookmarklet(orgs: FillOrg[]): string {
     `})()`
   return 'javascript:' + encodeURIComponent(src)
 }
-
-/**
- * الزر القديم القائم على جلب البيانات المسلّحة من السيرفر. لا يعمل على مقيم بسبب
- * حجب CSP المذكور أعلاه — مُبقىً مؤقتاً للكروت العامة في الإعدادات حتى استبدالها
- * بالزر المضمّن. لا تستخدمه لمقيم.
- */
-export function buildFillBookmarklet(apiBase: string, fillKey: string): string {
-  const src =
-    `(function(){` +
-    `var D=Date.now()+45000;` +
-    FILL_HELPERS +
-    `var t=setInterval(function(){` +
-    `var g=F();` +
-    `if(g){clearInterval(t);` +
-    `fetch('${apiBase}/api/mobile-fill/pending?key=${fillKey}')` +
-    `.then(function(r){if(!r.ok)throw 0;return r.json()})` +
-    `.then(function(c){if(g.u)S(g.u,c.username);S(g.p,c.password)})` +
-    `.catch(function(){alert('لا توجد بيانات دخول جاهزة \\u2014 افتح المنصة من التطبيق أولاً')})}` +
-    `else if(Date.now()>D){clearInterval(t);${NO_LOGIN_ALERT}}` +
-    `},400)` +
-    `})()`
-  return 'javascript:' + encodeURIComponent(src)
-}

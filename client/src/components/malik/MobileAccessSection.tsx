@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
-import MuqeemFillCard from '../MuqeemFillCard'
 import SendNotificationsNowCard from './SendNotificationsNowCard'
 
 // قسم «تشغيل المشروع على الهاتف» داخل لوحة malik.
@@ -75,9 +74,6 @@ export default function MobileAccessSection() {
           </p>
         )}
       </div>
-
-      {/* تعبئة مقيم على الآيفون (منقول من تاب «تطبيق الموبايل») */}
-      <MuqeemFillCard />
 
       {/* إرسال جميع التنبيهات الآن (منقول من تاب «ضبط الجوال» في الإعدادات) */}
       <SendNotificationsNowCard />
