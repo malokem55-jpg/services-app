@@ -4,7 +4,15 @@ import type { MonthlyPaymentAlert } from '../hooks/useNotifications'
 // مشتركة بين جرس التنبيهات في الدسكتوب وشاشة الدفعات الشهرية في الموبايل.
 export function paymentReminderMessage(item: MonthlyPaymentAlert): string {
   const name = item.client?.name ?? ''
-  const amount = item.amount != null ? `${item.amount} ريال` : ''
   const date = item.receivedDate ? item.receivedDate.slice(0, 10) : ''
+  const carried = item.carriedOverAmount ?? 0
+
+  // المبلغ الإجمالي يشمل القسط الأصلي + المرحّل، فنستخرج القسط الأصلي بطرح المرحّل
+  if (item.amount != null && carried > 0) {
+    const base = item.amount - carried
+    return `السلام عليكم ${name}،\nنذكّركم بدفعتكم الشهرية المستحقة بتاريخ ${date}.\nقسط الشهر: ${base} ريال + مبلغ مرحّل من دفعة سابقة: ${carried} ريال = ${item.amount} ريال\nنشكر لكم تعاونكم.`
+  }
+
+  const amount = item.amount != null ? `${item.amount} ريال` : ''
   return `السلام عليكم ${name}،\nنذكّركم بدفعتكم الشهرية المستحقة بتاريخ ${date} بمبلغ ${amount}.\nنشكر لكم تعاونكم.`
 }
