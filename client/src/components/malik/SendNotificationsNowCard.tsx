@@ -27,7 +27,7 @@ export default function SendNotificationsNowCard() {
           <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.27 5.45a.5.5 0 01.67-.65l16.5 7.2a.5.5 0 010 .9l-16.5 7.2a.5.5 0 01-.67-.65L6 12zm0 0h6" />
           </svg>
-          {sendNowMutation.isPending ? 'جارٍ الإرسال...' : 'إرسال جميع التنبيهات الآن'}
+          {sendNowMutation.isPending ? 'جارٍ الإرسال...' : 'إرسال أحدث 5 تنبيهات الآن'}
         </button>
 
         {sendNowMutation.isError ? (
@@ -37,7 +37,7 @@ export default function SendNotificationsNowCard() {
         ) : sendNowMutation.isSuccess ? (
           <p className="text-xs text-emerald-600 font-medium text-center">تم إرسال التنبيهات بنجاح ✓</p>
         ) : (
-          <p className="text-xs text-gray-400 text-center">يُرسِل التنبيهات المُفعَّلة فوراً حتى لو سبق إرسالها</p>
+          <p className="text-xs text-gray-400 text-center">يُرسِل أحدث 5 تنبيهات مُفعَّلة فوراً حتى لو سبق إرسالها</p>
         )}
       </div>
     </div>

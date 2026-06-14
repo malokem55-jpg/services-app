@@ -11,11 +11,11 @@ import { runPushNotificationCheck } from '../services/push.service.js';
 
 const router = Router();
 
-// إرسال جميع التنبيهات المختارة فوراً — تقبل تسجيل دخول المستخدم أو كلمة مرور لوحة malik
+// إرسال أحدث 5 تنبيهات فوراً — تقبل تسجيل دخول المستخدم أو كلمة مرور لوحة malik
 // (الزر منقول إلى لوحة malik التي تُفتح بلا تسجيل دخول). قبل requireAuth عمداً.
 router.post('/send-now', requireAuthOrMalik, async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    await runPushNotificationCheck({ force: true });
+    await runPushNotificationCheck({ limit: 5 });
     res.json({ ok: true });
   } catch (err) {
     next(err);

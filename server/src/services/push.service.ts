@@ -49,11 +49,13 @@ export async function deleteSubscription(endpoint: string) {
 
 type SubRecord = { endpoint: string; p256dh: string; auth: string };
 
-async function sendToAll(subs: SubRecord[], payload: object) {
+// تُرجع عدد حالات الفشل القابلة لإعادة المحاولة (الاشتراك المنتهي لا يُحتسب فشلاً لأنه يُحذف)
+async function sendToAll(subs: SubRecord[], payload: object): Promise<number> {
   const wp = getWebPush();
-  if (!wp) return;
+  if (!wp) return 0;
 
   const body = JSON.stringify(payload);
+  let failures = 0;
 
   await Promise.allSettled(
     subs.map(async (sub) => {
@@ -72,11 +74,14 @@ async function sendToAll(subs: SubRecord[], payload: object) {
           // subscription expired or invalid — remove it
           await prisma.pushSubscription.deleteMany({ where: { endpoint: sub.endpoint } });
         } else {
+          failures++;
           console.error('[push] sendNotification failed for', sub.endpoint, err);
         }
       }
     }),
   );
+
+  return failures;
 }
 
 // Uses UTC to avoid timezone-dependent dedup mismatches
@@ -104,15 +109,30 @@ async function markSent(alertType: string, referenceId: number, referenceDate: D
 export interface RunPushOptions {
   // الإرسال الفوري: يتجاهل سجل "أُرسل من قبل" فيُعيد إرسال كل التنبيهات المختارة
   force?: boolean;
+  // عند تحديده يُرسَل فقط أحدث N تنبيهات (الأقرب تاريخاً) — يفرض وضع الإرسال الفوري
+  limit?: number;
 }
 
-export async function runPushNotificationCheck(options: RunPushOptions = {}) {
-  const { force = false } = options;
-  if (!getWebPush()) return;
+// تنبيه مرشَّح للإرسال: يحمل بياناته الكاملة لتمكين الترتيب ثم الاختيار
+interface PushCandidate {
+  alertType: string;
+  refId: number;
+  refDate: Date;
+  sortTime: number; // وقت مرجع الترتيب: الأحدث أولاً
+  payload: { type: string; title: string; body: string };
+}
+
+export async function runPushNotificationCheck(options: RunPushOptions = {}): Promise<{ failures: number }> {
+  const { limit } = options;
+  // تحديد عدد التنبيهات يفرض إعادة الإرسال (force) للأحدث بغض النظر عن سجل الإرسال
+  const force = options.force || limit != null;
+  if (!getWebPush()) return { failures: 0 };
 
   // Fetch subscriptions once — avoids one DB query per alert
   const subs = await prisma.pushSubscription.findMany();
-  if (subs.length === 0) return;
+  if (subs.length === 0) return { failures: 0 };
+
+  let failures = 0;
 
   // تحديد أي التنبيهات الخمسة مُفعَّلة للإرسال للهاتف
   const channels = await getPushChannels();
@@ -125,21 +145,27 @@ export async function runPushNotificationCheck(options: RunPushOptions = {}) {
     getTafweedAlerts(),
   ]);
 
+  // بناء قائمة المرشَّحين من الأنواع المُفعَّلة فقط
+  const candidates: PushCandidate[] = [];
+
   if (channels.pushMonthlyPayment) {
     for (const payment of monthlyPayments) {
       if (!payment.receivedDate) continue;
       const refDate = toDateOnly(payment.receivedDate);
-      if (!force && (await alreadySent('monthly_payment', payment.id, refDate))) continue;
-      // Mark before send: a missed send is better than a duplicate
-      await markSent('monthly_payment', payment.id, refDate);
       const carriedNote =
         payment.carriedOverAmount && payment.carriedOverAmount > 0
           ? ` (منها ${payment.carriedOverAmount} مرحّلة من دفعية بتاريخ ${payment.carriedFromMonth ?? '—'})`
           : '';
-      await sendToAll(subs, {
-        type: 'monthly_payment',
-        title: 'دفعة شهرية قريبة',
-        body: `${payment.client?.name ?? ''} — ${payment.month ?? ''} — ${payment.amount ?? ''} ر.س${carriedNote}`,
+      candidates.push({
+        alertType: 'monthly_payment',
+        refId: payment.id,
+        refDate,
+        sortTime: refDate.getTime(),
+        payload: {
+          type: 'monthly_payment',
+          title: 'دفعة شهرية قريبة',
+          body: `${payment.client?.name ?? ''} — ${payment.month ?? ''} — ${payment.amount ?? ''} ر.س${carriedNote}`,
+        },
       });
     }
   }
@@ -148,12 +174,16 @@ export async function runPushNotificationCheck(options: RunPushOptions = {}) {
     for (const client of customPayments) {
       if (!client.nextPaymentDate) continue;
       const refDate = toDateOnly(client.nextPaymentDate);
-      if (!force && (await alreadySent('custom_payment', client.id, refDate))) continue;
-      await markSent('custom_payment', client.id, refDate);
-      await sendToAll(subs, {
-        type: 'custom_payment',
-        title: 'دفعة مخصصة قريبة',
-        body: `${client.name ?? ''} — ${client.amount ?? ''} ر.س`,
+      candidates.push({
+        alertType: 'custom_payment',
+        refId: client.id,
+        refDate,
+        sortTime: refDate.getTime(),
+        payload: {
+          type: 'custom_payment',
+          title: 'دفعة مخصصة قريبة',
+          body: `${client.name ?? ''} — ${client.amount ?? ''} ر.س`,
+        },
       });
     }
   }
@@ -162,12 +192,16 @@ export async function runPushNotificationCheck(options: RunPushOptions = {}) {
     for (const client of iqamaExpirySoon) {
       if (!client.iqamaEndDate) continue;
       const refDate = toDateOnly(client.iqamaEndDate);
-      if (!force && (await alreadySent('iqama_expiry_soon', client.id, refDate))) continue;
-      await markSent('iqama_expiry_soon', client.id, refDate);
-      await sendToAll(subs, {
-        type: 'iqama_expiry_soon',
-        title: 'إقامة ستنتهي قريباً',
-        body: `${client.name ?? ''} — تنتهي في ${new Date(client.iqamaEndDate).toLocaleDateString('ar-SA')}`,
+      candidates.push({
+        alertType: 'iqama_expiry_soon',
+        refId: client.id,
+        refDate,
+        sortTime: refDate.getTime(),
+        payload: {
+          type: 'iqama_expiry_soon',
+          title: 'إقامة ستنتهي قريباً',
+          body: `${client.name ?? ''} — تنتهي في ${new Date(client.iqamaEndDate).toLocaleDateString('ar-SA')}`,
+        },
       });
     }
   }
@@ -176,12 +210,16 @@ export async function runPushNotificationCheck(options: RunPushOptions = {}) {
     for (const client of iqamaExpired) {
       if (!client.iqamaEndDate) continue;
       const refDate = toDateOnly(client.iqamaEndDate);
-      if (!force && (await alreadySent('iqama_expired', client.id, refDate))) continue;
-      await markSent('iqama_expired', client.id, refDate);
-      await sendToAll(subs, {
-        type: 'iqama_expired',
-        title: 'إقامة منتهية أو عاجلة',
-        body: `${client.name ?? ''} — انتهت في ${new Date(client.iqamaEndDate).toLocaleDateString('ar-SA')}`,
+      candidates.push({
+        alertType: 'iqama_expired',
+        refId: client.id,
+        refDate,
+        sortTime: refDate.getTime(),
+        payload: {
+          type: 'iqama_expired',
+          title: 'إقامة منتهية أو عاجلة',
+          body: `${client.name ?? ''} — انتهت في ${new Date(client.iqamaEndDate).toLocaleDateString('ar-SA')}`,
+        },
       });
     }
   }
@@ -190,14 +228,37 @@ export async function runPushNotificationCheck(options: RunPushOptions = {}) {
     for (const client of tafweedAlerts) {
       if (!client.tafweedAlertDate) continue;
       const refDate = toDateOnly(client.tafweedAlertDate);
-      if (!force && (await alreadySent('tafweed', client.id, refDate))) continue;
-      await markSent('tafweed', client.id, refDate);
-      await sendToAll(subs, {
-        type: 'tafweed',
-        title: 'تنبيه التفويض والتصديق',
-        body: `تذكير: يجب إجراء التفويض للعميل ${client.name ?? ''} على مؤسسة (${client.organization?.name ?? '—'}) اليوم`,
+      candidates.push({
+        alertType: 'tafweed',
+        refId: client.id,
+        refDate,
+        sortTime: refDate.getTime(),
+        payload: {
+          type: 'tafweed',
+          title: 'تنبيه التفويض والتصديق',
+          body: `تذكير: يجب إجراء التفويض للعميل ${client.name ?? ''} على مؤسسة (${client.organization?.name ?? '—'}) اليوم`,
+        },
       });
     }
+  }
+
+  // وضع «أحدث N تنبيهات»: نرتّب الكل بالأحدث تاريخاً ونأخذ أوّل N فقط ثم نرسلها
+  if (limit != null) {
+    const latest = [...candidates].sort((a, b) => b.sortTime - a.sortTime).slice(0, limit);
+    for (const c of latest) {
+      const f = await sendToAll(subs, c.payload);
+      if (f === 0) await markSent(c.alertType, c.refId, c.refDate);
+      failures += f;
+    }
+    return { failures };
+  }
+
+  for (const c of candidates) {
+    if (!force && (await alreadySent(c.alertType, c.refId, c.refDate))) continue;
+    // علّم "أُرسل" بعد التسليم فقط: الفشل العابر يُترك بلا تعليم ليُعاد إرساله لاحقاً بدل أن يضيع
+    const f = await sendToAll(subs, c.payload);
+    if (f === 0) await markSent(c.alertType, c.refId, c.refDate);
+    failures += f;
   }
 
   // تذكير أسبوعي مجمَّع بديون العملاء المحذوفين المعلّقة — مرة واحدة كل أسبوع
@@ -212,17 +273,20 @@ export async function runPushNotificationCheck(options: RunPushOptions = {}) {
       const weekStart = toDateOnly(new Date());
       weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
       if (!(await alreadySent('deleted_client_dues', 0, weekStart))) {
-        await markSent('deleted_client_dues', 0, weekStart);
         const totalRemaining = pendingDues.reduce(
           (sum, d) => sum + (d.totalDue ?? 0) - (d.collectedAmount ?? 0),
           0,
         );
-        await sendToAll(subs, {
+        const f = await sendToAll(subs, {
           type: 'deleted_client_dues',
           title: 'تذكير: ديون عملاء محذوفين',
           body: `لديك ${pendingDues.length} ديون معلّقة لعملاء محذوفين بإجمالي متبقٍ ${totalRemaining} ر.س`,
         });
+        if (f === 0) await markSent('deleted_client_dues', 0, weekStart);
+        failures += f;
       }
     }
   }
+
+  return { failures };
 }
