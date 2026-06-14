@@ -112,14 +112,46 @@ self.addEventListener('push', (event) => {
     badge: '/icons/icon-192x192-v2.png',
     dir: 'rtl',
     lang: 'ar',
-    data: { type: data.type },
+    data: { type: data.type, phone: data.phone, message: data.message },
   };
+
+  // زر «محادثة العميل» يظهر على أندرويد (كروم يدعم أزرار الإشعارات). على آيفون لا
+  // يظهر الزر، فبدلاً منه يفتح الضغط على جسم الإشعار محادثة الواتساب (انظر notificationclick).
+  if (data.phone) {
+    options.actions = [{ action: 'chat', title: 'محادثة العميل' }];
+  }
 
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
+// تحويل الرقم المحلي (05xxxxxxxx) إلى رابط wa.me دولي مع رسالة معبأة مسبقاً.
+// يطابق منطق client/src/lib/whatsapp.ts؛ نستخدم wa.me دائماً لأن الإشعار يصل على الجوال.
+function buildWhatsAppUrl(phone, message) {
+  if (!phone) return null;
+  let digits = String(phone).replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  else if (digits.startsWith('0')) digits = '966' + digits.slice(1);
+  else if (digits.startsWith('5') && digits.length === 9) digits = '966' + digits;
+  if (digits.length < 8) return null;
+  const text = message ? `?text=${encodeURIComponent(message)}` : '';
+  return `https://wa.me/${digits}${text}`;
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+
+  const data = event.notification.data || {};
+  const isIOS = /iphone|ipad|ipod/i.test(self.navigator.userAgent || '');
+  // فتح محادثة العميل: عبر زر «محادثة العميل» على أندرويد، أو بالضغط على جسم الإشعار
+  // على آيفون (حيث لا تظهر أزرار الإشعارات). الأنواع الأخرى لا تحمل phone فتسلك الافتراضي.
+  if (data.phone && (event.action === 'chat' || (isIOS && !event.action))) {
+    const url = buildWhatsAppUrl(data.phone, data.message);
+    if (url) {
+      event.waitUntil(clients.openWindow(url));
+      return;
+    }
+  }
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {

@@ -119,7 +119,33 @@ interface PushCandidate {
   refId: number;
   refDate: Date;
   sortTime: number; // وقت مرجع الترتيب: الأحدث أولاً
-  payload: { type: string; title: string; body: string };
+  // phone/message اختياريان: يُرسَلان فقط لتنبيه الدفعة الشهرية لتمكين زر «محادثة العميل»
+  payload: { type: string; title: string; body: string; phone?: string; message?: string };
+}
+
+// رسالة تذكير الدفعة الشهرية المُعبَّأة مسبقاً في محادثة الواتساب.
+// تطابق منطق client/src/lib/paymentReminder.ts (نسخة الخادم لأن التواريخ هنا كائنات Date).
+function monthlyReminderMessage(payment: {
+  client?: { name?: string | null } | null;
+  receivedDate?: Date | string | null;
+  amount?: number | null;
+  carriedOverAmount?: number | null;
+  carriedFromMonth?: Date | string | null;
+}): string {
+  const name = payment.client?.name ?? '';
+  const date = payment.receivedDate ? new Date(payment.receivedDate).toISOString().slice(0, 10) : '';
+  const carried = payment.carriedOverAmount ?? 0;
+  const carriedFrom = payment.carriedFromMonth
+    ? new Date(payment.carriedFromMonth).toISOString().slice(0, 10)
+    : '';
+
+  if (payment.amount != null && carried > 0) {
+    const base = payment.amount - carried;
+    return `السلام عليكم ${name}،\nنذكّركم بدفعتكم الشهرية المستحقة بتاريخ ${date}.\nقسط الشهر: ${base} ريال بتاريخ ${date}\nمبلغ مرحّل من دفعة سابقة: ${carried} ريال بتاريخ ${carriedFrom}\nالمجموع: ${payment.amount} ريال (${base} + ${carried})\nنشكر لكم تعاونكم.`;
+  }
+
+  const amount = payment.amount != null ? `${payment.amount} ريال` : '';
+  return `السلام عليكم ${name}،\nنذكّركم بدفعتكم الشهرية المستحقة بتاريخ ${date} بمبلغ ${amount}.\nنشكر لكم تعاونكم.`;
 }
 
 export async function runPushNotificationCheck(options: RunPushOptions = {}): Promise<{ failures: number }> {
@@ -165,6 +191,9 @@ export async function runPushNotificationCheck(options: RunPushOptions = {}): Pr
           type: 'monthly_payment',
           title: 'دفعة شهرية قريبة',
           body: `${payment.client?.name ?? ''} — ${payment.month ?? ''} — ${payment.amount ?? ''} ر.س${carriedNote}`,
+          // يُمكّنان زر «محادثة العميل» في الإشعار (أندرويد) أو فتح الواتساب بالضغط (آيفون)
+          phone: payment.client?.phone ?? undefined,
+          message: monthlyReminderMessage(payment),
         },
       });
     }
