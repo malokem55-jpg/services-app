@@ -119,8 +119,17 @@ interface PushCandidate {
   refId: number;
   refDate: Date;
   sortTime: number; // وقت مرجع الترتيب: الأحدث أولاً
-  // phone/message اختياريان: يُرسَلان فقط لتنبيه الدفعة الشهرية لتمكين زر «محادثة العميل»
-  payload: { type: string; title: string; body: string; phone?: string; message?: string };
+  // name/phone/message/timestamp اختيارية: تُرسَل فقط لتنبيه الدفعة الشهرية لتمكين
+  // زر «محادثة العميل» وشاشة التأكيد وتحسينات تصميم الإشعار
+  payload: {
+    type: string;
+    title: string;
+    body: string;
+    name?: string;
+    phone?: string;
+    message?: string;
+    timestamp?: number;
+  };
 }
 
 // رسالة تذكير الدفعة الشهرية المُعبَّأة مسبقاً في محادثة الواتساب.
@@ -178,10 +187,12 @@ export async function runPushNotificationCheck(options: RunPushOptions = {}): Pr
     for (const payment of monthlyPayments) {
       if (!payment.receivedDate) continue;
       const refDate = toDateOnly(payment.receivedDate);
+      const dueDate = new Date(payment.receivedDate).toISOString().slice(0, 10); // ميلادي YYYY-MM-DD
       const carriedNote =
         payment.carriedOverAmount && payment.carriedOverAmount > 0
-          ? ` (منها ${payment.carriedOverAmount} مرحّلة من دفعية بتاريخ ${payment.carriedFromMonth ?? '—'})`
+          ? ` (منها ${payment.carriedOverAmount} مرحّلة)`
           : '';
+      const amountText = payment.amount != null ? `${payment.amount} ر.س` : '—';
       candidates.push({
         alertType: 'monthly_payment',
         refId: payment.id,
@@ -189,11 +200,13 @@ export async function runPushNotificationCheck(options: RunPushOptions = {}): Pr
         sortTime: refDate.getTime(),
         payload: {
           type: 'monthly_payment',
-          title: 'دفعة شهرية قريبة',
-          body: `${payment.client?.name ?? ''} — ${payment.month ?? ''} — ${payment.amount ?? ''} ر.س${carriedNote}`,
-          // يُمكّنان زر «محادثة العميل» في الإشعار (أندرويد) أو فتح الواتساب بالضغط (آيفون)
+          title: '💳 تذكير دفعة شهرية',
+          body: `العميل: ${payment.client?.name ?? '—'}\nالمبلغ: ${amountText}${carriedNote}\nالاستحقاق: ${dueDate}`,
+          // name لشاشة التأكيد، و phone/message لزر «محادثة العميل»، و timestamp لوقت الإشعار
+          name: payment.client?.name ?? undefined,
           phone: payment.client?.phone ?? undefined,
           message: monthlyReminderMessage(payment),
+          timestamp: refDate.getTime(),
         },
       });
     }

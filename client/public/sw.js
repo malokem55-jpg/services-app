@@ -120,13 +120,24 @@ self.addEventListener('push', (event) => {
     badge: '/icons/icon-192x192-v2.png',
     dir: 'rtl',
     lang: 'ar',
-    data: { type: data.type, phone: data.phone, message: data.message },
+    data: { type: data.type, phone: data.phone, message: data.message, name: data.name },
   };
 
-  // زر «محادثة العميل» يظهر على أندرويد (كروم يدعم أزرار الإشعارات). على آيفون لا
-  // يظهر الزر، فبدلاً منه يفتح الضغط على جسم الإشعار محادثة الواتساب (انظر notificationclick).
-  if (data.phone && !isIOS) {
-    options.actions = [{ action: 'chat', title: 'محادثة العميل' }];
+  if (data.timestamp) options.timestamp = data.timestamp;
+
+  // تحسينات تصميم تنبيه الدفعة الشهرية (أندرويد يطبّقها، وآيفون يتجاهلها):
+  // - يبقى الإشعار ظاهراً حتى يتفاعل المستخدم (تذكير مالي مهم)
+  // - اهتزاز لطيف عند الوصول
+  // - وسم لكل عميل + renotify: يمنع تكدّس إشعارات مكررة لنفس العميل ويستبدل القديم
+  // - زر «محادثة العميل» على أندرويد فقط (آيفون لا يعرض الأزرار، فالضغط على الجسم يكفي)
+  if (data.phone) {
+    options.requireInteraction = true;
+    options.vibrate = [200, 100, 200];
+    options.tag = `${data.type}:${data.phone}`;
+    options.renotify = true;
+    if (!isIOS) {
+      options.actions = [{ action: 'chat', title: 'محادثة العميل' }];
+    }
   }
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -142,7 +153,11 @@ self.addEventListener('notificationclick', (event) => {
   // نافذة تأكيد نظام)، ومنها ينتقل المستخدم إلى الواتساب. تُفتح في الحالتين:
   // أندرويد بالضغط على زر «محادثة العميل»، وآيفون بالضغط على جسم الإشعار (لا زر فيه).
   if (data.phone && (event.action === 'chat' || (isIOS && !event.action))) {
-    const params = new URLSearchParams({ phone: data.phone, message: data.message || '' });
+    const params = new URLSearchParams({
+      phone: data.phone,
+      message: data.message || '',
+      name: data.name || '',
+    });
     event.waitUntil(clients.openWindow(`/m/chat?${params.toString()}`));
     return;
   }

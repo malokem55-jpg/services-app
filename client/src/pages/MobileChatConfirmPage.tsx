@@ -10,6 +10,7 @@ export default function MobileChatConfirmPage() {
 
   const phone = params.get('phone') ?? ''
   const message = params.get('message') ?? ''
+  const name = params.get('name') ?? ''
   const url = whatsappUrl(phone, message)
 
   return (
@@ -24,6 +25,13 @@ export default function MobileChatConfirmPage() {
         </div>
 
         <h1 className="mt-4 text-lg font-bold text-gray-800">فتح محادثة واتساب مع العميل</h1>
+
+        {name && (
+          <p className="mt-3 text-base font-semibold text-gray-700">
+            العميل: <span className="text-gray-900">{name}</span>
+          </p>
+        )}
+
         <p className="mt-2 text-sm text-gray-500">
           سيتم فتح واتساب مع رسالة التذكير معبّأة وجاهزة للإرسال.
         </p>
