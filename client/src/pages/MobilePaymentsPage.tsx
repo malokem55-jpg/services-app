@@ -206,7 +206,7 @@ export default function MobilePaymentsPage() {
                   </div>
                   {m.carriedOverAmount != null && m.carriedOverAmount > 0 && (
                     <p className="mt-2 text-[11px] text-amber-600 bg-amber-50 rounded-lg px-2.5 py-1.5">
-                      تشمل مبلغاً مرحّلاً ({fmt(m.carriedOverAmount)}) من دفعية سابقة
+                      تشمل مبلغاً مرحّلاً ({fmt(m.carriedOverAmount)}) من دفعية بتاريخ {fmtDate(m.carriedFromMonth)}
                     </p>
                   )}
                 </div>

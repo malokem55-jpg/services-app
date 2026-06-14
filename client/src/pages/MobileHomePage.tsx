@@ -74,8 +74,6 @@ export default function MobileHomePage() {
     },
   ]
 
-  const pendingTotal = monthlyCount + iqamaCount
-
   return (
     <div
       className="min-h-screen bg-gray-50 flex flex-col page-enter"
@@ -111,18 +109,7 @@ export default function MobileHomePage() {
 
           <div className="relative">
             <p className="text-xs text-white/70">{todayLabel}</p>
-            <h1 className="text-xl font-bold mt-1">أهلاً بك 👋</h1>
-            <p className="text-sm text-white/85 mt-2 leading-relaxed">
-              {pendingTotal > 0 ? (
-                <>
-                  لديك{' '}
-                  <span className="font-bold">{pendingTotal}</span>{' '}
-                  {pendingTotal === 1 ? 'مهمة' : 'مهمة'} بحاجة لمتابعة اليوم
-                </>
-              ) : (
-                'كل مهامك منجَزة — لا يوجد ما يحتاج متابعة ✨'
-              )}
-            </p>
+            <h1 className="text-xl font-bold mt-1">أهلاً بك أبو كيان 👋</h1>
           </div>
         </section>
 
