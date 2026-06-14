@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import MobileHomePage from './pages/MobileHomePage'
-import MobileMuqeemPage from './pages/MobileMuqeemPage'
 import MobilePaymentsPage from './pages/MobilePaymentsPage'
 import MobileIqamaPage from './pages/MobileIqamaPage'
 import MobileSettingsPage from './pages/MobileSettingsPage'
@@ -56,7 +55,6 @@ function App() {
 
             {/* النسخة المخصصة للموبايل */}
             <Route path="/m" element={<MobileHomePage />} />
-            <Route path="/m/muqeem" element={<MobileMuqeemPage />} />
             <Route path="/m/payments" element={<MobilePaymentsPage />} />
             <Route path="/m/iqama" element={<MobileIqamaPage />} />
             <Route path="/m/settings" element={<MobileSettingsPage />} />

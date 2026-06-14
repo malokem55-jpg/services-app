@@ -1,9 +1,13 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Logo from '../components/Logo'
+import Modal from '../components/Modal'
 import { useNotifications } from '../hooks/useNotifications'
+import { useLoginPlatforms } from '../hooks/useLoginPlatforms'
 
 interface ActionCard {
-  to: string
+  to?: string
+  onClick?: () => void
   label: string
   description: string
   count: number
@@ -19,19 +23,23 @@ const todayLabel = new Date().toLocaleDateString('ar-EG', {
 })
 
 /**
- * الرئيسية المخصصة (تطبيق الموبايل المثبت): رأس ترحيبي بلون العلامة يلخّص ما يحتاج
- * متابعة، ثم ثلاث بطاقات مهام هادئة — اللون لمسة على الأيقونة فقط لإبقاء التسلسل
- * الهرمي واضحاً. أيقونة الإعدادات تصل لتاب PWA لإلغاء الوضع المخصص عند الحاجة.
+ * الرئيسية المخصصة (تطبيق الموبايل المثبت): رأس ترحيبي بلون العلامة، ثم ثلاث بطاقات
+ * مهام هادئة. بطاقة «منصة مقيم» تفتح نافذة تأكيد مباشرة في الرئيسية (لا تنتقل لشاشة
+ * أخرى)، فيها تذكير بخطوة التعبئة من المفضلة وزر «فتح». البطاقتان الأخريان تنتقلان
+ * لشاشتيهما. أيقونة الإعدادات تصل لتاب PWA لإلغاء الوضع المخصص عند الحاجة.
  */
 export default function MobileHomePage() {
   const { data: notifs } = useNotifications()
+  const [showMuqeem, setShowMuqeem] = useState(false)
+  const { data: platforms = [] } = useLoginPlatforms()
+  const muqeem = platforms.find((p) => p.key === 'muqeem')
 
   const monthlyCount = notifs?.monthlyPayments.length ?? 0
   const iqamaCount = (notifs?.iqamaExpired.length ?? 0) + (notifs?.iqamaExpirySoon.length ?? 0)
 
   const ACTIONS: ActionCard[] = [
     {
-      to: '/m/muqeem',
+      onClick: () => setShowMuqeem(true),
       label: 'منصة مقيم',
       description: 'فتح المنصة ببيانات مؤسسة',
       count: 0,
@@ -74,6 +82,39 @@ export default function MobileHomePage() {
     },
   ]
 
+  // محتوى البطاقة الموحّد سواء كانت رابطًا أو زرًا
+  function CardInner({ action }: { action: ActionCard }) {
+    return (
+      <>
+        <span className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${action.tile}`}>
+          {action.icon}
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="flex items-center gap-2">
+            <span className="text-base font-bold text-gray-900 truncate">{action.label}</span>
+            {action.count > 0 && (
+              <span className={`min-w-5 h-5 px-1.5 rounded-full text-[11px] font-bold
+                                flex items-center justify-center shrink-0 ${action.pill}`}>
+                {action.count}
+              </span>
+            )}
+          </span>
+          <span className="block text-xs text-gray-400 mt-0.5 truncate">{action.description}</span>
+        </span>
+        <svg
+          className="w-5 h-5 text-gray-300 shrink-0 group-active:text-gray-400 transition-colors"
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+      </>
+    )
+  }
+
+  const cardClass = `group flex items-center gap-4 rounded-2xl bg-white px-4 py-4
+                     border border-gray-100 shadow-sm
+                     active:scale-[0.99] active:bg-gray-50/80 transition-all`
+
   return (
     <div
       className="min-h-screen bg-gray-50 flex flex-col page-enter"
@@ -115,41 +156,67 @@ export default function MobileHomePage() {
 
         {/* ── بطاقات المهام ── */}
         <div className="space-y-3">
-          {ACTIONS.map(({ to, label, description, count, tile, pill, icon }) => (
-            <Link
-              key={to}
-              to={to}
-              className="group flex items-center gap-4 rounded-2xl bg-white px-4 py-4
-                         border border-gray-100 shadow-sm
-                         active:scale-[0.99] active:bg-gray-50/80 transition-all"
-            >
-              <span className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${tile}`}>
-                {icon}
-              </span>
-
-              <span className="flex-1 min-w-0">
-                <span className="flex items-center gap-2">
-                  <span className="text-base font-bold text-gray-900 truncate">{label}</span>
-                  {count > 0 && (
-                    <span className={`min-w-5 h-5 px-1.5 rounded-full text-[11px] font-bold
-                                      flex items-center justify-center shrink-0 ${pill}`}>
-                      {count}
-                    </span>
-                  )}
-                </span>
-                <span className="block text-xs text-gray-400 mt-0.5 truncate">{description}</span>
-              </span>
-
-              <svg
-                className="w-5 h-5 text-gray-300 shrink-0 group-active:text-gray-400 transition-colors"
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          {ACTIONS.map((action) =>
+            action.to ? (
+              <Link key={action.label} to={action.to} className={cardClass}>
+                <CardInner action={action} />
+              </Link>
+            ) : (
+              <button
+                key={action.label}
+                type="button"
+                onClick={action.onClick}
+                className={`${cardClass} w-full text-start`}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </Link>
-          ))}
+                <CardInner action={action} />
+              </button>
+            ),
+          )}
         </div>
       </main>
+
+      {/* ── نافذة تأكيد فتح مقيم (في الرئيسية مباشرة) ── */}
+      {showMuqeem && (
+        <Modal title="فتح منصة مقيم" size="sm" onClose={() => setShowMuqeem(false)}>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 leading-relaxed">
+              بعد فتح المنصة، افتح مفضلة Safari واضغط <span className="font-semibold text-gray-800">«تعبئة مقيم»</span>،
+              ثم اختر المؤسسة لتعبئة بياناتها تلقائياً.
+            </p>
+
+            {muqeem?.loginUrl ? (
+              <a
+                href={muqeem.loginUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setShowMuqeem(false)}
+                className="flex items-center justify-center gap-2 w-full rounded-xl
+                           bg-sky-500 active:bg-sky-600 text-white text-sm font-semibold
+                           py-3 min-h-12 shadow-sm shadow-sky-500/20 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round"
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                فتح
+              </a>
+            ) : (
+              <p className="text-center text-sm text-gray-400 py-2">
+                رابط منصة مقيم غير مضبوط — اضبطه من الملف الشخصي في النسخة الكاملة
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowMuqeem(false)}
+              className="w-full rounded-xl border border-gray-200 bg-white text-gray-600
+                         text-sm font-semibold py-2.5 min-h-11 active:bg-gray-50 transition-colors"
+            >
+              إلغاء
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
