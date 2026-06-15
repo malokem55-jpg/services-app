@@ -45,11 +45,17 @@ function buildCells(firstDow: number, totalDays: number): (number | null)[] {
   return cells
 }
 
+// أقدم سنة معروضة في قائمة اختيار السنة (تكفي لتواريخ الميلاد)
+const MIN_GREGORIAN_YEAR = 1940
+const MIN_HIJRI_YEAR = 1360
+
 export default function HijriDateInput({ value, onChange, defaultMode = 'hijri', hasError = false }: Props) {
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<'hijri' | 'gregorian'>(defaultMode)
   const [viewYear, setViewYear] = useState(0)
   const [viewMonth, setViewMonth] = useState(0)
+  // لوحة العرض داخل التقويم: الأيام / الأشهر / السنوات
+  const [panel, setPanel] = useState<'days' | 'months' | 'years'>('days')
   const ref = useRef<HTMLDivElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
   // تموضع القائمة محسوب بالنسبة للشاشة (fixed) كي لا تُقصّ داخل النافذة
@@ -94,7 +100,7 @@ export default function HijriDateInput({ value, onChange, defaultMode = 'hijri',
       window.removeEventListener('resize', place)
       window.removeEventListener('scroll', place, true)
     }
-  }, [open, mode, viewMonth, viewYear])
+  }, [open, mode, viewMonth, viewYear, panel])
 
   function resolveView(m: 'hijri' | 'gregorian') {
     const src = value ? value.slice(0, 10) : new Date().toISOString().slice(0, 10)
@@ -110,6 +116,7 @@ export default function HijriDateInput({ value, onChange, defaultMode = 'hijri',
     const v = resolveView(mode)
     setViewYear(v.year)
     setViewMonth(v.month)
+    setPanel('days')
     setOpen(true)
   }
 
@@ -117,7 +124,31 @@ export default function HijriDateInput({ value, onChange, defaultMode = 'hijri',
     const v = resolveView(m)
     setViewYear(v.year)
     setViewMonth(v.month)
+    setPanel('days')
     setMode(m)
+  }
+
+  // قائمة السنوات المتاحة للاختيار (من الأحدث إلى الأقدم)
+  function yearOptions(): number[] {
+    const todayIso = new Date().toISOString().slice(0, 10)
+    const currentYear = mode === 'hijri'
+      ? (gregorianToHijri(todayIso)?.year ?? 1447)
+      : new Date(todayIso + 'T00:00:00Z').getUTCFullYear()
+    const minYear = mode === 'hijri' ? MIN_HIJRI_YEAR : MIN_GREGORIAN_YEAR
+    const maxYear = currentYear + 10
+    const years: number[] = []
+    for (let y = maxYear; y >= minYear; y--) years.push(y)
+    return years
+  }
+
+  function pickYear(y: number) {
+    setViewYear(y)
+    setPanel('months')
+  }
+
+  function pickMonth(m: number) {
+    setViewMonth(m)
+    setPanel('days')
   }
 
   function navigate(delta: number) {
@@ -209,48 +240,89 @@ export default function HijriDateInput({ value, onChange, defaultMode = 'hijri',
             >ميلادي</button>
           </div>
 
-          {/* Month navigation — ltr so ‹ is left=prev, › is right=next */}
+          {/* Header — أسهم تنقّل الشهر + زر السنة/الشهر لفتح قائمة الاختيار السريع */}
           <div className="flex items-center justify-between mb-2 px-1" dir="ltr">
             <button
               type="button"
-              onClick={() => navigate(-1)}
-              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 text-lg leading-none"
+              onClick={() => panel === 'days' ? navigate(-1) : setPanel('days')}
+              className={`w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 text-lg leading-none ${panel === 'days' ? '' : 'invisible'}`}
             >‹</button>
-            <span className="text-sm font-bold text-gray-800">{monthLabel}</span>
             <button
               type="button"
-              onClick={() => navigate(1)}
-              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 text-lg leading-none"
+              onClick={() => setPanel(panel === 'years' ? 'days' : 'years')}
+              className="text-sm font-bold text-gray-800 px-2 py-1 rounded-lg hover:bg-sky-50 hover:text-sky-600 transition-colors"
+            >
+              {panel === 'years' ? 'اختر السنة' : panel === 'months' ? `اختر الشهر · ${viewYear}` : monthLabel} ▾
+            </button>
+            <button
+              type="button"
+              onClick={() => panel === 'days' ? navigate(1) : setPanel('days')}
+              className={`w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 text-lg leading-none ${panel === 'days' ? '' : 'invisible'}`}
             >›</button>
           </div>
 
+          {/* لوحة اختيار السنة */}
+          {panel === 'years' && (
+            <div className="grid grid-cols-4 gap-1 max-h-56 overflow-y-auto" dir="ltr">
+              {yearOptions().map((y) => (
+                <button
+                  key={y}
+                  type="button"
+                  ref={y === viewYear ? (el) => el?.scrollIntoView({ block: 'center' }) : undefined}
+                  onClick={() => pickYear(y)}
+                  className={`py-2 rounded-lg text-xs font-semibold transition-colors ${
+                    y === viewYear ? 'bg-sky-500 text-white' : 'text-gray-700 hover:bg-sky-50 hover:text-sky-600'
+                  }`}
+                >{y}</button>
+              ))}
+            </div>
+          )}
+
+          {/* لوحة اختيار الشهر */}
+          {panel === 'months' && (
+            <div className="grid grid-cols-3 gap-1">
+              {(mode === 'hijri' ? HIJRI_MONTHS : GREGORIAN_MONTHS_AR).map((name, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => pickMonth(i + 1)}
+                  className={`py-2 rounded-lg text-xs font-semibold transition-colors ${
+                    i + 1 === viewMonth ? 'bg-sky-500 text-white' : 'text-gray-700 hover:bg-sky-50 hover:text-sky-600'
+                  }`}
+                >{name}</button>
+              ))}
+            </div>
+          )}
+
           {/* Week headers + day grid — ltr for correct column order */}
-          <div dir="ltr">
-            <div className="grid grid-cols-7 mb-1">
-              {WEEK_HEADERS.map((h, i) => (
-                <div key={i} className="text-center text-xs font-semibold text-gray-400 py-1">{h}</div>
-              ))}
+          {panel === 'days' && (
+            <div dir="ltr">
+              <div className="grid grid-cols-7 mb-1">
+                {WEEK_HEADERS.map((h, i) => (
+                  <div key={i} className="text-center text-xs font-semibold text-gray-400 py-1">{h}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7">
+                {cells.map((day, i) => (
+                  <div key={i} className="flex items-center justify-center py-0.5">
+                    {day ? (
+                      <button
+                        type="button"
+                        onClick={() => selectDay(day)}
+                        className={`w-8 h-8 rounded-full text-xs font-medium transition-colors ${
+                          isSelected(day)
+                            ? 'bg-sky-500 text-white'
+                            : 'text-gray-700 hover:bg-sky-50 hover:text-sky-600'
+                        }`}
+                      >{day}</button>
+                    ) : (
+                      <div className="w-8 h-8" />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-7">
-              {cells.map((day, i) => (
-                <div key={i} className="flex items-center justify-center py-0.5">
-                  {day ? (
-                    <button
-                      type="button"
-                      onClick={() => selectDay(day)}
-                      className={`w-8 h-8 rounded-full text-xs font-medium transition-colors ${
-                        isSelected(day)
-                          ? 'bg-sky-500 text-white'
-                          : 'text-gray-700 hover:bg-sky-50 hover:text-sky-600'
-                      }`}
-                    >{day}</button>
-                  ) : (
-                    <div className="w-8 h-8" />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
 
         </div>,
         document.body,
