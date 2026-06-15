@@ -23,6 +23,7 @@ import ClientFormFields from '../components/ClientFormFields'
 import HijriDateInput from '../components/HijriDateInput'
 import MonthlyPaymentsPanel from '../components/MonthlyPaymentsPanel'
 import ClientCardIssuancesModal from '../components/ClientCardIssuancesModal'
+import CopyButton from '../components/CopyButton'
 import { useUiSettings } from '../hooks/useUiSettings'
 
 interface ClientListItem {
@@ -729,9 +730,19 @@ export default function ClientsPage() {
                         className="border-b border-gray-100 hover:bg-sky-50/40 cursor-pointer transition-colors"
                         onClick={() => navigate(`/clients/${c.id}`, { state: { from: '/clients' } })}
                       >
-                        <td className="px-4 py-2.5 font-semibold text-gray-900">{c.name ?? '—'}</td>
+                        <td className="px-4 py-2.5 font-semibold text-gray-900">
+                          <div className="flex items-center gap-1.5">
+                            <span>{c.name ?? '—'}</span>
+                            {c.name && <CopyButton value={c.name} label="اسم العميل" />}
+                          </div>
+                        </td>
                         <td className="px-4 py-2.5 font-mono text-xs text-gray-500 tracking-wide">
-                          {c.iqamaNumber ?? (
+                          {c.iqamaNumber ? (
+                            <div className="flex items-center gap-1.5">
+                              <span>{c.iqamaNumber}</span>
+                              <CopyButton value={c.iqamaNumber} label="رقم العميل" />
+                            </div>
+                          ) : (
                             <span className="inline-flex items-center rounded-full bg-sky-100 text-sky-700
                                              px-2 py-0.5 text-xs font-semibold">
                               تحت الإجراء
@@ -742,9 +753,17 @@ export default function ClientsPage() {
                           <IqamaBadge dateStr={c.iqamaEndDate} />
                         </td>
                         <td className="px-4 py-2.5 text-gray-600 text-sm">{c.cardType ?? '—'}</td>
-                        <td className="px-4 py-2.5 text-gray-700 font-medium text-sm">{c.organization?.name ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-gray-700 font-medium text-sm">
+                          <div className="flex items-center gap-1.5">
+                            <span>{c.organization?.name ?? '—'}</span>
+                            {c.organization?.name && <CopyButton value={c.organization.name} label="اسم المؤسسة" />}
+                          </div>
+                        </td>
                         <td className="px-4 py-2.5 font-mono text-xs text-gray-400 tracking-wide">
-                          {c.organization?.number ?? '—'}
+                          <div className="flex items-center gap-1.5">
+                            <span>{c.organization?.number ?? '—'}</span>
+                            {c.organization?.number && <CopyButton value={c.organization.number} label="رقم السجل" />}
+                          </div>
                         </td>
                         <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                           {c.iqamaNumber && (

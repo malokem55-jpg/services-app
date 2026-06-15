@@ -18,6 +18,7 @@ import {
 import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
 import OrgCardIssuancesModal from '../components/OrgCardIssuancesModal'
+import CopyButton from '../components/CopyButton'
 
 interface OrgItem {
   id: number
@@ -768,7 +769,10 @@ export default function OrganizationsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-2.5 font-mono text-xs text-gray-500 tracking-wide">
-                        {org.number ?? '—'}
+                        <div className="flex items-center gap-1.5">
+                          <span>{org.number ?? '—'}</span>
+                          {org.number && <CopyButton value={org.number} label="رقم السجل" />}
+                        </div>
                       </td>
                       <td className="px-4 py-2.5 text-gray-600 text-sm whitespace-nowrap">
                         {formatDate(org.expiredDate)}
