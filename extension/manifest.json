@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "مساعد تسجيل دخول المؤسسات",
   "description": "يفتح صفحة تسجيل دخول المنصة (مقيم أو الغرفة التجارية) ويملأ اسم المستخدم وكلمة المرور ببيانات المؤسسة المختارة من نظام الخدمات. لا يضغط زر الدخول.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "background": { "service_worker": "background.js" },
   "permissions": ["storage"],
   "host_permissions": [
@@ -22,7 +22,9 @@
         "http://localhost:4173/*",
         "http://127.0.0.1:5173/*",
         "http://127.0.0.1:4173/*",
-        "https://*.up.railway.app/*"
+        "https://*.up.railway.app/*",
+        "https://kayan-sys.com/*",
+        "https://www.kayan-sys.com/*"
       ],
       "js": ["content-app.js"],
       "run_at": "document_start"
