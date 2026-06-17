@@ -19,19 +19,24 @@ export async function getLastGrantAt(db: Tx | typeof prisma = prisma): Promise<D
   return setting?.lastGrantAt ?? new Date(0);
 }
 
-// منح كل المؤسسات رصيد 4 كروت جديدًا الآن — لا يغيّر أي تاريخ أو سجل قائم
+// بدء سنة هجرية جديدة: يمنح كل المؤسسات رصيد 4 كروت من جديد، ويمسح سجل كل
+// إصدارات الكروت، ويعيد حقل «كرت العمل» لكل العملاء إلى «بدون» — بداية نظيفة للسنة.
 export async function grantNewCards(): Promise<Date> {
   const now = new Date();
-  const setting = await prisma.cardGrantSetting.findFirst();
-  if (setting) {
-    await prisma.cardGrantSetting.update({
-      where: { id: setting.id },
-      data: { lastGrantAt: now },
-    });
-  } else {
-    await prisma.cardGrantSetting.create({ data: { lastGrantAt: now } });
-  }
-  return now;
+  return prisma.$transaction(async (tx) => {
+    const setting = await tx.cardGrantSetting.findFirst();
+    if (setting) {
+      await tx.cardGrantSetting.update({
+        where: { id: setting.id },
+        data: { lastGrantAt: now },
+      });
+    } else {
+      await tx.cardGrantSetting.create({ data: { lastGrantAt: now } });
+    }
+    await tx.cardIssuance.deleteMany({});
+    await tx.client.updateMany({ data: { cardType: NO_CARD, updatedAt: now } });
+    return now;
+  });
 }
 
 function monthsOf(cardType: string): number {

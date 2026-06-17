@@ -926,6 +926,8 @@ export default function OrganizationsPage() {
             <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
               <p className="text-sm text-amber-800 leading-relaxed">
                 سنة هجرية جديدة وستُمنح كل المؤسسات رصيد <span className="font-bold">4 كروت</span> جديدة فورًا.
+                وسيُحذف <span className="font-bold">سجل إصدارات الكروت بالكامل</span> ويعود كرت العمل لكل
+                العملاء إلى <span className="font-bold">«بدون»</span>. لا يمكن التراجع عن هذا الإجراء.
               </p>
             </div>
 
