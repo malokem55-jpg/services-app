@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "مساعد تسجيل دخول المؤسسات",
   "description": "يفتح صفحة تسجيل دخول المنصة (مقيم أو الغرفة التجارية) ويملأ اسم المستخدم وكلمة المرور ببيانات المؤسسة المختارة من نظام الخدمات. لا يضغط زر الدخول.",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "background": { "service_worker": "background.js" },
   "permissions": ["storage"],
   "host_permissions": [

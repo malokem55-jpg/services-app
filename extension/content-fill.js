@@ -2,11 +2,8 @@
 // يطلب البيانات المؤقتة من الخلفية، ينتظر ظهور فورم الدخول (الصفحة SPA)،
 // يملأ خانتي اسم المستخدم وكلمة المرور ثم يتوقف — الضغط على زر الدخول مسؤولية المستخدم.
 
-(async () => {
-  const creds = await chrome.runtime.sendMessage({ type: 'GET_CREDS' }).catch(() => null);
-  if (!creds || !creds.username) return;
-
-  const DEADLINE = Date.now() + 25000; // مهلة انتظار ظهور الفورم
+(() => {
+  const DEADLINE = Date.now() + 25000; // مهلة انتظار وصول البيانات وظهور الفورم
 
   // فورمات React/Angular تتجاهل تعيين value المباشر — نستخدم الـ setter الأصلي ونطلق أحداثًا حقيقية
   function setNativeValue(input, value) {
@@ -42,18 +39,32 @@
     return { user, pw };
   }
 
-  function tryFill() {
-    const fields = findFields();
-    if (!fields) return false;
-    if (fields.user) setNativeValue(fields.user, creds.username);
-    setNativeValue(fields.pw, creds.password);
-    return true;
-  }
+  // البيانات تُخزَّن في الخلفية بعد فتح التاب (غير متزامن) — قد لا تكون جاهزة عند أول طلب،
+  // لذا نطلبها داخل الحلقة ونعيد المحاولة حتى تصل، ثم ننتظر ظهور الفورم ونملأ.
+  let creds = null;
+  let busy = false;
 
-  const timer = setInterval(() => {
-    if (tryFill() || Date.now() > DEADLINE) {
-      clearInterval(timer);
-      chrome.runtime.sendMessage({ type: 'CREDS_USED' }).catch(() => {});
+  const timer = setInterval(async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      if (!creds || !creds.username) {
+        creds = await chrome.runtime.sendMessage({ type: 'GET_CREDS' }).catch(() => null);
+      }
+      const ready = creds && creds.username;
+      const fields = ready ? findFields() : null;
+
+      if (fields) {
+        if (fields.user) setNativeValue(fields.user, creds.username);
+        setNativeValue(fields.pw, creds.password);
+        clearInterval(timer);
+        chrome.runtime.sendMessage({ type: 'CREDS_USED' }).catch(() => {});
+        return;
+      }
+
+      if (Date.now() > DEADLINE) clearInterval(timer);
+    } finally {
+      busy = false;
     }
   }, 400);
 })();
