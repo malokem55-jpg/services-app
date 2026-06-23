@@ -143,6 +143,7 @@ model Client {
   payments        ClientPayment[]
   paymentMonthlies ClientPaymentMonthly[]
   cardIssuances   CardIssuance[]
+  receiptDayChanges ReceiptDayChange[]
 
   @@map("clients")
 }
@@ -320,6 +321,21 @@ model CredentialImportDraft {
   updatedAt DateTime? @map("updated_at")
 
   @@map("credential_import_drafts")
+}
+
+// سجل تغييرات يوم الاستلام للعملاء الشهريين: سطر لكل تغيير، يُعرض منه آخر 20 في لوحة malik.
+// لقطة الاسم تبقى للقراءة بعد حذف العميل (clientId يصبح null).
+model ReceiptDayChange {
+  id         Int      @id @default(autoincrement())
+  clientId   Int?     @map("client_id")
+  clientName String?  @map("client_name")
+  oldDay     Int?     @map("old_day")
+  newDay     Int      @map("new_day")
+  changedAt  DateTime @default(now()) @map("changed_at")
+  client     Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([changedAt])
+  @@map("receipt_day_changes")
 }
 
 model SentPushNotification {

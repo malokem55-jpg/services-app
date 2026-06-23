@@ -7,6 +7,7 @@ import {
   setMalikPassword,
   verifyMalikPassword,
 } from '../services/malik.service.js';
+import { listRecentReceiptDayChanges } from '../services/clients.service.js';
 
 // كلمة مرور واحدة للوحة /malik: إنشاء عند أول دخول، إدخال للفتح، وتغيير من الداخل.
 const router = Router();
@@ -66,6 +67,15 @@ router.put('/password', requireMalik, async (req: Request, res: Response, next: 
     const { password } = passwordSchema.parse(req.body);
     await setMalikPassword(password);
     res.json({ token: issueMalikToken() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/malik/receipt-day-changes — آخر 20 تغييرًا ليوم الاستلام في الدفعيات الشهرية
+router.get('/receipt-day-changes', requireMalik, async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json(await listRecentReceiptDayChanges());
   } catch (err) {
     next(err);
   }

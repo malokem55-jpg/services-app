@@ -228,6 +228,20 @@ async function shiftUpcomingInstallmentDays(
   }
 }
 
+// تسجيل تغيير يوم الاستلام لعميل شهري في سجل التغييرات (لعرضه في لوحة malik).
+// يُستدعى داخل نفس المعاملة بعد نقل الدفعيات القادمة لليوم الجديد.
+async function recordReceiptDayChange(
+  tx: Prisma.TransactionClient,
+  clientId: number,
+  clientName: string | null,
+  oldDay: number | null,
+  newDay: number,
+) {
+  await tx.receiptDayChange.create({
+    data: { clientId, clientName, oldDay, newDay, changedAt: new Date() },
+  });
+}
+
 // مدخلات الجدول الشهري بعد التحقق: القسط ويوم الاستلام وتاريخ انتهاء الإقامة كلها إلزامية
 function monthlyScheduleInputs(data: ClientCreateInput, fallback?: {
   monthlyReceiptDay: number | null;
@@ -393,6 +407,7 @@ export async function updateClient(id: number, data: ClientCreateInput) {
   const existing = await prisma.client.findUnique({
     where: { id },
     select: {
+      name: true,
       paymentType: true,
       monthlyReceiptDay: true,
       iqamaEndDate: true,
@@ -566,6 +581,7 @@ export async function updateClient(id: number, data: ClientCreateInput) {
       }
       if (dayChanged) {
         await shiftUpcomingInstallmentDays(tx, id, day);
+        await recordReceiptDayChange(tx, id, existing.name, existing.monthlyReceiptDay, day);
       }
       return tx.client.findUniqueOrThrow({ where: { id }, include: clientInclude });
     }, { timeout: 20000, maxWait: 10000 });
@@ -579,7 +595,9 @@ export async function updateClient(id: number, data: ClientCreateInput) {
         await repriceUnpaidInstallments(tx, id, data.amount as number);
       }
       if (dayChanged) {
-        await shiftUpcomingInstallmentDays(tx, id, parseReceiptDay(data.monthlyReceiptDay));
+        const newDay = parseReceiptDay(data.monthlyReceiptDay);
+        await shiftUpcomingInstallmentDays(tx, id, newDay);
+        await recordReceiptDayChange(tx, id, existing.name, existing.monthlyReceiptDay, newDay);
       }
       return tx.client.findUniqueOrThrow({ where: { id }, include: clientInclude });
     }, { timeout: 20000, maxWait: 10000 });
@@ -588,6 +606,21 @@ export async function updateClient(id: number, data: ClientCreateInput) {
 
   const updated = await prisma.client.update({ where: { id }, data: updateData, include: clientInclude });
   return finalizeRolling(id, rollingEnabled, updated);
+}
+
+// آخر 20 تغييرًا ليوم الاستلام في الدفعيات الشهرية — لعرضها في لوحة malik
+export async function listRecentReceiptDayChanges() {
+  return prisma.receiptDayChange.findMany({
+    orderBy: { changedAt: 'desc' },
+    take: 20,
+    select: {
+      id: true,
+      clientName: true,
+      oldDay: true,
+      newDay: true,
+      changedAt: true,
+    },
+  });
 }
 
 // عنصر دين واحد في تفاصيل أرشيف العميل المحذوف:
