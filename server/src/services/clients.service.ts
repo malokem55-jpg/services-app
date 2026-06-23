@@ -202,6 +202,32 @@ async function repriceUnpaidInstallments(
   }
 }
 
+// نقل يوم الاستلام لكل الدفعيات القادمة غير المسدّدة إلى اليوم الجديد، مع تثبيت
+// اليوم داخل طول الشهر (31 في فبراير → 28/29). الدفعيات المتأخرة (قبل اليوم)
+// لا تُمسّ — التعديل يطال "القادمة" فقط كما هي الحاجة.
+async function shiftUpcomingInstallmentDays(
+  tx: Prisma.TransactionClient,
+  clientId: number,
+  day: number,
+) {
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const upcoming = await tx.clientPaymentMonthly.findMany({
+    where: { clientId, status: { not: 'paid' }, receivedDate: { gte: today } },
+    select: { id: true, receivedDate: true },
+  });
+  for (const installment of upcoming) {
+    const current = installment.receivedDate;
+    if (!current) continue;
+    const shifted = dueDateIn(current.getUTCFullYear(), current.getUTCMonth(), day);
+    if (shifted.getTime() === current.getTime()) continue;
+    await tx.clientPaymentMonthly.update({
+      where: { id: installment.id },
+      data: { receivedDate: shifted, updatedAt: now },
+    });
+  }
+}
+
 // مدخلات الجدول الشهري بعد التحقق: القسط ويوم الاستلام وتاريخ انتهاء الإقامة كلها إلزامية
 function monthlyScheduleInputs(data: ClientCreateInput, fallback?: {
   monthlyReceiptDay: number | null;
@@ -391,6 +417,11 @@ export async function updateClient(id: number, data: ClientCreateInput) {
 
   const wasMonthly = existing.paymentType === MONTHLY;
   const staysMonthly = data.paymentType !== undefined ? data.paymentType === MONTHLY : wasMonthly;
+  // تغيُّر يوم الاستلام لعميل شهري قائم: تُنقل كل دفعياته القادمة إلى اليوم الجديد
+  const dayChanged =
+    wasMonthly && staysMonthly &&
+    data.monthlyReceiptDay !== undefined &&
+    data.monthlyReceiptDay !== existing.monthlyReceiptDay;
   // القيمة الفعلية للخيار بعد هذا التعديل — تحكم التوليد بعد انتهاء الإقامة
   const rollingEnabled = data.generateMonthlyAfterIqama ?? existing.generateMonthlyAfterIqama;
 
@@ -533,18 +564,26 @@ export async function updateClient(id: number, data: ClientCreateInput) {
           data: schedule.map((entry) => ({ ...entry, clientId: id })),
         });
       }
+      if (dayChanged) {
+        await shiftUpcomingInstallmentDays(tx, id, day);
+      }
       return tx.client.findUniqueOrThrow({ where: { id }, include: clientInclude });
     }, { timeout: 20000, maxWait: 10000 });
     return finalizeRolling(id, rollingEnabled, synced);
   }
 
-  if (amountChanged) {
-    const repriced = await prisma.$transaction(async (tx) => {
+  if (amountChanged || dayChanged) {
+    const updatedTx = await prisma.$transaction(async (tx) => {
       await tx.client.update({ where: { id }, data: updateData });
-      await repriceUnpaidInstallments(tx, id, data.amount as number);
+      if (amountChanged) {
+        await repriceUnpaidInstallments(tx, id, data.amount as number);
+      }
+      if (dayChanged) {
+        await shiftUpcomingInstallmentDays(tx, id, parseReceiptDay(data.monthlyReceiptDay));
+      }
       return tx.client.findUniqueOrThrow({ where: { id }, include: clientInclude });
     }, { timeout: 20000, maxWait: 10000 });
-    return finalizeRolling(id, rollingEnabled, repriced);
+    return finalizeRolling(id, rollingEnabled, updatedTx);
   }
 
   const updated = await prisma.client.update({ where: { id }, data: updateData, include: clientInclude });

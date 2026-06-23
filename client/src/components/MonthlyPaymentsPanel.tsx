@@ -106,8 +106,13 @@ export default function MonthlyPaymentsPanel({
           method: 'POST', body: JSON.stringify({ receivedAmount: received, notes: notes || undefined }),
         })
       } else {
+        // مبلغ مستلم صفر = الدفعية غير مدفوعة، فنعيد حالتها إلى "لم يتم الدفع"
         await apiFetch<unknown>(`/api/client-payment-monthlies/${row.id}`, {
-          method: 'PUT', body: JSON.stringify({ amount, receivedAmount: received, notes }),
+          method: 'PUT',
+          body: JSON.stringify({
+            amount, receivedAmount: received, notes,
+            ...(received === 0 && { status: 'un-paid' }),
+          }),
         })
       }
     },
