@@ -8,8 +8,6 @@ import type { IqamaAlert } from '../../hooks/useNotifications'
 // نسخة «عملاء تنبيهات الإقامات» داخل لوحة malik — للعرض فقط (تعتمد على تسجيل
 // دخول المستخدم في نفس المتصفح). تضيف عمود «الدفعيات» يفتح عرضًا للقراءة فقط.
 
-type FilterKey = 'all' | 'expired' | 'soon'
-
 interface AlertRow extends IqamaAlert {
   kind: 'expired' | 'soon'
 }
@@ -62,66 +60,26 @@ function KindBadge({ kind }: { kind: AlertRow['kind'] }) {
 }
 
 export default function IqamaAlertsMalikSection() {
-  const [filter, setFilter] = useState<FilterKey>('all')
   const [paymentsId, setPaymentsId] = useState<number | null>(null)
 
   const { data: notifs, isLoading, isError, error } = useNotifications()
 
-  // القائمتان منفصلتان زمنياً في السيرفر فلا تكرار بينهما
-  const allRows = useMemo<AlertRow[]>(() => {
-    const expired = (notifs?.iqamaExpired ?? []).map((c) => ({ ...c, kind: 'expired' as const }))
-    const soon = (notifs?.iqamaExpirySoon ?? []).map((c) => ({ ...c, kind: 'soon' as const }))
-    return [...expired, ...soon].sort((a, b) =>
-      (a.iqamaEndDate ?? '').localeCompare(b.iqamaEndDate ?? ''))
+  // هذا التبويب يقتصر على العملاء بدفع شهري وإقاماتهم منتهية فقط
+  const rows = useMemo<AlertRow[]>(() => {
+    return (notifs?.iqamaExpired ?? [])
+      .filter((c) => c.paymentType === 'شهري')
+      .map((c) => ({ ...c, kind: 'expired' as const }))
+      .sort((a, b) => (a.iqamaEndDate ?? '').localeCompare(b.iqamaEndDate ?? ''))
   }, [notifs])
-
-  const expiredCount = notifs?.iqamaExpired.length ?? 0
-  const soonCount = notifs?.iqamaExpirySoon.length ?? 0
-
-  const rows = useMemo(() => {
-    if (filter === 'expired') return allRows.filter((r) => r.kind === 'expired')
-    if (filter === 'soon') return allRows.filter((r) => r.kind === 'soon')
-    return allRows
-  }, [allRows, filter])
-
-  const FILTERS: { key: FilterKey; label: string; count: number; activeCls: string }[] = [
-    { key: 'all', label: 'الكل', count: expiredCount + soonCount, activeCls: 'bg-sky-600 text-white border-sky-600' },
-    { key: 'expired', label: 'اقامات منتهية', count: expiredCount, activeCls: 'bg-red-500 text-white border-red-500' },
-    { key: 'soon', label: 'اقامات قبل 30 يوم', count: soonCount, activeCls: 'bg-amber-500 text-white border-amber-500' },
-  ]
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6 md:py-5 page-enter">
       {/* ── ترويسة القسم ── */}
       <div className="mb-4">
-        <h2 className="text-xl font-bold text-gray-900">عملاء تنبيهات الإقامات</h2>
+        <h2 className="text-xl font-bold text-gray-900">إقامات منتهية — دفع شهري</h2>
         {!isLoading && !isError && (
           <p className="text-sm text-gray-500 mt-0.5">{rows.length} عميل</p>
         )}
-      </div>
-
-      {/* ── أزرار الفلترة ── */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {FILTERS.map(({ key, label, count, activeCls }) => (
-          <button
-            key={key}
-            onClick={() => setFilter(key)}
-            className={`flex items-center gap-1.5 rounded-xl border px-4 py-2.5 min-h-11 text-sm font-semibold
-                        transition-colors ${
-                          filter === key
-                            ? `${activeCls} shadow-sm`
-                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                        }`}
-          >
-            <span>{label}</span>
-            <span className={`inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full
-                              text-[11px] font-bold ${
-                                filter === key ? 'bg-white/25' : 'bg-gray-100 text-gray-500'
-                              }`}>
-              {count}
-            </span>
-          </button>
-        ))}
       </div>
 
       {isError && (
@@ -142,7 +100,7 @@ export default function IqamaAlertsMalikSection() {
           ))
         ) : rows.length === 0 && !isError ? (
           <div className="flex flex-col items-center py-16 text-center">
-            <p className="text-gray-500 font-medium">لا يوجد عملاء في هذا التنبيه</p>
+            <p className="text-gray-500 font-medium">لا يوجد عملاء بدفع شهري وإقامة منتهية</p>
           </div>
         ) : (
           rows.map((c) => (
@@ -205,7 +163,7 @@ export default function IqamaAlertsMalikSection() {
               ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-16 text-center text-gray-500 font-medium">
-                    لا يوجد عملاء في هذا التنبيه
+                    لا يوجد عملاء بدفع شهري وإقامة منتهية
                   </td>
                 </tr>
               ) : (
