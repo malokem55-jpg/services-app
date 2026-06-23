@@ -245,6 +245,7 @@ export async function listClients(search?: string, organizationId?: number) {
       boardNumber: true,
       cardType: true,
       paymentType: true,
+      monthlyReceiptDay: true,
       nextPaymentDate: true,
       amount: true,
       lastStepId: true,

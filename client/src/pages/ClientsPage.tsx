@@ -34,6 +34,7 @@ interface ClientListItem {
   boardNumber: string | null
   cardType: string | null
   paymentType: string | null
+  monthlyReceiptDay: number | null
   organization: { id: number; name: string | null; number: string | null } | null
   steps: Array<{ step: { id: number; name: string | null } | null }>
 }
@@ -154,6 +155,7 @@ export default function ClientsPage() {
   const [iqamaSearch, setIqamaSearch] = useState('')
   const [orgFilter, setOrgFilter] = useState('')
   const [stepFilter, setStepFilter] = useState('')
+  const [monthlyNoReceiptDay, setMonthlyNoReceiptDay] = useState(false)
   // الافتراضي حسب ضبط الصفحات: «المكتملين» إذا كانت صفحة تحت الإجراء مفعّلة
   // (لأن إدارتهم في صفحتهم المستقلة)، و«كل العملاء» إذا كانت معطّلة
   const { data: uiSettings } = useUiSettings()
@@ -290,11 +292,12 @@ export default function ClientsPage() {
       if (stepFilter && String(c.steps[0]?.step?.id ?? '') !== stepFilter) return false
       if (clientTypeFilter === 'under-procedure' && c.iqamaNumber) return false
       if (clientTypeFilter === 'completed' && !c.iqamaNumber) return false
+      if (monthlyNoReceiptDay && (c.paymentType !== 'شهري' || c.monthlyReceiptDay != null)) return false
       return true
     })
-  }, [clients, nameSearch, iqamaSearch, orgFilter, stepFilter, clientTypeFilter])
+  }, [clients, nameSearch, iqamaSearch, orgFilter, stepFilter, clientTypeFilter, monthlyNoReceiptDay])
 
-  const hasFilters = nameSearch || iqamaSearch || orgFilter || stepFilter || clientTypeFilter
+  const hasFilters = nameSearch || iqamaSearch || orgFilter || stepFilter || clientTypeFilter || monthlyNoReceiptDay
 
   const addPayment = useMutation({
     mutationFn: (body: { clientId: number; amount?: number; isDone: boolean; notes?: string }) =>
@@ -562,6 +565,17 @@ export default function ClientsPage() {
             </select>
           )}
         </div>
+
+        {/* ── Monthly-without-receipt-day filter ── */}
+        <label className="flex items-center gap-2 mb-4 md:shrink-0 cursor-pointer select-none w-fit">
+          <input
+            type="checkbox"
+            checked={monthlyNoReceiptDay}
+            onChange={(e) => setMonthlyNoReceiptDay(e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+          />
+          <span className="text-sm text-gray-700">الدفع الشهري بدون يوم استلام</span>
+        </label>
 
         {isError && (
           <div role="alert" className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
