@@ -4,16 +4,17 @@ import MobileAccessSection from '../components/malik/MobileAccessSection'
 import CredentialsImportSection from '../components/malik/CredentialsImportSection'
 import DataImportSection from '../components/malik/DataImportSection'
 import ReceiptDayChangesSection from '../components/malik/ReceiptDayChangesSection'
+import IqamaAlertsMalikSection from '../components/malik/IqamaAlertsMalikSection'
 import MalikPasswordSection from '../components/malik/MalikPasswordSection'
 
 // لوحة تحكم malik: صفحة مخفية تُفتح بالرابط /malik بكلمة مرور واحدة (بلا تسجيل دخول)،
 // تجمع أربع أدوات في تبويبات: تشغيل الموقع على الهاتف، حسابات مقيم والغرفة،
 // استيراد قاعدة البيانات، وتغيير كلمة مرور اللوحة.
 
-type Tab = 'mobile' | 'credentials' | 'data' | 'receiptChanges' | 'password'
+type Tab = 'mobile' | 'credentials' | 'data' | 'receiptChanges' | 'iqamaAlerts' | 'password'
 
 // لون مميّز لكل أداة يظهر على الأيقونة في شريط التبويبات
-type Accent = 'sky' | 'indigo' | 'rose' | 'amber' | 'emerald'
+type Accent = 'sky' | 'indigo' | 'rose' | 'amber' | 'red' | 'emerald'
 
 interface TabDef {
   key: Tab
@@ -70,6 +71,17 @@ const TABS: TabDef[] = [
     ),
   },
   {
+    key: 'iqamaAlerts',
+    label: 'تنبيهات الإقامات',
+    accent: 'red',
+    icon: (
+      <svg className={ICON} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round"
+          d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+      </svg>
+    ),
+  },
+  {
     key: 'password',
     label: 'كلمة المرور',
     accent: 'emerald',
@@ -88,6 +100,7 @@ const ACCENT_TEXT: Record<Accent, string> = {
   indigo: 'text-indigo-500',
   rose: 'text-rose-500',
   amber: 'text-amber-500',
+  red: 'text-red-500',
   emerald: 'text-emerald-500',
 }
 
@@ -147,6 +160,7 @@ function MalikPanel() {
       {tab === 'credentials' && <CredentialsImportSection />}
       {tab === 'data' && <DataImportSection />}
       {tab === 'receiptChanges' && <ReceiptDayChangesSection />}
+      {tab === 'iqamaAlerts' && <IqamaAlertsMalikSection />}
       {tab === 'password' && <MalikPasswordSection />}
     </div>
   )
