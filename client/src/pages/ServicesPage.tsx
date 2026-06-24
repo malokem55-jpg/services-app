@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
 import Navbar from '../components/Navbar'
 import StepsPanel from '../components/StepsPanel'
+import CopyButton from '../components/CopyButton'
 
 interface ServiceItem {
   id: number
@@ -100,6 +101,7 @@ export default function ServicesPage() {
                                   hasSteps ? 'bg-sky-400' : 'bg-gray-300'
                                 }`} />
                                 <span className="font-semibold text-gray-900">{svc.name ?? '—'}</span>
+                                {svc.name && <CopyButton value={svc.name} label="الخدمة" />}
                               </div>
                             </td>
                             <td className="px-4 py-2.5 text-center">

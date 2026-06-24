@@ -6,6 +6,7 @@ import Modal from '../components/Modal'
 import HijriDateInput from '../components/HijriDateInput'
 import MonthlyPaymentsPanel from '../components/MonthlyPaymentsPanel'
 import ClientCardIssuancesModal from '../components/ClientCardIssuancesModal'
+import CopyButton from '../components/CopyButton'
 import { apiFetch } from '../lib/api'
 import { formatBothDates } from '../lib/hijri'
 import { useNotifications } from '../hooks/useNotifications'
@@ -411,11 +412,36 @@ export default function IqamaAlertsClientsPage() {
                       className="border-b border-gray-100 hover:bg-sky-50/40 cursor-pointer transition-colors"
                       onClick={() => openDetailPage(c.id)}
                     >
-                      <td className="px-4 py-2.5 font-semibold text-gray-900">{c.name ?? '—'}</td>
-                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500 tracking-wide">{c.iqamaNumber ?? '—'}</td>
-                      <td className="px-4 py-2.5 text-gray-700">{fmtDate(c.iqamaEndDate)}</td>
-                      <td className="px-4 py-2.5 text-gray-700 font-medium">{c.organization?.name ?? '—'}</td>
-                      <td className="px-4 py-2.5 text-gray-500">{c.paymentType ?? '—'}</td>
+                      <td className="px-4 py-2.5 font-semibold text-gray-900">
+                        <div className="flex items-center gap-1.5">
+                          <span>{c.name ?? '—'}</span>
+                          {c.name && <CopyButton value={c.name} label="اسم العميل" />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500 tracking-wide">
+                        <div className="flex items-center gap-1.5">
+                          <span>{c.iqamaNumber ?? '—'}</span>
+                          {c.iqamaNumber && <CopyButton value={c.iqamaNumber} label="رقم الإقامة" />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-700">
+                        <div className="flex items-center gap-1.5">
+                          <span>{fmtDate(c.iqamaEndDate)}</span>
+                          {c.iqamaEndDate && <CopyButton value={fmtDate(c.iqamaEndDate)} label="تاريخ الانتهاء" />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-700 font-medium">
+                        <div className="flex items-center gap-1.5">
+                          <span>{c.organization?.name ?? '—'}</span>
+                          {c.organization?.name && <CopyButton value={c.organization.name} label="المؤسسة" />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-500">
+                        <div className="flex items-center gap-1.5">
+                          <span>{c.paymentType ?? '—'}</span>
+                          {c.paymentType && <CopyButton value={c.paymentType} label="طريقة الدفع" />}
+                        </div>
+                      </td>
                       <td className="px-4 py-2.5"><KindBadge kind={c.kind} /></td>
                       <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
@@ -594,10 +620,23 @@ export default function IqamaAlertsClientsPage() {
                     detailClient.payments.map((p) => (
                       <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
                         <td className="px-4 py-3 font-semibold text-gray-900">
-                          {p.amount != null ? p.amount.toLocaleString('en-US') : '—'}
+                          <div className="flex items-center gap-1.5">
+                            <span>{p.amount != null ? p.amount.toLocaleString('en-US') : '—'}</span>
+                            {p.amount != null && <CopyButton value={p.amount.toLocaleString('en-US')} label="المبلغ" />}
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-gray-500">{p.createdAt ? p.createdAt.slice(0, 10) : '—'}</td>
-                        <td className="px-4 py-3 text-gray-400 text-xs">{p.notes ?? ''}</td>
+                        <td className="px-4 py-3 text-gray-500">
+                          <div className="flex items-center gap-1.5">
+                            <span>{p.createdAt ? p.createdAt.slice(0, 10) : '—'}</span>
+                            {p.createdAt && <CopyButton value={p.createdAt.slice(0, 10)} label="التاريخ" />}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-400 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span>{p.notes ?? ''}</span>
+                            {p.notes && <CopyButton value={p.notes} label="ملاحظات" />}
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-center">
                           {deletePayId === p.id ? (
                             <div className="flex items-center gap-1 justify-center">

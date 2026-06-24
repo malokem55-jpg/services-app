@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
+import CopyButton from '../components/CopyButton'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -286,11 +287,24 @@ function CollectionsTable({ due }: { due: DeletedClientDue }) {
                     </>
                   ) : (
                     <>
-                      <td className="px-4 py-3 text-gray-500">{fmtDate(c.date)}</td>
-                      <td className="px-4 py-3 font-semibold text-emerald-600">
-                        {fmt(c.amount)} ر.س
+                      <td className="px-4 py-3 text-gray-500">
+                        <div className="flex items-center gap-1.5">
+                          <span>{fmtDate(c.date)}</span>
+                          {c.date && <CopyButton value={fmtDate(c.date)} label="تاريخ التحصيل" />}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-400 text-xs">{c.notes ?? ''}</td>
+                      <td className="px-4 py-3 font-semibold text-emerald-600">
+                        <div className="flex items-center gap-1.5">
+                          <span>{fmt(c.amount)} ر.س</span>
+                          {c.amount != null && <CopyButton value={fmt(c.amount)} label="المبلغ المحصَّل" />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span>{c.notes ?? ''}</span>
+                          {c.notes && <CopyButton value={c.notes} label="ملاحظات" />}
+                        </div>
+                      </td>
                       <td className="px-4 py-3">
                         {deleteIndex === i ? (
                           <div className="flex items-center gap-1.5 justify-center">

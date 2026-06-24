@@ -634,7 +634,12 @@ export default function UnderProcedureClientsPage() {
                           {c.boardNumber && <CopyButton value={c.boardNumber} label="رقم الحدود" />}
                         </div>
                       </td>
-                      <td className="px-4 py-2.5 text-gray-600 text-sm">{c.arrivalPlace?.name ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-600 text-sm">
+                        <div className="flex items-center gap-1.5">
+                          <span>{c.arrivalPlace?.name ?? '—'}</span>
+                          {c.arrivalPlace?.name && <CopyButton value={c.arrivalPlace.name} label="جهة القدوم" />}
+                        </div>
+                      </td>
                       <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={(e) => { e.stopPropagation(); setDetailId(c.id); setModalView('issue-iqama') }}
@@ -778,9 +783,24 @@ export default function UnderProcedureClientsPage() {
                 ) : (
                   detailClient.steps.map((s) => (
                     <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">{s.step?.name ?? '—'}</td>
-                      <td className="px-4 py-3 text-gray-500">{s.step?.number ?? '—'}</td>
-                      <td className="px-4 py-3 text-gray-500">{s.stepDate ? s.stepDate.slice(0, 10) : '—'}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        <div className="flex items-center gap-1.5">
+                          <span>{s.step?.name ?? '—'}</span>
+                          {s.step?.name && <CopyButton value={s.step.name} label="الخطوة" />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">
+                        <div className="flex items-center gap-1.5">
+                          <span>{s.step?.number ?? '—'}</span>
+                          {s.step?.number != null && <CopyButton value={String(s.step.number)} label="رقم الخطوة" />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">
+                        <div className="flex items-center gap-1.5">
+                          <span>{s.stepDate ? s.stepDate.slice(0, 10) : '—'}</span>
+                          {s.stepDate && <CopyButton value={s.stepDate.slice(0, 10)} label="التاريخ" />}
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -865,10 +885,23 @@ export default function UnderProcedureClientsPage() {
                     detailClient.payments.map((p) => (
                       <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
                         <td className="px-4 py-3 font-semibold text-gray-900">
-                          {p.amount != null ? p.amount.toLocaleString('en-US') : '—'}
+                          <div className="flex items-center gap-1.5">
+                            <span>{p.amount != null ? p.amount.toLocaleString('en-US') : '—'}</span>
+                            {p.amount != null && <CopyButton value={p.amount.toLocaleString('en-US')} label="المبلغ" />}
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-gray-500">{p.createdAt ? p.createdAt.slice(0, 10) : '—'}</td>
-                        <td className="px-4 py-3 text-gray-400 text-xs">{p.notes ?? ''}</td>
+                        <td className="px-4 py-3 text-gray-500">
+                          <div className="flex items-center gap-1.5">
+                            <span>{p.createdAt ? p.createdAt.slice(0, 10) : '—'}</span>
+                            {p.createdAt && <CopyButton value={p.createdAt.slice(0, 10)} label="التاريخ" />}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-400 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span>{p.notes ?? ''}</span>
+                            {p.notes && <CopyButton value={p.notes} label="ملاحظات" />}
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-center">
                           {deletePayId === p.id ? (
                             <div className="flex items-center gap-1 justify-center">

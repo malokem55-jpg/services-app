@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
 import Modal from './Modal'
+import CopyButton from './CopyButton'
 import {
   useLoginPlatforms,
   useCredentialSummaries,
@@ -579,7 +580,12 @@ export default function PlatformCredentialsTab() {
               <tbody>
                 {filteredOrgs.map((org) => (
                   <tr key={org.id} className="border-b border-gray-100 last:border-0 hover:bg-sky-50/40 transition-colors">
-                    <td className="px-4 py-3 md:py-2 font-semibold text-gray-900">{org.name ?? '—'}</td>
+                    <td className="px-4 py-3 md:py-2 font-semibold text-gray-900">
+                      <div className="flex items-center gap-1.5">
+                        <span>{org.name ?? '—'}</span>
+                        {org.name && <CopyButton value={org.name} label="اسم المؤسسة" />}
+                      </div>
+                    </td>
                     {visiblePlatforms.map((p) => {
                       const saved = hasCreds(org.id, p.key)
                       return (

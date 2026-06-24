@@ -20,6 +20,7 @@ import ClientEditFormFields from '../components/ClientEditFormFields'
 import ClientCardIssuancesModal from '../components/ClientCardIssuancesModal'
 import HijriDateInput from '../components/HijriDateInput'
 import MonthlyPaymentsPanel from '../components/MonthlyPaymentsPanel'
+import CopyButton from '../components/CopyButton'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -161,7 +162,12 @@ function InfoField({ label, value, custom }: { label: string; value?: string | n
   return (
     <div>
       <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-      {custom ?? <p className="text-sm font-semibold text-gray-900">{value ?? '—'}</p>}
+      {custom ?? (
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-semibold text-gray-900">{value ?? '—'}</p>
+          {value && <CopyButton value={value} label={label} />}
+        </div>
+      )}
     </div>
   )
 }
@@ -560,7 +566,10 @@ export default function ClientDetailPage() {
               {/* المتبقي */}
               <div className="bg-sky-50 border border-sky-100 rounded-xl px-4 py-3 mb-5">
                 <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
-                <p className="text-lg font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-lg font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
+                  <CopyButton value={remaining.toLocaleString('en-US')} label="المتبقي" />
+                </div>
               </div>
 
               {/* أزرار الإجراءات */}
@@ -636,11 +645,17 @@ export default function ClientDetailPage() {
                 <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 mb-5">
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">المبلغ المدفوع</p>
-                    <p className="text-base font-bold text-emerald-600">{paidAmount.toLocaleString('en-US')}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-base font-bold text-emerald-600">{paidAmount.toLocaleString('en-US')}</p>
+                      <CopyButton value={paidAmount.toLocaleString('en-US')} label="المبلغ المدفوع" />
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
-                    <p className="text-base font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-base font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
+                      <CopyButton value={remaining.toLocaleString('en-US')} label="المتبقي" />
+                    </div>
                   </div>
                 </div>
               )}
@@ -736,9 +751,24 @@ export default function ClientDetailPage() {
                 ) : (
                   client.steps.map((s) => (
                     <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">{s.step?.name ?? '—'}</td>
-                      <td className="px-4 py-3 text-gray-500">{s.step?.order ?? '—'}</td>
-                      <td className="px-4 py-3 text-gray-500">{s.stepDate ? s.stepDate.slice(0, 10) : '—'}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        <div className="flex items-center gap-1.5">
+                          <span>{s.step?.name ?? '—'}</span>
+                          {s.step?.name && <CopyButton value={s.step.name} label="الخطوة" />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">
+                        <div className="flex items-center gap-1.5">
+                          <span>{s.step?.order ?? '—'}</span>
+                          {s.step?.order != null && <CopyButton value={String(s.step.order)} label="رقم الخطوة" />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">
+                        <div className="flex items-center gap-1.5">
+                          <span>{s.stepDate ? s.stepDate.slice(0, 10) : '—'}</span>
+                          {s.stepDate && <CopyButton value={s.stepDate.slice(0, 10)} label="التاريخ" />}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         {deleteStepId === s.id ? (
                           <DeleteConfirm
@@ -836,12 +866,23 @@ export default function ClientDetailPage() {
                   client.payments.map((p) => (
                     <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-3 font-semibold text-gray-900">
-                        {p.amount != null ? `${p.amount.toLocaleString('en-US')} ر.س` : '—'}
+                        <div className="flex items-center gap-1.5">
+                          <span>{p.amount != null ? `${p.amount.toLocaleString('en-US')} ر.س` : '—'}</span>
+                          {p.amount != null && <CopyButton value={p.amount.toLocaleString('en-US')} label="المبلغ" />}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-gray-500">
-                        {p.createdAt ? p.createdAt.slice(0, 10) : '—'}
+                        <div className="flex items-center gap-1.5">
+                          <span>{p.createdAt ? p.createdAt.slice(0, 10) : '—'}</span>
+                          {p.createdAt && <CopyButton value={p.createdAt.slice(0, 10)} label="التاريخ" />}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-400 text-xs">{p.notes ?? ''}</td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span>{p.notes ?? ''}</span>
+                          {p.notes && <CopyButton value={p.notes} label="ملاحظات" />}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         {deletePaymentId === p.id ? (
                           <DeleteConfirm

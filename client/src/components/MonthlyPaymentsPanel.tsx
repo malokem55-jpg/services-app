@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
+import CopyButton from './CopyButton'
 
 interface MonthlyPayment {
   id: number
@@ -244,9 +245,17 @@ export default function MonthlyPaymentsPanel({
                 return (
                   <MonthlyRowGroup key={m.id}>
                     <tr className="border-t border-gray-100 hover:bg-gray-50">
-                      <td className="px-3 py-3 text-gray-700">{m.month ?? '—'}</td>
+                      <td className="px-3 py-3 text-gray-700">
+                        <div className="flex items-center gap-1.5">
+                          <span>{m.month ?? '—'}</span>
+                          {m.month && <CopyButton value={m.month} label="الشهر" />}
+                        </div>
+                      </td>
                       <td className="px-3 py-3 text-gray-500 whitespace-nowrap">
-                        {m.receivedDate ? m.receivedDate.slice(0, 10) : '—'}
+                        <div className="flex items-center gap-1.5">
+                          <span>{m.receivedDate ? m.receivedDate.slice(0, 10) : '—'}</span>
+                          {m.receivedDate && <CopyButton value={m.receivedDate.slice(0, 10)} label="تاريخ الاستلام" />}
+                        </div>
                       </td>
 
                       {isEditing ? (
@@ -275,9 +284,24 @@ export default function MonthlyPaymentsPanel({
                         </>
                       ) : (
                         <>
-                          <td className="px-3 py-3 font-semibold text-gray-900">{fmt(m.amount)}</td>
-                          <td className="px-3 py-3 text-gray-700">{fmt(m.receivedAmount)}</td>
-                          <td className="px-3 py-3 text-gray-400 text-xs">{m.notes ?? ''}</td>
+                          <td className="px-3 py-3 font-semibold text-gray-900">
+                            <div className="flex items-center gap-1.5">
+                              <span>{fmt(m.amount)}</span>
+                              {m.amount != null && <CopyButton value={fmt(m.amount)} label="المبلغ" />}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-gray-700">
+                            <div className="flex items-center gap-1.5">
+                              <span>{fmt(m.receivedAmount)}</span>
+                              {m.receivedAmount != null && <CopyButton value={fmt(m.receivedAmount)} label="المبلغ المستلم" />}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-gray-400 text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <span>{m.notes ?? ''}</span>
+                              {m.notes && <CopyButton value={m.notes} label="ملاحظات" />}
+                            </div>
+                          </td>
                         </>
                       )}
 

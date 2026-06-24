@@ -182,13 +182,24 @@ function OrgClientsModal({
                             onClick={() => { navigate(`/clients/${c.id}`); onClose() }}
                           >
                             <td className="px-3 py-3 font-semibold text-gray-900 whitespace-nowrap">
-                              {c.name ?? '—'}
+                              <div className="flex items-center gap-1.5">
+                                <span>{c.name ?? '—'}</span>
+                                {c.name && <CopyButton value={c.name} label="اسم العميل" />}
+                              </div>
                             </td>
                             <td className="px-3 py-3 text-gray-600 font-mono text-xs whitespace-nowrap">
-                              {c.phone ?? '—'}
+                              <div className="flex items-center gap-1.5">
+                                <span>{c.phone ?? '—'}</span>
+                                {c.phone && <CopyButton value={c.phone} label="رقم الهاتف" />}
+                              </div>
                             </td>
                             <td className="px-3 py-3 font-mono text-xs text-gray-500 tracking-wide whitespace-nowrap">
-                              {c.iqamaNumber ? c.iqamaNumber : (
+                              {c.iqamaNumber ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span>{c.iqamaNumber}</span>
+                                  <CopyButton value={c.iqamaNumber} label="رقم الإقامة" />
+                                </div>
+                              ) : (
                                 <span className="inline-flex items-center rounded-full bg-sky-100 text-sky-700
                                                  px-2 py-0.5 text-xs font-semibold">
                                   تحت الإجراء
@@ -196,10 +207,16 @@ function OrgClientsModal({
                               )}
                             </td>
                             <td className={`px-3 py-3 text-xs whitespace-nowrap ${endDateCls}`}>
-                              {c.iqamaEndDate ? c.iqamaEndDate.slice(0, 10) : '—'}
+                              <div className="flex items-center gap-1.5">
+                                <span>{c.iqamaEndDate ? c.iqamaEndDate.slice(0, 10) : '—'}</span>
+                                {c.iqamaEndDate && <CopyButton value={c.iqamaEndDate.slice(0, 10)} label="تاريخ إنتهاء الإقامة" />}
+                              </div>
                             </td>
                             <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">
-                              {c.cardType ?? '—'}
+                              <div className="flex items-center gap-1.5">
+                                <span>{c.cardType ?? '—'}</span>
+                                {c.cardType && <CopyButton value={c.cardType} label="كرت العمل" />}
+                              </div>
                             </td>
                             <td className="px-3 py-3 text-center">
                               <span className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold
@@ -208,7 +225,10 @@ function OrgClientsModal({
                               </span>
                             </td>
                             <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">
-                              {c.organization?.name ?? '—'}
+                              <div className="flex items-center gap-1.5">
+                                <span>{c.organization?.name ?? '—'}</span>
+                                {c.organization?.name && <CopyButton value={c.organization.name} label="المؤسسة" />}
+                              </div>
                             </td>
                             <td className="px-3 py-3 text-center">
                               <svg className="w-3.5 h-3.5 text-gray-300 inline-block" fill="none"
@@ -775,7 +795,10 @@ export default function OrganizationsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-2.5 text-gray-600 text-sm whitespace-nowrap">
-                        {formatDate(org.expiredDate)}
+                        <div className="flex items-center gap-1.5">
+                          <span>{formatDate(org.expiredDate)}</span>
+                          {org.expiredDate && <CopyButton value={formatDate(org.expiredDate)} label="انتهاء السجل" />}
+                        </div>
                       </td>
                       {enabledPlatforms.map((p) => (
                         <td key={p.key} className="px-4 py-2.5 text-center cursor-default whitespace-nowrap"

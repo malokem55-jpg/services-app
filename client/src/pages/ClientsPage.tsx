@@ -766,7 +766,12 @@ export default function ClientsPage() {
                         <td className="px-4 py-2.5">
                           <IqamaBadge dateStr={c.iqamaEndDate} />
                         </td>
-                        <td className="px-4 py-2.5 text-gray-600 text-sm">{c.cardType ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-gray-600 text-sm">
+                          <div className="flex items-center gap-1.5">
+                            <span>{c.cardType ?? '—'}</span>
+                            {c.cardType && <CopyButton value={c.cardType} label="كرت العمل" />}
+                          </div>
+                        </td>
                         <td className="px-4 py-2.5 text-gray-700 font-medium text-sm">
                           <div className="flex items-center gap-1.5">
                             <span>{c.organization?.name ?? '—'}</span>
@@ -846,13 +851,19 @@ export default function ClientsPage() {
                     ].map(({ label, val }) => (
                       <div key={label}>
                         <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-                        <p className="text-sm font-semibold text-gray-900">{val ?? '—'}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-gray-900">{val ?? '—'}</p>
+                          {val && <CopyButton value={String(val)} label={label} />}
+                        </div>
                       </div>
                     ))}
                   </div>
                   <div className="bg-sky-50 border border-sky-100 rounded-xl px-4 py-3 mb-5">
                     <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
-                    <p className="text-lg font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-lg font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
+                      <CopyButton value={remaining.toLocaleString('en-US')} label="المتبقي" />
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2.5">
                     <button onClick={() => setModalView('steps')}
@@ -885,7 +896,10 @@ export default function ClientsPage() {
                     ].map(({ label, val }) => (
                       <div key={label}>
                         <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-                        <p className="text-sm font-semibold text-gray-900">{val ?? '—'}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-gray-900">{val ?? '—'}</p>
+                          {val && <CopyButton value={String(val)} label={label} />}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -894,26 +908,38 @@ export default function ClientsPage() {
                     <div className="grid grid-cols-2 gap-4 mb-5">
                       <div>
                         <p className="text-xs text-gray-400 mb-0.5">تاريخ الدفعة القادمة</p>
-                        <p className="text-sm font-semibold text-gray-900">
-                          {nextMonthlyDue ?? '—'}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {nextMonthlyDue ?? '—'}
+                          </p>
+                          {nextMonthlyDue && <CopyButton value={String(nextMonthlyDue)} label="تاريخ الدفعة القادمة" />}
+                        </div>
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 mb-0.5">يوم الاستلام في الشهر</p>
-                        <p className="text-sm font-semibold text-gray-900">
-                          {detailClient.monthlyReceiptDay ?? '—'}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {detailClient.monthlyReceiptDay ?? '—'}
+                          </p>
+                          {detailClient.monthlyReceiptDay != null && <CopyButton value={String(detailClient.monthlyReceiptDay)} label="يوم الاستلام في الشهر" />}
+                        </div>
                       </div>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 mb-5">
                       <div>
                         <p className="text-xs text-gray-400 mb-0.5">المبلغ المدفوع</p>
-                        <p className="text-base font-bold text-emerald-600">{paidAmount.toLocaleString('en-US')}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-base font-bold text-emerald-600">{paidAmount.toLocaleString('en-US')}</p>
+                          <CopyButton value={paidAmount.toLocaleString('en-US')} label="المبلغ المدفوع" />
+                        </div>
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
-                        <p className="text-base font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-base font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
+                          <CopyButton value={remaining.toLocaleString('en-US')} label="المتبقي" />
+                        </div>
                       </div>
                     </div>
                   )}

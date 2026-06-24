@@ -1,6 +1,7 @@
 import type { ClientFormData, ServiceOption, OrgOption, ServiceStepOption, StepFormEntry, ArrivalPlaceOption } from '../lib/clientForm'
 import { CARD_TYPE_OPTIONS } from '../lib/clientForm'
 import HijriDateInput from './HijriDateInput'
+import CopyButton from './CopyButton'
 
 interface Props {
   form: ClientFormData
@@ -394,8 +395,18 @@ export default function ClientFormFields({
                           const entry = stepEntries.find((e) => e.stepId === step.id)
                           return (
                             <tr key={step.id} className="border-t border-gray-100 hover:bg-gray-50">
-                              <td className="px-3 py-2.5 font-medium text-gray-800">{step.name}</td>
-                              <td className="px-3 py-2.5 text-gray-500 text-center">{step.number ?? step.order}</td>
+                              <td className="px-3 py-2.5 font-medium text-gray-800">
+                                <div className="flex items-center gap-1.5">
+                                  <span>{step.name}</span>
+                                  {step.name && <CopyButton value={step.name} label="الخطوة" />}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2.5 text-gray-500 text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <span>{step.number ?? step.order}</span>
+                                  {(step.number ?? step.order) != null && <CopyButton value={String(step.number ?? step.order)} label="رقم الخطوة" />}
+                                </div>
+                              </td>
                               <td className="px-3 py-2.5 text-center">
                                 <input
                                   type="checkbox"
