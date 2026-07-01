@@ -85,6 +85,7 @@ export interface CustomPaymentAlert {
   phone: string | null
   iqamaNumber: string | null
   nextPaymentDate: string | null
+  amount: number | null
   service: ServiceInfo | null
   organization: OrgInfo | null
 }

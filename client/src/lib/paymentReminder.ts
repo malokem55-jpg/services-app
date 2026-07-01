@@ -4,7 +4,8 @@ import type { MonthlyPaymentAlert, CustomPaymentAlert } from '../hooks/useNotifi
 export function customPaymentReminderMessage(item: CustomPaymentAlert): string {
   const name = item.name ?? ''
   const date = item.nextPaymentDate ? item.nextPaymentDate.slice(0, 10) : ''
-  return `السلام عليكم ${name}،\nنذكّركم بدفعتكم المستحقة بتاريخ ${date}.\nنشكر لكم تعاونكم.`
+  const amount = item.amount != null ? ` بمبلغ ${item.amount} ريال` : ''
+  return `السلام عليكم ${name}،\nنذكّركم بدفعتكم المستحقة بتاريخ ${date}${amount}.\nنشكر لكم تعاونكم.`
 }
 
 // رسالة تذكير الدفعة التي تُعبَّأ مسبقاً في محادثة واتساب مع العميل.
