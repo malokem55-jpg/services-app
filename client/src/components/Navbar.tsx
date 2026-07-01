@@ -9,7 +9,7 @@ import WhatsAppButton from './WhatsAppButton'
 import { useNotifications, isIqamaExpired, groupMonthlyPayments } from '../hooks/useNotifications'
 import type { MonthlyPaymentAlert, MonthlyPaymentGroup, CustomPaymentAlert, IqamaAlert, TafweedAlert } from '../hooks/useNotifications'
 import { arabicDayName } from '../lib/clientForm'
-import { paymentReminderMessage, groupReminderMessage } from '../lib/paymentReminder'
+import { paymentReminderMessage, groupReminderMessage, customPaymentReminderMessage } from '../lib/paymentReminder'
 import { useUiSettings } from '../hooks/useUiSettings'
 
 interface Me { name: string | null; username: string | null }
@@ -149,6 +149,16 @@ function CustomPaymentItem({ item }: { item: CustomPaymentAlert }) {
           لديه دفعية قادمة بتاريخ: {fmtDate(item.nextPaymentDate)}
         </p>
       </div>
+      {/* زر واتساب يظهر فقط إذا كان للعميل رقم هاتف */}
+      {item.phone && (
+        <div className="flex items-center pe-3">
+          <WhatsAppButton
+            phone={item.phone}
+            name={item.name}
+            message={customPaymentReminderMessage(item)}
+          />
+        </div>
+      )}
     </div>
   )
 }

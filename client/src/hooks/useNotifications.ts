@@ -82,6 +82,7 @@ export function groupMonthlyPayments(alerts: MonthlyPaymentAlert[]): MonthlyPaym
 export interface CustomPaymentAlert {
   id: number
   name: string | null
+  phone: string | null
   iqamaNumber: string | null
   nextPaymentDate: string | null
   service: ServiceInfo | null

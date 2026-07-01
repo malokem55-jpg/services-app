@@ -1,4 +1,11 @@
-import type { MonthlyPaymentAlert } from '../hooks/useNotifications'
+import type { MonthlyPaymentAlert, CustomPaymentAlert } from '../hooks/useNotifications'
+
+// رسالة تذكير الدفعة المخصصة (السنوية) التي تُعبَّأ مسبقاً في محادثة واتساب مع العميل.
+export function customPaymentReminderMessage(item: CustomPaymentAlert): string {
+  const name = item.name ?? ''
+  const date = item.nextPaymentDate ? item.nextPaymentDate.slice(0, 10) : ''
+  return `السلام عليكم ${name}،\nنذكّركم بدفعتكم المستحقة بتاريخ ${date}.\nنشكر لكم تعاونكم.`
+}
 
 // رسالة تذكير الدفعة التي تُعبَّأ مسبقاً في محادثة واتساب مع العميل.
 // مشتركة بين جرس التنبيهات في الدسكتوب وشاشة الدفعات الشهرية في الموبايل.
