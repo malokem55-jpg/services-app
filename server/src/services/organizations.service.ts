@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma.js';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../generated/prisma/client.js';
 import { TOTAL_MONTHS_PER_HIJRI_YEAR } from '../lib/card-types.js';
 import { getLastGrantAt } from './card-issuances.service.js';
 

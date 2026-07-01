@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { login, InvalidCredentialsError } from '../services/auth.service.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';

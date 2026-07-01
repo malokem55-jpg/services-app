@@ -1,0 +1,6 @@
+# Secrets for local `wrangler dev` (do NOT commit the real .dev.vars).
+JWT_SECRET=change-me
+VAPID_EMAIL=mailto:admin@example.com
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+CREDENTIALS_ENCRYPTION_KEY=

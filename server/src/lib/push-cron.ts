@@ -2,18 +2,12 @@ import cron, { ScheduledTask } from 'node-cron';
 import { runPushNotificationCheck } from '../services/push.service.js';
 import { getNotificationSchedule } from '../services/notification-settings.service.js';
 
-// كل المواعيد تُحسب بتوقيت السعودية (UTC+3 بلا توقيت صيفي) بصرف النظر عن توقيت الخادم نفسه.
-// هذا يصحّح المشكلة القديمة: node-cron كان يُطلق بتوقيت الخادم (UTC على الاستضافة) فتصل
-// الإشعارات بفارق ثابت عن الموعد المختار.
+// كل المواعيد تُحسب بتوقيت السعودية (UTC+3 بلا توقيت صيفي) بصرف النظر عن توقيت
+// المُشغِّل نفسه. على Cloudflare يُشغِّل Cron Trigger كل 5 دقائق runPushTick()،
+// وعلى Node المحلي يفعل node-cron نفس الشيء.
 const TIMEZONE = 'Asia/Riyadh';
 
-let pollTask: ScheduledTask | null = null;
-
-// تاريخ آخر إرسال يومي ناجح بصيغة YYYY-MM-DD (بتوقيت الرياض) لمنع إعادة التشغيل في نفس اليوم.
-// في الذاكرة فقط: لو أُعيد تشغيل الخادم بعد إرسال اليوم، تمنع جداول "أُرسل من قبل" أي تكرار.
-let lastRunDate: string | null = null;
-
-// الوقت الحالي بتوقيت الرياض: التاريخ + عدد الدقائق منذ منتصف الليل
+// الوقت الحالي بتوقيت الرياض: التاريخ + عدد الدقائق منذ منتصف الليل.
 function nowInRiyadh(): { date: string; minutes: number } {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: TIMEZONE,
@@ -30,39 +24,45 @@ function nowInRiyadh(): { date: string; minutes: number } {
   return { date: `${get('year')}-${get('month')}-${get('day')}`, minutes: hour * 60 + minute };
 }
 
-// تُستدعى كل دقيقة. تُرسل تنبيهات اليوم مرة واحدة عند بلوغ الموعد، أو تلحق بها فوراً إذا كان
-// الخادم متوقفاً وقت الموعد. تقرأ جدول الإرسال من قاعدة البيانات فيُحترم أي تغيير تلقائياً.
-async function tick(): Promise<void> {
+// نافذة (بالدقائق) بعد موعد الإرسال المختار تظل فيها النبضة تُطلق إرسال اليوم.
+// يجب أن تتجاوز فترة النبض (5 دقائق) حتى لا يفوت يوم؛ وrunPushNotificationCheck
+// يمنع التكرار عبر جدول قاعدة البيانات فلا ضرر من نبضات إضافية داخل النافذة.
+const SEND_WINDOW_MIN = 10;
+
+// نبضة الإشعارات: تُقرأ من المُجدول (Cron Trigger على Cloudflare / node-cron محلياً).
+// تُرسل تنبيهات اليوم مرة واحدة عند بلوغ الموعد المختار من التطبيق. منع التكرار
+// يتم عبر جدول "أُرسل من قبل" في القاعدة، لذا إعادة النبض داخل اليوم بلا أثر.
+export async function runPushTick(): Promise<void> {
   try {
     const now = nowInRiyadh();
-    if (lastRunDate === now.date) return; // أُرسل اليوم بنجاح بالفعل
-
     const { hour, minute } = await getNotificationSchedule();
-    if (now.minutes < hour * 60 + minute) return; // لم يَحِن الموعد بعد اليوم
-
-    const { failures } = await runPushNotificationCheck();
-    // لا نُثبّت "تمّ اليوم" إلا إذا وصلت كل التنبيهات؛ وإلا نُعيد المحاولة في النبضة التالية
-    // بدل أن يضيع الإشعار بسبب فشل عابر.
-    if (failures === 0) lastRunDate = now.date;
+    const delta = now.minutes - (hour * 60 + minute);
+    if (delta < 0 || delta >= SEND_WINDOW_MIN) return; // خارج نافذة الإرسال
+    await runPushNotificationCheck();
   } catch (err) {
-    console.error('Push cron error:', err);
+    console.error('Push tick error:', err);
   }
 }
 
-export async function startPushCron(): Promise<void> {
+let pollTask: ScheduledTask | null = null;
+
+// محلي فقط (Node). على Cloudflare يقود Cron Trigger في wrangler.jsonc الدالة
+// runPushTick() بدلاً من node-cron.
+export function startPushCron(): void {
   if (pollTask) {
-    await pollTask.stop();
+    void pollTask.stop();
     pollTask = null;
   }
-  // نبضة كل دقيقة بدل "إطلاق واحد في لحظة محددة": تضمن الدقة في الموعد + اللحاق بعد أي توقف
-  // للخادم. noOverlap يمنع تداخل نبضتين، وحارس lastRunDate يجعل العمل الفعلي مرة واحدة يومياً.
-  pollTask = cron.schedule('* * * * *', tick, { noOverlap: true });
-  await tick(); // فحص فوري عند الإقلاع للّحاق بأي موعد فات أثناء توقف الخادم
+  pollTask = cron.schedule('*/5 * * * *', () => void runPushTick());
+  void runPushTick();
 }
 
-// يُستدعى من مسار الإعدادات بعد تغيير موعد الإرسال — نُعيد ضبط الحارس ليُحترم الموعد الجديد اليوم.
-// التكرار محمي بجداول "أُرسل من قبل" حتى لو كان موعد اليوم قد مضى.
-export function reschedulePushCron(_hour?: number, _minute?: number): void {
-  lastRunDate = null;
-  void tick();
+// يُستدعى من مسار الإعدادات بعد تغيير موعد الإرسال: إن كان الموعد الجديد قد مضى
+// اليوم نُرسل فوراً (نفس السلوك القديم). التكرار محمي بجدول القاعدة. المُستدعي على
+// Cloudflare يجب أن ينتظر هذه الدالة (await) لتكتمل قبل انتهاء الرد.
+export async function reschedulePushCron(hour: number, minute: number): Promise<void> {
+  const now = nowInRiyadh();
+  if (now.minutes >= hour * 60 + minute) {
+    await runPushNotificationCheck();
+  }
 }

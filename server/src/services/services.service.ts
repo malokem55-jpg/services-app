@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma.js';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../generated/prisma/client.js';
 
 const serviceWithSteps = {
   steps: { orderBy: { order: 'asc' as const } },

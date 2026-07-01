@@ -42,7 +42,7 @@ router.put('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { hour, minute } = updateSchema.parse(req.body);
     await updateNotificationSchedule(hour, minute);
-    reschedulePushCron(hour, minute);
+    await reschedulePushCron(hour, minute);
     res.json({ ok: true, hour, minute });
   } catch (err) {
     next(err);

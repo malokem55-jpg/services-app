@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma.js';
 
 // كلمة مرور واحدة للوحة /malik (سجل مفرد id=1). تُنشأ عند أول دخول وتُغيَّر من داخلها.

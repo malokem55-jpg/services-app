@@ -1,6 +1,5 @@
-import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
+import type { Prisma } from '../generated/prisma/client.js';
 
 // استيراد قاعدة بيانات المشروع القديم (Laravel/MySQL dump):
 // يفرّغ بيانات العمل الحالية (مع الإبقاء على المستخدمين والإعدادات)

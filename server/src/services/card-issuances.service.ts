@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma.js';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../generated/prisma/client.js';
 import { CARD_MONTHS, NO_CARD, TOTAL_MONTHS_PER_HIJRI_YEAR } from '../lib/card-types.js';
 import { hijriYearOf } from '../lib/hijri.js';
 

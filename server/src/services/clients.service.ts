@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma.js';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../generated/prisma/client.js';
 import { NO_CARD } from '../lib/card-types.js';
 import { createIssuanceInTx } from './card-issuances.service.js';
 

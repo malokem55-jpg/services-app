@@ -1,0 +1,34 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hameed-api",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // Cron Triggers (UTC):
+  //  - "*/5 * * * *"  → push-notification tick (honours the in-app send time;
+  //    also pings the DB so the shared Supabase project never idles).
+  //  - "15 21 * * *"  → 00:15 Asia/Riyadh, daily monthly-rolling installments.
+  "triggers": { "crons": ["*/5 * * * *", "15 21 * * *"] },
+
+  // ONE SHARED HYPERDRIVE for ALL projects on the same Supabase database. Do NOT
+  // create a new Hyperdrive per project — only DB_SCHEMA changes. Reuse this id.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "9e14505595534ff2bf6342af67710b05",
+      // Local `wrangler dev` only — replace PASSWORD with the real one locally.
+      "localConnectionString": "postgresql://postgres:PASSWORD@db.fzucyhatdwgqfdpuvlsp.supabase.co:5432/postgres"
+    }
+  ],
+
+  "vars": {
+    // Unique schema isolates this app's tables in the shared Supabase database.
+    "DB_SCHEMA": "hameed",
+    "APP_TIMEZONE": "Asia/Riyadh"
+  }
+  // Secrets (set via `wrangler secret put`):
+  //   JWT_SECRET, VAPID_EMAIL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY,
+  //   CREDENTIALS_ENCRYPTION_KEY
+}

@@ -1,10 +1,24 @@
+// مولّدان بلا محرّك (prisma-client + WASM) مطابقان لنمط starter-cf-supabase:
+// عميل workerd يعمل داخل Cloudflare Worker، وعميل nodejs للتشغيل المحلي والسكربتات.
+// lib/prisma.ts يحمّل الصحيح حسب البيئة ويُبقي عميل Node خارج حزمة Worker (حد 3MiB).
 generator client {
-  provider = "prisma-client-js"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  runtime      = "workerd"
+  moduleFormat = "esm"
+}
+
+generator clientNode {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma-node"
+  runtime      = "nodejs"
+  moduleFormat = "esm"
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  // رابط الاتصال يأتي من prisma.config.ts (CLI عبر DIRECT_DATABASE_URL) ومن محوّل
+  // pg وقت التشغيل — انظر src/lib/prisma.ts. السكيما تُطبَّق عبر خيار المحوّل (DB_SCHEMA).
+  provider = "postgresql"
 }
 
 model User {

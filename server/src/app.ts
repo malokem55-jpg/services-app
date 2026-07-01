@@ -1,0 +1,65 @@
+import express from 'express';
+import cors from 'cors';
+import authRouter from './routes/auth.js';
+import clientsRouter from './routes/clients.js';
+import servicesRouter from './routes/services.js';
+import organizationsRouter from './routes/organizations.js';
+import serviceStepsRouter from './routes/service-steps.js';
+import clientStepsRouter from './routes/client-steps.js';
+import clientPaymentsRouter from './routes/client-payments.js';
+import clientPaymentMonthliesRouter from './routes/client-payment-monthlies.js';
+import statsRouter from './routes/stats.js';
+import notificationsRouter from './routes/notifications.js';
+import pushSubscriptionsRouter from './routes/push-subscriptions.js';
+import notificationSettingsRouter from './routes/notification-settings.js';
+import uiSettingsRouter from './routes/ui-settings.js';
+import deletedClientDuesRouter from './routes/deleted-client-dues.js';
+import cardIssuancesRouter from './routes/card-issuances.js';
+import arrivalPlacesRouter from './routes/arrival-places.js';
+import loginPlatformsRouter from './routes/login-platforms.js';
+import orgCredentialsRouter from './routes/org-credentials.js';
+import orgCredentialsImportRouter from './routes/org-credentials-import.js';
+import credentialImportDraftRouter from './routes/credential-import-draft.js';
+import chamberCitiesRouter from './routes/chamber-cities.js';
+import dataImportRouter from './routes/data-import.js';
+import malikRouter from './routes/malik.js';
+import { errorHandler } from './middleware/errorHandler.js';
+
+// Shared Express app — no server-startup concerns (listen/cron/dotenv) so it is
+// reused by both the local Node entry (index.ts) and the Worker entry (worker.ts).
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok' });
+});
+
+app.use('/api/auth', authRouter);
+app.use('/api/clients', clientsRouter);
+app.use('/api/services', servicesRouter);
+app.use('/api/organizations', organizationsRouter);
+app.use('/api/service-steps', serviceStepsRouter);
+app.use('/api/client-steps', clientStepsRouter);
+app.use('/api/client-payments', clientPaymentsRouter);
+app.use('/api/client-payment-monthlies', clientPaymentMonthliesRouter);
+app.use('/api/stats', statsRouter);
+app.use('/api/notifications', notificationsRouter);
+app.use('/api/push/subscribe', pushSubscriptionsRouter);
+app.use('/api/notification-settings', notificationSettingsRouter);
+app.use('/api/ui-settings', uiSettingsRouter);
+app.use('/api/deleted-client-dues', deletedClientDuesRouter);
+app.use('/api/card-issuances', cardIssuancesRouter);
+app.use('/api/arrival-places', arrivalPlacesRouter);
+app.use('/api/login-platforms', loginPlatformsRouter);
+app.use('/api/org-credentials', orgCredentialsRouter);
+app.use('/api/org-credentials-import', orgCredentialsImportRouter);
+app.use('/api/credential-import-draft', credentialImportDraftRouter);
+app.use('/api/chamber-cities', chamberCitiesRouter);
+app.use('/api/data-import', dataImportRouter);
+app.use('/api/malik', malikRouter);
+
+app.use(errorHandler);
+
+export default app;
