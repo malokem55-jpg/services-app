@@ -6,18 +6,18 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
 
-  // Cron Triggers (UTC):
-  //  - "*/5 * * * *"  → push-notification tick (honours the in-app send time;
-  //    also pings the DB so the shared Supabase project never idles).
-  //  - "15 21 * * *"  → 00:15 Asia/Riyadh, daily monthly-rolling installments.
-  "triggers": { "crons": ["*/5 * * * *", "15 21 * * *"] },
+  // Cron Triggers (UTC) — مُعطّلة مؤقتاً أثناء فترة التوازي مع ريلوي لتفادي إشعارات
+  // مكرّرة. تُفعَّل لحظة التحويل النهائي (المرحلة 4):
+  //  - "*/5 * * * *"  → نبضة الإشعارات (تحترم الموعد المختار + تُبقي Supabase مستيقظاً).
+  //  - "15 21 * * *"  → 00:15 رياض، توليد الدفعيات الشهرية يومياً.
+  "triggers": { "crons": [] },
 
-  // ONE SHARED HYPERDRIVE for ALL projects on the same Supabase database. Do NOT
-  // create a new Hyperdrive per project — only DB_SCHEMA changes. Reuse this id.
+  // Hyperdrive الخاص بهذا المشروع (kayan-db) — يشير لنفس قاعدة Supabase المشتركة،
+  // وسكيما hameed تعزل جداول هذا التطبيق.
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "9e14505595534ff2bf6342af67710b05",
+      "id": "5a26f9261fda4b9fa7dfc0e87c92ff1a",
       // Local `wrangler dev` only — replace PASSWORD with the real one locally.
       "localConnectionString": "postgresql://postgres:PASSWORD@db.fzucyhatdwgqfdpuvlsp.supabase.co:5432/postgres"
     }
