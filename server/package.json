@@ -42,6 +42,7 @@
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.11.0",
     "@types/web-push": "^3.6.4",
+    "mysql2": "^3.22.5",
     "prisma": "^7.8.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
