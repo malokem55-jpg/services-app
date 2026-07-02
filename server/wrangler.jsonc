@@ -6,10 +6,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
 
-  // حساب Cloudflare بلغ حدّ 5 كرون من مشاريع أخرى، فلا يقبل مؤقّتاً كرون hameed-api.
-  // الحلّ لاحقاً: مُشغّل خارجي مجاني (cron-job.org) يستدعي نقطة داخلية كل 5 دقائق،
-  // أو تحرير خانة كرون من مشروع غير مستخدم. النبضة (worker.ts scheduled) جاهزة.
-  "triggers": { "crons": [] },
+  // نبضة موحّدة كل 5 دقائق: الإشعارات (تحترم الموعد) + التوليد الشهري (نافذة 00:15 رياض)
+  // + تُبقي Supabase مستيقظاً. المنطق في worker.ts scheduled() / monthly-cron.ts.
+  "triggers": { "crons": ["*/5 * * * *"] },
 
   // Hyperdrive الخاص بهذا المشروع (kayan-db) — يشير لنفس قاعدة Supabase المشتركة،
   // وسكيما hameed تعزل جداول هذا التطبيق.
