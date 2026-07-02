@@ -2,7 +2,7 @@ import app from './app.js';
 import { httpServerHandler } from 'cloudflare:node';
 import { runWithEnv, getStore } from './lib/runtime-env.js';
 import { runPushTick } from './lib/push-cron.js';
-import { runMonthlyTick } from './lib/monthly-cron.js';
+import { runMonthlyTickIfDue } from './lib/monthly-cron.js';
 import type { PrismaClient } from './generated/prisma/client.js';
 
 // Cloudflare Workers entry point. Express has no place to "listen" on Workers,
@@ -46,17 +46,13 @@ export default {
       }
     });
   },
-  async scheduled(controller: { cron: string }, env: Record<string, unknown>, _ctx: { waitUntil(p: Promise<unknown>): void }) {
+  async scheduled(_controller: { cron: string }, env: Record<string, unknown>, _ctx: { waitUntil(p: Promise<unknown>): void }) {
     hydrateProcessEnv(env);
     await runWithEnv(env, async () => {
       try {
-        // "15 21 * * *" (UTC) = 00:15 Asia/Riyadh → daily monthly-rolling check.
-        // Any other trigger ("*/5 * * * *") = the push-notification tick.
-        if (controller.cron === '15 21 * * *') {
-          await runMonthlyTick();
-        } else {
-          await runPushTick();
-        }
+        // نبضة موحّدة كل 5 دقائق: الإشعارات دائماً، والتوليد الشهري داخل نافذته فقط.
+        await runPushTick();
+        await runMonthlyTickIfDue();
       } finally {
         const client = getStore()?.client as PrismaClient | undefined;
         if (client) await client.$disconnect();

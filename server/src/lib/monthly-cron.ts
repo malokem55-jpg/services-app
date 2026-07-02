@@ -14,8 +14,21 @@ export async function runMonthlyTick(): Promise<void> {
   }
 }
 
-// محلي فقط (Node). على Cloudflare يقود Cron Trigger ("15 21 * * *" = 00:15 رياض)
-// الدالة runMonthlyTick() بدلاً من node-cron.
+// نسخة تُستدعى من النبضة الموحّدة (كل 5 دقائق): تشغّل التوليد فقط داخل نافذة
+// 00:15–00:25 بتوقيت الرياض. idempotent فلا ضرر من التقاطها مرتين داخل النافذة.
+export async function runMonthlyTickIfDue(): Promise<void> {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Riyadh',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00';
+  const mins = (parseInt(get('hour'), 10) % 24) * 60 + parseInt(get('minute'), 10);
+  if (mins >= 15 && mins < 25) await runMonthlyTick();
+}
+
+// محلي فقط (Node). على Cloudflare تقود النبضة الموحّدة runMonthlyTickIfDue().
 export function startMonthlyRollingCron(): void {
   cron.schedule('15 0 * * *', () => void runMonthlyTick(), { timezone: 'Asia/Riyadh' });
   void runMonthlyTick();
