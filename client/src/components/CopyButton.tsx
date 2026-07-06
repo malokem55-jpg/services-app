@@ -34,7 +34,7 @@ export default function CopyButton({ value, label }: CopyButtonProps) {
       onClick={handleCopy}
       aria-label={copied ? 'تم النسخ' : title}
       title={copied ? 'تم النسخ' : title}
-      className="shrink-0 rounded-md p-1 text-gray-300 hover:text-sky-600 hover:bg-sky-50
+      className="copy-btn shrink-0 rounded-md p-1 text-gray-300 hover:text-sky-600 hover:bg-sky-50
                  active:text-sky-700 transition-colors"
     >
       {copied ? (

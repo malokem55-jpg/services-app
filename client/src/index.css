@@ -79,6 +79,12 @@ a {
   -ms-overflow-style: none;
 }
 
+/* أثناء التقاط صورة القائمة نخفي أزرار النسخ والعناصر التفاعلية الزائدة */
+.is-capturing .copy-btn,
+.is-capturing .capture-hide {
+  display: none !important;
+}
+
 /* ─── Page enter animation ───────────────────────────────────────────────── */
 @keyframes page-fade-in {
   from {

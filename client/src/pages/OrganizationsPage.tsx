@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toPng } from 'html-to-image'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
 import { organizationSchema, getErrors } from '../lib/schemas'
@@ -78,6 +79,8 @@ function OrgClientsModal({
   orgId, orgName, onClose,
 }: { orgId: number; orgName: string; onClose: () => void }) {
   const navigate = useNavigate()
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const [capturing, setCapturing] = useState(false)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -90,16 +93,42 @@ function OrgClientsModal({
     queryFn: () => apiFetch<OrgClientItem[]>(`/api/clients?organizationId=${orgId}`),
   })
 
+  // تصوير قائمة العملاء كصورة (PNG) وتنزيلها — يعمل بالكامل داخل المتصفح
+  async function handleCapture() {
+    const node = dialogRef.current
+    if (!node || capturing) return
+    setCapturing(true)
+    // ننتظر إعادة الرسم كي تُخفى الأزرار وتُفكّ قيود التمرير قبل الالتقاط
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+    try {
+      const dataUrl = await toPng(node, {
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+        cacheBust: true,
+      })
+      const link = document.createElement('a')
+      link.download = `عملاء-${orgName}.png`
+      link.href = dataUrl
+      link.click()
+    } catch (err) {
+      console.error('فشل حفظ الصورة', err)
+      alert('تعذّر حفظ الصورة، حاول مرة أخرى')
+    } finally {
+      setCapturing(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" onClick={onClose} />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        className="relative bg-white w-full sm:max-w-5xl
+        className={`relative bg-white w-full sm:max-w-5xl
                    rounded-t-3xl sm:rounded-2xl shadow-2xl
-                   max-h-[92dvh] overflow-hidden flex flex-col
-                   slide-up sm:modal-enter"
+                   flex flex-col slide-up sm:modal-enter
+                   ${capturing ? 'is-capturing' : 'max-h-[92dvh] overflow-hidden'}`}
       >
         {/* drag handle (mobile) */}
         <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">
@@ -119,18 +148,32 @@ function OrgClientsModal({
                 {clients.length} عميل
               </span>
             )}
-            <button onClick={onClose} aria-label="إغلاق"
-              className="w-8 h-8 rounded-lg flex items-center justify-center
-                         text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            {!capturing && !isLoading && clients.length > 0 && (
+              <button onClick={handleCapture} aria-label="حفظ كصورة" title="حفظ القائمة كصورة"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 hover:bg-sky-700
+                           text-white px-2.5 py-1.5 text-xs font-semibold transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round"
+                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                صورة
+              </button>
+            )}
+            {!capturing && (
+              <button onClick={onClose} aria-label="إغلاق"
+                className="w-8 h-8 rounded-lg flex items-center justify-center
+                           text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
 
         {/* body */}
-        <div className="overflow-y-auto flex-1 px-5 py-4">
+        <div className={`flex-1 px-5 py-4 ${capturing ? '' : 'overflow-y-auto'}`}>
           {isLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -151,18 +194,18 @@ function OrgClientsModal({
             <>
               {/* ── Desktop table ── */}
               <div className="hidden sm:block rounded-xl overflow-hidden border border-gray-200">
-                <div className="overflow-auto max-h-[75vh]">
+                <div className={capturing ? '' : 'overflow-auto max-h-[75vh]'}>
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 z-10">
                       <tr className="bg-sky-600 text-white text-right">
                         <th className="px-3 py-3 text-xs font-semibold">اسم العميل</th>
-                        <th className="px-3 py-3 text-xs font-semibold">رقم الهاتف</th>
+                        <th className="px-3 py-3 text-xs font-semibold capture-hide">رقم الهاتف</th>
                         <th className="px-3 py-3 text-xs font-semibold">رقم الإقامة</th>
                         <th className="px-3 py-3 text-xs font-semibold">تاريخ إنتهاء الإقامة</th>
                         <th className="px-3 py-3 text-xs font-semibold">كرت العمل</th>
                         <th className="px-3 py-3 text-xs font-semibold text-center">قيمة كرت العمل</th>
                         <th className="px-3 py-3 text-xs font-semibold">المؤسسة</th>
-                        <th className="px-3 py-3 w-8" />
+                        <th className="px-3 py-3 w-8 capture-hide" />
                       </tr>
                     </thead>
                     <tbody>
@@ -187,7 +230,7 @@ function OrgClientsModal({
                                 {c.name && <CopyButton value={c.name} label="اسم العميل" />}
                               </div>
                             </td>
-                            <td className="px-3 py-3 text-gray-600 font-mono text-xs whitespace-nowrap">
+                            <td className="px-3 py-3 text-gray-600 font-mono text-xs whitespace-nowrap capture-hide">
                               <div className="flex items-center gap-1.5">
                                 <span>{c.phone ?? '—'}</span>
                                 {c.phone && <CopyButton value={c.phone} label="رقم الهاتف" />}
@@ -230,7 +273,7 @@ function OrgClientsModal({
                                 {c.organization?.name && <CopyButton value={c.organization.name} label="المؤسسة" />}
                               </div>
                             </td>
-                            <td className="px-3 py-3 text-center">
+                            <td className="px-3 py-3 text-center capture-hide">
                               <svg className="w-3.5 h-3.5 text-gray-300 inline-block" fill="none"
                                 viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
