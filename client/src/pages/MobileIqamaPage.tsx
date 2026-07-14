@@ -4,6 +4,7 @@ import MobileScreenHeader from '../components/MobileScreenHeader'
 import Modal from '../components/Modal'
 import HijriDateInput from '../components/HijriDateInput'
 import FilterChip from '../components/FilterChip'
+import CopyButton from '../components/CopyButton'
 import { apiFetch } from '../lib/api'
 import { useNotifications } from '../hooks/useNotifications'
 
@@ -17,6 +18,7 @@ interface RenewTarget {
   iqamaEndDate: string | null
   paymentType: string | null
   organizationName: string | null
+  organizationNumber: string | null
   kind?: 'expired' | 'soon'
 }
 
@@ -26,7 +28,7 @@ interface SearchClient {
   iqamaNumber: string | null
   iqamaEndDate: string | null
   paymentType: string | null
-  organization: { name: string | null } | null
+  organization: { name: string | null; number: string | null } | null
 }
 
 const fldCls =
@@ -76,6 +78,7 @@ export default function MobileIqamaPage() {
       iqamaEndDate: c.iqamaEndDate,
       paymentType: c.paymentType,
       organizationName: c.organization?.name ?? null,
+      organizationNumber: c.organization?.number ?? null,
       kind: 'expired' as const,
     }))
     const soon = (notifs?.iqamaExpirySoon ?? []).map((c) => ({
@@ -85,6 +88,7 @@ export default function MobileIqamaPage() {
       iqamaEndDate: c.iqamaEndDate,
       paymentType: c.paymentType,
       organizationName: c.organization?.name ?? null,
+      organizationNumber: c.organization?.number ?? null,
       kind: 'soon' as const,
     }))
     return [...expired, ...soon].sort((a, b) =>
@@ -103,6 +107,7 @@ export default function MobileIqamaPage() {
         iqamaEndDate: c.iqamaEndDate,
         paymentType: c.paymentType,
         organizationName: c.organization?.name ?? null,
+        organizationNumber: c.organization?.number ?? null,
       }))
     : alertRows.filter((c) => filter === 'all' || c.kind === filter)
 
@@ -258,7 +263,10 @@ export default function MobileIqamaPage() {
             >
               <div className="px-4 pt-4 pb-3">
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <p className="font-semibold text-gray-900 text-sm leading-tight">{c.name ?? '—'}</p>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm leading-tight">{c.name ?? '—'}</p>
+                    {c.name && <CopyButton value={c.name} label="اسم العميل" />}
+                  </div>
                   {c.kind === 'expired' && (
                     <span className="inline-flex items-center rounded-full bg-red-100 text-red-700 px-2.5 py-0.5 text-xs font-semibold shrink-0">
                       منتهية
@@ -271,10 +279,39 @@ export default function MobileIqamaPage() {
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-500">
-                  {c.iqamaNumber && <span className="font-mono">إقامة: {c.iqamaNumber}</span>}
-                  <span>تنتهي: {fmtDate(c.iqamaEndDate)}</span>
-                  {c.organizationName && <span className="truncate">{c.organizationName}</span>}
-                  {c.paymentType && <span>دفع {c.paymentType}</span>}
+                  {c.iqamaNumber && (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-gray-400">الإقامة:</span>
+                      <span className="font-mono text-gray-600">{c.iqamaNumber}</span>
+                      <CopyButton value={c.iqamaNumber} label="رقم الإقامة" />
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1">
+                    <span className="text-gray-400">الانتهاء:</span>
+                    <span className="text-gray-600">{fmtDate(c.iqamaEndDate)}</span>
+                    {c.iqamaEndDate && <CopyButton value={fmtDate(c.iqamaEndDate)} label="تاريخ انتهاء الإقامة" />}
+                  </span>
+                  {c.organizationName && (
+                    <span className="inline-flex items-center gap-1 min-w-0">
+                      <span className="text-gray-400 shrink-0">المؤسسة:</span>
+                      <span className="text-gray-600 truncate">{c.organizationName}</span>
+                      <CopyButton value={c.organizationName} label="اسم المؤسسة" />
+                    </span>
+                  )}
+                  {c.organizationNumber && (
+                    <span className="inline-flex items-center gap-1 min-w-0">
+                      <span className="text-gray-400 shrink-0">السجل:</span>
+                      <span className="font-mono text-gray-600 truncate">{c.organizationNumber}</span>
+                      <CopyButton value={c.organizationNumber} label="رقم السجل" />
+                    </span>
+                  )}
+                  {c.paymentType && (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-gray-400">الدفع:</span>
+                      <span className="text-gray-600">{c.paymentType}</span>
+                      <CopyButton value={c.paymentType} label="طريقة الدفع" />
+                    </span>
+                  )}
                 </div>
               </div>
               <button

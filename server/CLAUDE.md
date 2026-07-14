@@ -31,7 +31,7 @@ Follow the conventions in ../docs/api-conventions.md. Key points:
 - The database is new and empty. Build the Prisma schema by hand for the eight
   business tables only — see ../docs/database.md.
 - Do NOT create Laravel system tables (migrations, cache, jobs, sessions, etc.).
-- Apply schema changes with `npx prisma migrate dev`.
+- Apply schema changes with `pnpm dlx prisma migrate dev`.
 
 ## Authentication
 

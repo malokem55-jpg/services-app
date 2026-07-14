@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import MobileScreenHeader from '../components/MobileScreenHeader'
 import Modal from '../components/Modal'
 import FilterChip from '../components/FilterChip'
+import CopyButton from '../components/CopyButton'
 import { apiFetch } from '../lib/api'
 import { useNotifications, groupMonthlyPayments } from '../hooks/useNotifications'
 import type { MonthlyPaymentAlert } from '../hooks/useNotifications'
@@ -204,9 +205,12 @@ export default function MobilePaymentsPage() {
               <div key={g.key} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="px-4 pt-4 pb-3">
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <p className="font-semibold text-gray-900 text-sm leading-tight">
-                      {g.client?.name ?? '—'}
-                    </p>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm leading-tight">
+                        {g.client?.name ?? '—'}
+                      </p>
+                      {g.client?.name && <CopyButton value={g.client.name} label="اسم العميل" />}
+                    </div>
                     <span className="flex items-center gap-1.5 shrink-0">
                       {g.iqamaExpired && (
                         <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold
@@ -230,17 +234,40 @@ export default function MobilePaymentsPage() {
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-500">
                     {single ? (
                       <>
-                        <span>الاستحقاق: {fmtDate(first.receivedDate)}</span>
-                        <span className="font-semibold text-gray-700">المبلغ: {fmt(first.amount)}</span>
+                        <span className="inline-flex items-center gap-1">
+                          الاستحقاق: {fmtDate(first.receivedDate)}
+                          {first.receivedDate && <CopyButton value={fmtDate(first.receivedDate)} label="تاريخ الاستحقاق" />}
+                        </span>
+                        <span className="font-semibold text-gray-700 inline-flex items-center gap-1">
+                          المبلغ: {fmt(first.amount)}
+                          {first.amount != null && <CopyButton value={fmt(first.amount)} label="المبلغ" />}
+                        </span>
                       </>
                     ) : (
                       <>
-                        <span>أقرب استحقاق: {fmtDate(g.earliestDueDate)}</span>
-                        <span className="font-semibold text-gray-700">الإجمالي: {fmt(g.total)}</span>
+                        <span className="inline-flex items-center gap-1">
+                          آخر استحقاق: {fmtDate(g.latestDueDate)}
+                          {g.latestDueDate && <CopyButton value={fmtDate(g.latestDueDate)} label="تاريخ الاستحقاق" />}
+                        </span>
+                        <span className="font-semibold text-gray-700 inline-flex items-center gap-1">
+                          الإجمالي: {fmt(g.total)}
+                          <CopyButton value={fmt(g.total)} label="الإجمالي" />
+                        </span>
                       </>
                     )}
                     {g.client?.organization?.name && (
-                      <span className="col-span-2 truncate">{g.client.organization.name}</span>
+                      <span className="col-span-2 inline-flex items-center gap-1 min-w-0">
+                        <span className="text-gray-400 shrink-0">المؤسسة:</span>
+                        <span className="text-gray-600 truncate">{g.client.organization.name}</span>
+                        <CopyButton value={g.client.organization.name} label="اسم المؤسسة" />
+                      </span>
+                    )}
+                    {g.client?.organization?.number && (
+                      <span className="col-span-2 inline-flex items-center gap-1 min-w-0">
+                        <span className="text-gray-400">السجل:</span>
+                        <span className="font-mono text-gray-600 truncate">{g.client.organization.number}</span>
+                        <CopyButton value={g.client.organization.number} label="رقم السجل" />
+                      </span>
                     )}
                   </div>
                   {single && first.carriedOverAmount != null && first.carriedOverAmount > 0 && (
@@ -321,12 +348,20 @@ export default function MobilePaymentsPage() {
                           return (
                             <div key={p.id} className="flex items-center justify-between gap-2 px-4 py-2.5">
                               <div className="text-xs text-gray-600 min-w-0">
-                                <span className="inline-flex items-center gap-1.5">
-                                  <span className={pOverdue ? 'text-red-600 font-semibold' : 'text-gray-700'}>
-                                    {fmtDate(p.receivedDate)}
+                                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className="text-gray-400">الاستحقاق:</span>
+                                    <span className={pOverdue ? 'text-red-600 font-semibold' : 'text-gray-700'}>
+                                      {fmtDate(p.receivedDate)}
+                                    </span>
+                                    {p.receivedDate && <CopyButton value={fmtDate(p.receivedDate)} label="تاريخ الاستحقاق" />}
                                   </span>
                                   <span className="text-gray-300">·</span>
-                                  <span className="font-semibold text-gray-800">{fmt(p.amount)} ريال</span>
+                                  <span className="font-semibold text-gray-800 inline-flex items-center gap-1">
+                                    <span className="text-gray-400 font-normal">المبلغ:</span>
+                                    {fmt(p.amount)} ريال
+                                    {p.amount != null && <CopyButton value={fmt(p.amount)} label="المبلغ" />}
+                                  </span>
                                 </span>
                                 {p.carriedOverAmount != null && p.carriedOverAmount > 0 && (
                                   <span className="block text-[10px] text-amber-600 mt-0.5">

@@ -8,6 +8,7 @@ import {
   getTafweedAlerts,
 } from './notifications.service.js';
 import { getPushChannels } from './notification-settings.service.js';
+import { saudiStartOfToday } from '../lib/saudi-time.js';
 
 let vapidInitialized = false;
 
@@ -323,7 +324,7 @@ export async function runPushNotificationCheck(options: RunPushOptions = {}): Pr
         sortTime: refDate.getTime(),
         payload: {
           type: 'iqama_expired',
-          title: 'إقامة منتهية أو عاجلة',
+          title: 'إقامة منتهية',
           body: `${client.name ?? ''} — انتهت في ${new Date(client.iqamaEndDate).toLocaleDateString('ar-SA')}`,
         },
       });
@@ -376,7 +377,8 @@ export async function runPushNotificationCheck(options: RunPushOptions = {}): Pr
       select: { totalDue: true, collectedAmount: true },
     });
     if (pendingDues.length > 0) {
-      const weekStart = toDateOnly(new Date());
+      // بداية الأسبوع (الأحد) بتوقيت السعودية — مفتاح منع تكرار التذكير الأسبوعي
+      const weekStart = saudiStartOfToday();
       weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
       if (!(await alreadySent('deleted_client_dues', 0, weekStart))) {
         const totalRemaining = pendingDues.reduce(

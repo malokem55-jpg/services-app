@@ -29,6 +29,7 @@ import { useUiSettings } from '../hooks/useUiSettings'
 interface ClientListItem {
   id: number
   name: string | null
+  phone: string | null
   iqamaNumber: string | null
   iqamaEndDate: string | null
   boardNumber: string | null
@@ -629,7 +630,10 @@ export default function ClientsPage() {
                 >
                   <div className="px-4 pt-4 pb-3">
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <p className="font-semibold text-gray-900 text-sm leading-tight">{c.name ?? '—'}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm leading-tight">{c.name ?? '—'}</p>
+                        {c.name && <CopyButton value={c.name} label="اسم العميل" />}
+                      </div>
                       {c.iqamaNumber ? (
                         <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${badgeCls}`}>
                           {iqama.extra ?? 'ساري'}
@@ -641,18 +645,48 @@ export default function ClientsPage() {
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-500">
+                      {c.phone && (
+                        <span className="inline-flex items-center gap-1 min-w-0">
+                          <span className="text-gray-400 shrink-0">الهاتف:</span>
+                          <span className="font-mono text-gray-600 truncate">{c.phone}</span>
+                          <CopyButton value={c.phone} label="رقم الهاتف" />
+                        </span>
+                      )}
                       {c.iqamaNumber && (
-                        <span className="font-mono">{c.iqamaNumber}</span>
+                        <span className="inline-flex items-center gap-1 min-w-0">
+                          <span className="text-gray-400 shrink-0">الإقامة:</span>
+                          <span className="font-mono text-gray-600 truncate">{c.iqamaNumber}</span>
+                          <CopyButton value={c.iqamaNumber} label="رقم الإقامة" />
+                        </span>
                       )}
                       {c.organization?.name && (
-                        <span className="truncate">{c.organization.name}</span>
+                        <span className="col-span-2 flex items-start gap-1 min-w-0">
+                          <span className="text-gray-400 shrink-0">المؤسسة:</span>
+                          <span className="text-gray-600 wrap-break-word min-w-0">{c.organization.name}</span>
+                          <CopyButton value={c.organization.name} label="اسم المؤسسة" />
+                        </span>
+                      )}
+                      {c.organization?.number && (
+                        <span className="inline-flex items-center gap-1 min-w-0">
+                          <span className="text-gray-400 shrink-0">السجل:</span>
+                          <span className="font-mono text-gray-600 truncate">{c.organization.number}</span>
+                          <CopyButton value={c.organization.number} label="رقم السجل" />
+                        </span>
                       )}
                       {c.cardType && c.cardType !== 'بدون' && (
-                        <span>كرت: {c.cardType}</span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="text-gray-400">الكرت:</span>
+                          <span className="text-gray-600">{c.cardType}</span>
+                          <CopyButton value={c.cardType} label="كرت العمل" />
+                        </span>
                       )}
                       {iqama.label !== '—' && (
-                        <span className={iqama.cls.includes('red') ? 'text-red-600' : iqama.cls.includes('amber') ? 'text-amber-600' : 'text-gray-500'}>
-                          {iqama.label}
+                        <span className="col-span-2 inline-flex items-center gap-1 min-w-0">
+                          <span className="text-gray-400 shrink-0">انتهاء الإقامة:</span>
+                          <span className={iqama.cls.includes('red') ? 'text-red-600' : iqama.cls.includes('amber') ? 'text-amber-600' : 'text-gray-600'}>
+                            {iqama.label}
+                          </span>
+                          <CopyButton value={iqama.label} label="تاريخ انتهاء الإقامة" />
                         </span>
                       )}
                     </div>
@@ -704,7 +738,7 @@ export default function ClientsPage() {
                   <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">انتهاء الإقامة</th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">كرت العمل</th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">المؤسسة</th>
-                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">رقم السجل</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">سجل المؤسسة</th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center">تجديد</th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center">تفاصيل</th>
                 </tr>
@@ -778,10 +812,10 @@ export default function ClientsPage() {
                             {c.organization?.name && <CopyButton value={c.organization.name} label="اسم المؤسسة" />}
                           </div>
                         </td>
-                        <td className="px-4 py-2.5 font-mono text-xs text-gray-400 tracking-wide">
+                        <td className="px-4 py-2.5 font-mono text-xs text-gray-600 tracking-wide">
                           <div className="flex items-center gap-1.5">
                             <span>{c.organization?.number ?? '—'}</span>
-                            {c.organization?.number && <CopyButton value={c.organization.number} label="رقم السجل" />}
+                            {c.organization?.number && <CopyButton value={c.organization.number} label="سجل المؤسسة" />}
                           </div>
                         </td>
                         <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>

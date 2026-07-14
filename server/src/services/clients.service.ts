@@ -2,6 +2,7 @@ import prisma from '../lib/prisma.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { NO_CARD } from '../lib/card-types.js';
 import { createIssuanceInTx } from './card-issuances.service.js';
+import { saudiDateString, saudiStartOfToday } from '../lib/saudi-time.js';
 
 // Relations included in every single-client response
 const clientInclude = {
@@ -57,8 +58,7 @@ class ValidationError extends Error {
 
 // تنبيه التفويض غرضه التذكير مستقبلاً — تاريخ في الماضي مرفوض عند الإدخال أو التغيير
 function assertTafweedDateNotPast(dateStr: string) {
-  const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayStr = saudiDateString();
   if (dateStr < todayStr) {
     throw new ValidationError('تاريخ تنبيه التفويض لا يمكن أن يكون سابقاً لتاريخ اليوم');
   }
@@ -94,7 +94,7 @@ function buildMonthlySchedule(
   if (startAfter) {
     cursor = dueDateIn(startAfter.getUTCFullYear(), startAfter.getUTCMonth() + 1, day);
   } else {
-    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const today = saudiStartOfToday();
     cursor = dueDateIn(today.getUTCFullYear(), today.getUTCMonth(), day);
     if (cursor < today) cursor = dueDateIn(today.getUTCFullYear(), today.getUTCMonth() + 1, day);
   }
@@ -141,7 +141,7 @@ export async function ensureUpcomingInstallment(clientId: number): Promise<boole
   if (!client.amount || client.amount <= 0) return false;
 
   const now = new Date();
-  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const today = saudiStartOfToday();
   let target = dueDateIn(today.getUTCFullYear(), today.getUTCMonth(), day);
   if (target < today) target = dueDateIn(today.getUTCFullYear(), today.getUTCMonth() + 1, day);
 
@@ -210,8 +210,7 @@ async function shiftUpcomingInstallmentDays(
   clientId: number,
   day: number,
 ) {
-  const now = new Date();
-  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const today = saudiStartOfToday();
   const upcoming = await tx.clientPaymentMonthly.findMany({
     where: { clientId, status: { not: 'paid' }, receivedDate: { gte: today } },
     select: { id: true, receivedDate: true },
@@ -223,7 +222,7 @@ async function shiftUpcomingInstallmentDays(
     if (shifted.getTime() === current.getTime()) continue;
     await tx.clientPaymentMonthly.update({
       where: { id: installment.id },
-      data: { receivedDate: shifted, updatedAt: now },
+      data: { receivedDate: shifted, updatedAt: new Date() },
     });
   }
 }
@@ -653,8 +652,7 @@ export function computeOutstandingDues(client: {
   let totalDue = 0;
 
   if (client.paymentType === MONTHLY) {
-    const now = new Date();
-    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const today = saudiStartOfToday();
     for (const m of client.paymentMonthlies) {
       if (m.status === 'paid' || !m.receivedDate) continue;
       const receivedDate = m.receivedDate.toISOString().slice(0, 10);

@@ -1,24 +1,14 @@
 import prisma from '../lib/prisma.js';
-
-function startOfToday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
+import { saudiStartOfToday, addDays } from '../lib/saudi-time.js';
 
 export async function getMonthlyPaymentAlerts() {
-  const today = startOfToday();
-  const in3Days = addDays(today, 3);
+  const today = saudiStartOfToday();
+  // يظهر التنبيه يوم استحقاق الدفعة الشهرية أو بعده (وليس قبله)
+  const endOfToday = addDays(today, 1);
 
   return prisma.clientPaymentMonthly.findMany({
     where: {
-      receivedDate: { lte: in3Days },
+      receivedDate: { lt: endOfToday },
       status: 'un-paid',
     },
     include: {
@@ -29,7 +19,7 @@ export async function getMonthlyPaymentAlerts() {
           iqamaNumber: true,
           iqamaEndDate: true,
           service: { select: { name: true } },
-          organization: { select: { name: true } },
+          organization: { select: { name: true, number: true } },
         },
       },
     },
@@ -38,7 +28,7 @@ export async function getMonthlyPaymentAlerts() {
 }
 
 export async function getCustomPaymentAlerts() {
-  const today = startOfToday();
+  const today = saudiStartOfToday();
   const in10Days = addDays(today, 10);
 
   return prisma.client.findMany({
@@ -49,59 +39,59 @@ export async function getCustomPaymentAlerts() {
     },
     include: {
       service: { select: { name: true } },
-      organization: { select: { name: true } },
+      organization: { select: { name: true, number: true } },
     },
     orderBy: { nextPaymentDate: 'asc' },
   });
 }
 
+// الإقامات التي تنتهي خلال 30 يوماً (من الغد حتى 30 يوماً قادمة).
+// إقامة تنتهي *اليوم* تُعدّ منتهية لا قريبة، فتُستثنى هنا بـ gt وتظهر في المنتهية.
 export async function getIqamaExpirySoonAlerts() {
-  const today = startOfToday();
-  const in7Days = addDays(today, 7);
+  const today = saudiStartOfToday();
   const in30Days = addDays(today, 30);
 
   return prisma.client.findMany({
     where: {
-      iqamaEndDate: { gt: in7Days, lte: in30Days },
+      iqamaEndDate: { gt: today, lte: in30Days },
     },
     include: {
       service: { select: { name: true } },
-      organization: { select: { name: true } },
+      organization: { select: { name: true, number: true } },
     },
     orderBy: { iqamaEndDate: 'asc' },
   });
 }
 
 // تنبيهات التفويض والتصديق: تظهر من يوم التاريخ المحدد وتبقى حتى يضغط
-// المستخدم "تم التفويض" فتُعلَّم منجزة. المقارنة بتاريخ اليوم المحلي بصيغة UTC
-// لأن العمود @db.Date مخزَّن كمنتصف ليل UTC
+// المستخدم "تم التفويض" فتُعلَّم منجزة. الحد يُحسب بتوقيت السعودية معبَّراً عنه
+// كمنتصف ليل UTC ليطابق العمود @db.Date المخزَّن كمنتصف ليل UTC
 export async function getTafweedAlerts() {
-  const now = new Date();
-  const todayUtc = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const today = saudiStartOfToday();
 
   return prisma.client.findMany({
-    where: { tafweedAlertDate: { lte: todayUtc }, tafweedDone: false },
+    where: { tafweedAlertDate: { lte: today }, tafweedDone: false },
     select: {
       id: true,
       name: true,
       tafweedAlertDate: true,
-      organization: { select: { name: true } },
+      organization: { select: { name: true, number: true } },
     },
     orderBy: { tafweedAlertDate: 'asc' },
   });
 }
 
+// الإقامات المنتهية فعلاً (تاريخ انتهائها اليوم أو قبله — يوم الانتهاء يُعدّ منتهياً)
 export async function getIqamaExpiryUrgentAlerts() {
-  const today = startOfToday();
-  const in7Days = addDays(today, 7);
+  const today = saudiStartOfToday();
 
   return prisma.client.findMany({
     where: {
-      iqamaEndDate: { lte: in7Days },
+      iqamaEndDate: { lte: today },
     },
     include: {
       service: { select: { name: true } },
-      organization: { select: { name: true } },
+      organization: { select: { name: true, number: true } },
     },
     orderBy: { iqamaEndDate: 'asc' },
   });

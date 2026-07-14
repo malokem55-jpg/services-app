@@ -24,9 +24,17 @@ self.addEventListener('install', (event) => {
           }
         }),
       );
-      await self.skipWaiting();
+      // لا نُفعّل النسخة الجديدة تلقائياً: تبقى «منتظرة» حتى يضغط المستخدم زر
+      // «تحديث الآن»، فتصله رسالة SKIP_WAITING أدناه. هكذا لا يُقاطَع عمله فجأة.
     })(),
   );
+});
+
+// عند ضغط المستخدم زر التحديث، ترسل الواجهة هذه الرسالة فتُفعَّل النسخة الجديدة فوراً
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {

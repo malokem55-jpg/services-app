@@ -11,6 +11,7 @@ import CustomModeGate from './components/CustomModeGate'
 import MobileAccessGate from './components/MobileAccessGate'
 import PageLoader from './components/PageLoader'
 import OfflineBanner from './components/OfflineBanner'
+import UpdatePrompt from './components/UpdatePrompt'
 
 // صفحات الموقع الكامل تُحمَّل عند الطلب حتى تبقى حزمة النسخة المخصصة صغيرة
 const HomePage = lazy(() => import('./pages/HomePage'))
@@ -71,6 +72,7 @@ function App() {
 export default function AppWithSuspense() {
   return (
     <>
+      <UpdatePrompt />
       <OfflineBanner />
       <Suspense fallback={<PageLoader />}>
         <App />

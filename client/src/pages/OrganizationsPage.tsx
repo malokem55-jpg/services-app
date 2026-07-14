@@ -308,24 +308,51 @@ function OrgClientsModal({
                                  active:bg-gray-100 cursor-pointer transition-colors"
                     >
                       <div className="flex items-start justify-between gap-2 mb-2">
-                        <p className="font-semibold text-gray-900 text-sm">{c.name ?? '—'}</p>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <p className="font-semibold text-gray-900 text-sm">{c.name ?? '—'}</p>
+                          {c.name && <CopyButton value={c.name} label="اسم العميل" />}
+                        </div>
                         <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${badgeCls}`}>
                           {c.iqamaNumber ? (iqama.extra ?? 'ساري') : 'تحت الإجراء'}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-500">
-                        {c.phone && <span className="font-mono">{c.phone}</span>}
-                        {c.iqamaNumber && <span className="font-mono">{c.iqamaNumber}</span>}
+                        {c.phone && (
+                          <span className="inline-flex items-center gap-1 min-w-0">
+                            <span className="text-gray-400 shrink-0">الهاتف:</span>
+                            <span className="font-mono text-gray-600 truncate">{c.phone}</span>
+                            <CopyButton value={c.phone} label="رقم الهاتف" />
+                          </span>
+                        )}
+                        {c.iqamaNumber && (
+                          <span className="inline-flex items-center gap-1 min-w-0">
+                            <span className="text-gray-400 shrink-0">الإقامة:</span>
+                            <span className="font-mono text-gray-600 truncate">{c.iqamaNumber}</span>
+                            <CopyButton value={c.iqamaNumber} label="رقم الإقامة" />
+                          </span>
+                        )}
                         {c.iqamaEndDate && (
-                          <span className={iqama.cls.includes('red') ? 'text-red-600' : iqama.cls.includes('amber') ? 'text-amber-600' : ''}>
-                            {c.iqamaEndDate.slice(0, 10)}
+                          <span className="inline-flex items-center gap-1 min-w-0">
+                            <span className="text-gray-400 shrink-0">الانتهاء:</span>
+                            <span className={iqama.cls.includes('red') ? 'text-red-600' : iqama.cls.includes('amber') ? 'text-amber-600' : 'text-gray-600'}>
+                              {c.iqamaEndDate.slice(0, 10)}
+                            </span>
+                            <CopyButton value={c.iqamaEndDate.slice(0, 10)} label="تاريخ إنتهاء الإقامة" />
                           </span>
                         )}
                         {c.cardType && c.cardType !== 'بدون' && (
-                          <span>كرت: {c.cardType}</span>
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-gray-400">الكرت:</span>
+                            <span className="text-gray-600">{c.cardType}</span>
+                            <CopyButton value={c.cardType} label="كرت العمل" />
+                          </span>
                         )}
-                        <span className={cardVal > 0 ? 'text-emerald-600 font-medium' : 'text-gray-400'}>
-                          قيمة: {formatYears(cardVal)}
+                        <span className="inline-flex items-center gap-1">
+                          <span className="text-gray-400">قيمة الكرت:</span>
+                          <span className={cardVal > 0 ? 'text-emerald-600 font-medium' : 'text-gray-400'}>
+                            {formatYears(cardVal)}
+                          </span>
+                          <CopyButton value={formatYears(cardVal)} label="قيمة كرت العمل" />
                         </span>
                       </div>
                     </div>
@@ -664,13 +691,31 @@ export default function OrganizationsPage() {
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-500">
-                    {org.number && <span className="font-mono">{org.number}</span>}
-                    {org.expiredDate && <span>{formatDate(org.expiredDate)}</span>}
-                    <span className="text-amber-600 font-medium">
-                      مسحوبة: {formatYears(org.cardsWithdrawn)}
+                    {org.number && (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-gray-400">السجل:</span>
+                        <span className="font-mono text-gray-600">{org.number}</span>
+                        <CopyButton value={org.number} label="رقم السجل" />
+                      </span>
+                    )}
+                    {org.expiredDate && (
+                      <span className="inline-flex items-center gap-1 min-w-0">
+                        <span className="text-gray-400 shrink-0">الانتهاء:</span>
+                        <span className="text-gray-600">{formatDate(org.expiredDate)}</span>
+                        <CopyButton value={formatDate(org.expiredDate)} label="انتهاء السجل" />
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-gray-400">مسحوبة:</span>
+                      <span className="text-amber-600 font-medium">{formatYears(org.cardsWithdrawn)}</span>
+                      <CopyButton value={formatYears(org.cardsWithdrawn)} label="الكروت المسحوبة" />
                     </span>
-                    <span className={org.cardsRemaining <= 0 ? 'text-red-600 font-medium' : 'text-emerald-600 font-medium'}>
-                      متبقية: {formatYears(org.cardsRemaining)}
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-gray-400">متبقية:</span>
+                      <span className={org.cardsRemaining <= 0 ? 'text-red-600 font-medium' : 'text-emerald-600 font-medium'}>
+                        {formatYears(org.cardsRemaining)}
+                      </span>
+                      <CopyButton value={formatYears(org.cardsRemaining)} label="الكروت المتبقية" />
                     </span>
                   </div>
                 </div>

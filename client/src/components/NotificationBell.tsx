@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-// no useState needed — mobile state is managed by parent
+import { useEffect, useRef, type ReactNode } from 'react'
+// mobile state is managed by parent؛ نحتفظ بمرجعَي التمرير لإعادتهما للأعلى عند كل فتح
 
 interface Props {
   count: number
@@ -9,15 +9,33 @@ interface Props {
   ringDelay?: string
   mobileOpen?: boolean
   onMobileToggle?: () => void
+  onOpen?: () => void // يُستدعى عند فتح الجرس (تمرير الفأرة على سطح المكتب)
+  headerExtra?: ReactNode // شريط اختياري (أزرار فلترة مثلاً) يظهر تحت عنوان الجرس
 }
 
 export default function NotificationBell({
   count, badgeColor, title, children, ringDelay = '0s',
-  mobileOpen = false, onMobileToggle,
+  mobileOpen = false, onMobileToggle, onOpen, headerExtra,
 }: Props) {
 
+  // مرجعا حاوية التمرير (سطح المكتب/الهاتف) لإرجاع القائمة إلى بدايتها عند كل فتح
+  const desktopScrollRef = useRef<HTMLDivElement>(null)
+  const mobileScrollRef = useRef<HTMLDivElement>(null)
+
+  // كل فتح للهاتف = فتح جديد: أعِد التمرير إلى الأعلى
+  useEffect(() => {
+    if (mobileOpen && mobileScrollRef.current) mobileScrollRef.current.scrollTop = 0
+  }, [mobileOpen])
+
   return (
-    <div className="relative group">
+    <div
+      className="relative group"
+      // كل مرور للمؤشر = فتح جديد على سطح المكتب: أعِد التمرير للأعلى مع استدعاء onOpen
+      onMouseEnter={() => {
+        if (desktopScrollRef.current) desktopScrollRef.current.scrollTop = 0
+        onOpen?.()
+      }}
+    >
       <button
         className="relative flex items-center justify-center w-9 h-9 rounded-full
                    text-sky-100 hover:text-white hover:bg-sky-600 transition-colors"
@@ -61,11 +79,12 @@ export default function NotificationBell({
         >
           <div className="px-4 py-3 border-b border-gray-100 shrink-0">
             <h3 className="font-bold text-gray-800 text-sm">{title}</h3>
+            {headerExtra && <div className="mt-2">{headerExtra}</div>}
           </div>
           {count === 0 ? (
             <p className="text-center text-gray-400 text-sm py-8">لا توجد تنبيهات</p>
           ) : (
-            <div className="overflow-y-auto divide-y divide-gray-100">
+            <div ref={desktopScrollRef} className="overflow-y-auto divide-y divide-gray-100">
               {children}
             </div>
           )}
@@ -90,24 +109,27 @@ export default function NotificationBell({
             style={{ top: 'calc(env(safe-area-inset-top) + 3.75rem)' }}
           >
             {/* Header مع زر إغلاق */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
-              <h3 className="font-bold text-gray-800 text-sm">{title}</h3>
-              <button
-                onClick={() => onMobileToggle?.()}
-                className="w-7 h-7 flex items-center justify-center rounded-lg
-                           text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                aria-label="إغلاق"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+            <div className="border-b border-gray-100 shrink-0">
+              <div className="flex items-center justify-between px-4 py-3">
+                <h3 className="font-bold text-gray-800 text-sm">{title}</h3>
+                <button
+                  onClick={() => onMobileToggle?.()}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg
+                             text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                  aria-label="إغلاق"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {headerExtra && <div className="px-4 pb-3">{headerExtra}</div>}
             </div>
 
             {count === 0 ? (
               <p className="text-center text-gray-400 text-sm py-8">لا توجد تنبيهات</p>
             ) : (
-              <div className="overflow-y-auto divide-y divide-gray-100">
+              <div ref={mobileScrollRef} className="overflow-y-auto divide-y divide-gray-100">
                 {children}
               </div>
             )}

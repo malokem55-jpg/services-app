@@ -28,7 +28,7 @@
 ## عند نشر النظام على رابط جديد
 
 ملف `manifest.json` يسمح حاليًا بصفحات النظام على:
-`localhost:5173` و `localhost:4173` وأي نطاق `*.up.railway.app`.
+`localhost:5173` و `localhost:4173` و `kayan-sys.com`.
 
 لو نُشر النظام على نطاق آخر، أضف رابطه إلى `content_scripts[0].matches` في
 `manifest.json` (مثال: `"https://my-app.example.com/*"`)، ثم اضغط **إعادة التحميل ⟳**

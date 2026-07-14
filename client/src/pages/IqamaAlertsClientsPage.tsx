@@ -116,7 +116,7 @@ export default function IqamaAlertsClientsPage() {
     setRenewSubmitAttempted(false)
   }
 
-  // القائمتان منفصلتان زمنياً في السيرفر (المنتهية ≤ 7 أيام، والقريبة 7–30 يوم) فلا تكرار بينهما
+  // القائمتان منفصلتان زمنياً في السيرفر (المنتهية: اليوم أو قبله، والقريبة: من الغد حتى 30 يوماً) فلا تكرار بينهما
   const allRows = useMemo<AlertRow[]>(() => {
     const expired = (notifs?.iqamaExpired ?? []).map((c) => ({ ...c, kind: 'expired' as const }))
     const soon = (notifs?.iqamaExpirySoon ?? []).map((c) => ({ ...c, kind: 'soon' as const }))
@@ -323,14 +323,39 @@ export default function IqamaAlertsClientsPage() {
               >
                 <div className="px-4 pt-4 pb-3">
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <p className="font-semibold text-gray-900 text-sm leading-tight">{c.name ?? '—'}</p>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm leading-tight">{c.name ?? '—'}</p>
+                      {c.name && <CopyButton value={c.name} label="اسم العميل" />}
+                    </div>
                     <KindBadge kind={c.kind} />
                   </div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-500">
-                    {c.iqamaNumber && <span className="font-mono">إقامة: {c.iqamaNumber}</span>}
-                    <span>تنتهي: {fmtDate(c.iqamaEndDate)}</span>
-                    {c.organization?.name && <span className="truncate">{c.organization.name}</span>}
-                    {c.paymentType && <span>دفع {c.paymentType}</span>}
+                    {c.iqamaNumber && (
+                      <span className="inline-flex items-center gap-1 min-w-0">
+                        <span className="text-gray-400 shrink-0">الإقامة:</span>
+                        <span className="font-mono text-gray-600 truncate">{c.iqamaNumber}</span>
+                        <CopyButton value={c.iqamaNumber} label="رقم الإقامة" />
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-gray-400">الانتهاء:</span>
+                      <span className="text-gray-600">{fmtDate(c.iqamaEndDate)}</span>
+                      {c.iqamaEndDate && <CopyButton value={fmtDate(c.iqamaEndDate)} label="تاريخ انتهاء الإقامة" />}
+                    </span>
+                    {c.organization?.name && (
+                      <span className="inline-flex items-center gap-1 min-w-0">
+                        <span className="text-gray-400 shrink-0">المؤسسة:</span>
+                        <span className="text-gray-600 truncate">{c.organization.name}</span>
+                        <CopyButton value={c.organization.name} label="اسم المؤسسة" />
+                      </span>
+                    )}
+                    {c.paymentType && (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-gray-400">الدفع:</span>
+                        <span className="text-gray-600">{c.paymentType}</span>
+                        <CopyButton value={c.paymentType} label="طريقة الدفع" />
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -424,9 +449,9 @@ export default function IqamaAlertsClientsPage() {
                           {c.iqamaNumber && <CopyButton value={c.iqamaNumber} label="رقم الإقامة" />}
                         </div>
                       </td>
-                      <td className="px-4 py-2.5 text-gray-700">
+                      <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
-                          <span>{fmtDate(c.iqamaEndDate)}</span>
+                          <span className="whitespace-nowrap">{fmtDate(c.iqamaEndDate)}</span>
                           {c.iqamaEndDate && <CopyButton value={fmtDate(c.iqamaEndDate)} label="تاريخ الانتهاء" />}
                         </div>
                       </td>
@@ -497,7 +522,10 @@ export default function IqamaAlertsClientsPage() {
                 ].map(({ label, val }) => (
                   <div key={label}>
                     <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-                    <p className="text-sm font-semibold text-gray-900">{val ?? '—'}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-gray-900">{val ?? '—'}</p>
+                      {val && <CopyButton value={String(val)} label={label} />}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -506,26 +534,38 @@ export default function IqamaAlertsClientsPage() {
                 <div className="grid grid-cols-2 gap-4 mb-5">
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">تاريخ الدفعة القادمة</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {nextMonthlyDue ?? '—'}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {nextMonthlyDue ?? '—'}
+                      </p>
+                      {nextMonthlyDue && <CopyButton value={String(nextMonthlyDue)} label="تاريخ الدفعة القادمة" />}
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">يوم الاستلام في الشهر</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {detailClient.monthlyReceiptDay ?? '—'}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {detailClient.monthlyReceiptDay ?? '—'}
+                      </p>
+                      {detailClient.monthlyReceiptDay != null && <CopyButton value={String(detailClient.monthlyReceiptDay)} label="يوم الاستلام في الشهر" />}
+                    </div>
                   </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 mb-5">
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">المبلغ المدفوع</p>
-                    <p className="text-base font-bold text-emerald-600">{paidAmount.toLocaleString('en-US')}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-base font-bold text-emerald-600">{paidAmount.toLocaleString('en-US')}</p>
+                      <CopyButton value={paidAmount.toLocaleString('en-US')} label="المبلغ المدفوع" />
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
-                    <p className="text-base font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-base font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
+                      <CopyButton value={remaining.toLocaleString('en-US')} label="المتبقي" />
+                    </div>
                   </div>
                 </div>
               )}

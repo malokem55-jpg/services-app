@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
 
 export interface ServiceInfo { name: string | null }
-export interface OrgInfo { name: string | null }
+export interface OrgInfo { name: string | null; number: string | null }
 
 export interface MonthlyPaymentAlert {
   id: number
@@ -36,6 +36,7 @@ export interface MonthlyPaymentGroup {
   payments: MonthlyPaymentAlert[] // مرتّبة بالاستحقاق تصاعدياً
   total: number // مجموع مبالغ الدفعات (شاملةً المرحّل)
   earliestDueDate: string | null
+  latestDueDate: string | null // أحدث تاريخ استحقاق داخل المجموعة — يُستخدم للترتيب بالأحدث
   anyOverdue: boolean // دفعة واحدة على الأقل مستحقة أو فات موعدها
   iqamaExpired: boolean
 }
@@ -57,6 +58,7 @@ export function groupMonthlyPayments(alerts: MonthlyPaymentAlert[]): MonthlyPaym
     payments.sort((a, b) => (a.receivedDate ?? '').localeCompare(b.receivedDate ?? ''))
     const total = payments.reduce((s, p) => s + (p.amount ?? 0), 0)
     const earliestDueDate = payments[0]?.receivedDate ?? null
+    const latestDueDate = payments[payments.length - 1]?.receivedDate ?? null
     const anyOverdue = payments.some(
       (p) => p.receivedDate != null && p.receivedDate.slice(0, 10) <= today,
     )
@@ -67,6 +69,7 @@ export function groupMonthlyPayments(alerts: MonthlyPaymentAlert[]): MonthlyPaym
       payments,
       total,
       earliestDueDate,
+      latestDueDate,
       anyOverdue,
       iqamaExpired: isIqamaExpired(payments[0].client?.iqamaEndDate),
     })

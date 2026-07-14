@@ -93,7 +93,9 @@ function MonthlyGroupItem({ group }: { group: MonthlyPaymentGroup }) {
         </p>
         <p className="mt-0.5">
           <span className="font-semibold text-violet-600">الإجمالي: {group.total}</span>
-          {' '}— أقرب استحقاق ({fmtDate(group.earliestDueDate)})
+        </p>
+        <p className="mt-0.5 whitespace-nowrap">
+          آخر استحقاق ({fmtDate(group.latestDueDate)})
         </p>
         <button
           onClick={() => setOpen((v) => !v)}
@@ -107,7 +109,11 @@ function MonthlyGroupItem({ group }: { group: MonthlyPaymentGroup }) {
         </button>
         {open && (
           <ul className="mt-2 space-y-1.5 border-s-2 border-violet-100 ps-3">
-            {group.payments.map((p) => (
+            {/* عند التوسيع: أحدث دفعية في الأعلى وأقدم دفعية في الأسفل */}
+            {group.payments
+              .slice()
+              .sort((a, b) => (b.receivedDate ?? '').localeCompare(a.receivedDate ?? ''))
+              .map((p) => (
               <li key={p.id} className="text-xs text-gray-600">
                 {fmtDate(p.receivedDate)} — <span className="font-semibold text-gray-800">{p.amount ?? '—'}</span>
                 {p.carriedOverAmount != null && p.carriedOverAmount > 0 && (
@@ -218,6 +224,8 @@ export default function Navbar() {
   const qc = useQueryClient()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [openBell, setOpenBell] = useState<string | null>(null)
+  // فلتر جرس الدفعيات الشهرية: الكل / صاحب دفعية واحدة / صاحب دفعيات متراكمة
+  const [monthlyFilter, setMonthlyFilter] = useState<'all' | 'single' | 'multi'>('all')
   // تنبيه التفويض الذي ينتظر تأكيد "تم التفويض" في النافذة
   const [confirmTafweed, setConfirmTafweed] = useState<TafweedAlert | null>(null)
 
@@ -250,7 +258,17 @@ export default function Navbar() {
   const { data: uiSettings } = useUiSettings()
 
   // دفعات كل عميل مجمَّعة في تنبيه واحد — عدد التنبيهات = عدد العملاء لا عدد الدفعات
+  // ترتيب جرس الدفعيات الشهرية: الأحدث أولاً (أحدث تاريخ استحقاق يظهر في أعلى القائمة)
   const monthlyGroups = groupMonthlyPayments(notifs?.monthlyPayments ?? [])
+    .slice()
+    .sort((a, b) => (b.latestDueDate ?? '').localeCompare(a.latestDueDate ?? ''))
+
+  // القائمة المعروضة بعد تطبيق الفلتر المختار في أعلى الجرس
+  const filteredMonthlyGroups = monthlyGroups.filter((g) =>
+    monthlyFilter === 'single' ? g.payments.length === 1
+    : monthlyFilter === 'multi' ? g.payments.length > 1
+    : true,
+  )
 
   // في صفحة تفاصيل عميل يُميَّز رابط الصفحة المصدر (تمررها الصفحات في state عند الفتح)،
   // وعند الفتح المباشر دون مصدر يُميَّز "العملاء" افتراضياً
@@ -388,12 +406,41 @@ export default function Navbar() {
                     title="تنبيهات الدفعيات الشهرية"
                     ringDelay="0.25s"
                     mobileOpen={openBell === 'monthly'}
-                    onMobileToggle={() => toggleBell('monthly')}
+                    onMobileToggle={() => {
+                      if (openBell !== 'monthly') setMonthlyFilter('all')
+                      toggleBell('monthly')
+                    }}
+                    onOpen={() => setMonthlyFilter('all')}
+                    headerExtra={monthlyGroups.length > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        {([
+                          ['all', 'الكل', monthlyGroups.length],
+                          ['single', 'دفعية واحدة', monthlyGroups.filter((g) => g.payments.length === 1).length],
+                          ['multi', 'دفعيات متراكمة', monthlyGroups.filter((g) => g.payments.length > 1).length],
+                        ] as const).map(([val, label, num]) => (
+                          <button
+                            key={val}
+                            onClick={() => setMonthlyFilter(val)}
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                              monthlyFilter === val
+                                ? 'bg-violet-500 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {label} ({num})
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   >
-                    {/* دفعات كل عميل مجمَّعة؛ منتهي الإقامة أولاً ثم الأقرب استحقاقاً (مرتَّبة في groupMonthlyPayments) */}
-                    {monthlyGroups.map((group) => (
-                      <MonthlyGroupItem key={group.key} group={group} />
-                    ))}
+                    {/* دفعات كل عميل مجمَّعة؛ مرتَّبة بالأحدث أولاً (أحدث تنبيه في أعلى القائمة) */}
+                    {filteredMonthlyGroups.length === 0 ? (
+                      <p className="text-center text-gray-400 text-sm py-8">لا عملاء في هذا التصنيف</p>
+                    ) : (
+                      filteredMonthlyGroups.map((group) => (
+                        <MonthlyGroupItem key={group.key} group={group} />
+                      ))
+                    )}
                   </NotificationBell>
                 )}
 

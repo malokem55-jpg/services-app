@@ -507,19 +507,42 @@ export default function UnderProcedureClientsPage() {
               >
                 <div className="px-4 pt-4 pb-3">
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <p className="font-semibold text-gray-900 text-sm leading-tight">{c.name ?? '—'}</p>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm leading-tight">{c.name ?? '—'}</p>
+                      {c.name && <CopyButton value={c.name} label="اسم العميل" />}
+                    </div>
                     <span className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
                       تحت الإجراء
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-500">
-                    {c.phone && <span className="font-mono">{c.phone}</span>}
-                    {c.passport && <span className="font-mono">جواز: {c.passport}</span>}
+                    {c.phone && (
+                      <span className="inline-flex items-center gap-1 min-w-0">
+                        <span className="text-gray-400 shrink-0">الهاتف:</span>
+                        <span className="font-mono text-gray-600 truncate">{c.phone}</span>
+                        <CopyButton value={c.phone} label="رقم الهاتف" />
+                      </span>
+                    )}
+                    {c.passport && (
+                      <span className="inline-flex items-center gap-1 min-w-0">
+                        <span className="text-gray-400 shrink-0">الجواز:</span>
+                        <span className="font-mono text-gray-600 truncate">{c.passport}</span>
+                        <CopyButton value={c.passport} label="رقم الجواز" />
+                      </span>
+                    )}
                     {c.organization?.name && (
-                      <span className="truncate">{c.organization.name}</span>
+                      <span className="inline-flex items-center gap-1 min-w-0">
+                        <span className="text-gray-400 shrink-0">المؤسسة:</span>
+                        <span className="text-gray-600 truncate">{c.organization.name}</span>
+                        <CopyButton value={c.organization.name} label="اسم المؤسسة" />
+                      </span>
                     )}
                     {c.steps[0]?.step?.name && (
-                      <span className="truncate">الخطوة: {c.steps[0].step.name}</span>
+                      <span className="inline-flex items-center gap-1 min-w-0">
+                        <span className="text-gray-400 shrink-0">الخطوة:</span>
+                        <span className="text-gray-600 truncate">{c.steps[0].step.name}</span>
+                        <CopyButton value={c.steps[0].step.name} label="الخطوة الحالية" />
+                      </span>
                     )}
                   </div>
                 </div>
@@ -699,13 +722,19 @@ export default function UnderProcedureClientsPage() {
                 ].map(({ label, val }) => (
                   <div key={label}>
                     <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-                    <p className="text-sm font-semibold text-gray-900">{val ?? '—'}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-gray-900">{val ?? '—'}</p>
+                      {val && <CopyButton value={String(val)} label={label} />}
+                    </div>
                   </div>
                 ))}
               </div>
               <div className="bg-sky-50 border border-sky-100 rounded-xl px-4 py-3 mb-5">
                 <p className="text-xs text-gray-400 mb-0.5">المتبقي</p>
-                <p className="text-lg font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-lg font-bold text-sky-700">{remaining.toLocaleString('en-US')}</p>
+                  <CopyButton value={remaining.toLocaleString('en-US')} label="المتبقي" />
+                </div>
               </div>
               <div className="flex flex-wrap gap-2.5">
                 <button onClick={() => setModalView('steps')}

@@ -437,22 +437,31 @@ function DueCard({ due }: { due: DeletedClientDue }) {
         <div className="flex items-center gap-3 sm:gap-4 shrink-0 text-center">
           <div>
             <p className="text-[11px] text-gray-400 leading-none mb-1">الإجمالي</p>
-            <p className="text-xs sm:text-sm font-bold text-gray-900 leading-none tabular-nums">
-              {fmt(totalDue)}
-            </p>
+            <span className="inline-flex items-center gap-0.5">
+              <p className="text-xs sm:text-sm font-bold text-gray-900 leading-none tabular-nums">
+                {fmt(totalDue)}
+              </p>
+              <CopyButton value={fmt(totalDue)} label="الإجمالي" />
+            </span>
           </div>
           <div>
             <p className="text-[11px] text-gray-400 leading-none mb-1">المحصَّل</p>
-            <p className="text-xs sm:text-sm font-bold text-emerald-600 leading-none tabular-nums">
-              {fmt(collected)}
-            </p>
+            <span className="inline-flex items-center gap-0.5">
+              <p className="text-xs sm:text-sm font-bold text-emerald-600 leading-none tabular-nums">
+                {fmt(collected)}
+              </p>
+              <CopyButton value={fmt(collected)} label="المحصَّل" />
+            </span>
           </div>
           <div>
             <p className="text-[11px] text-gray-400 leading-none mb-1">المتبقي</p>
-            <p className={`text-xs sm:text-sm font-bold leading-none tabular-nums
-                           ${remaining > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-              {fmt(remaining)}
-            </p>
+            <span className="inline-flex items-center gap-0.5">
+              <p className={`text-xs sm:text-sm font-bold leading-none tabular-nums
+                             ${remaining > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                {fmt(remaining)}
+              </p>
+              <CopyButton value={fmt(remaining)} label="المتبقي" />
+            </span>
           </div>
         </div>
 
@@ -483,10 +492,13 @@ function DueCard({ due }: { due: DeletedClientDue }) {
               ['المؤسسة السابقة', due.organizationName],
               ['حذف في', due.deletedAt ? fmtDate(due.deletedAt) : null],
             ] as [string, string | null | undefined][]).map(([label, value]) => (
-              <span key={label} className="inline-flex items-baseline gap-1.5 min-w-0">
+              <span key={label} className="inline-flex items-center gap-1.5 min-w-0">
                 <span className="text-gray-400 shrink-0">{label}:</span>
                 {value ? (
-                  <span className="font-semibold text-gray-700 truncate">{value}</span>
+                  <>
+                    <span className="font-semibold text-gray-700 truncate">{value}</span>
+                    <CopyButton value={value} label={label} />
+                  </>
                 ) : (
                   <span className="text-gray-300">غير مدخل</span>
                 )}

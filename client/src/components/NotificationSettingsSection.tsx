@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../lib/api'
 import CustomMobileToggleCard from './CustomMobileToggleCard'
+import DeviceNotificationsCard from './DeviceNotificationsCard'
 
 interface PushChannels {
   pushMonthlyPayment: boolean
@@ -107,6 +108,9 @@ export default function NotificationSettingsSection() {
     <div className="space-y-3 md:space-y-4">
       {/* مفتاح نسخة الموبايل المخصصة (مصغّر، منقول من تاب «تطبيق الموبايل») */}
       <CustomMobileToggleCard />
+
+      {/* تفعيل/تحديث اشتراك الإشعارات على هذا الجهاز — ضروري لآيفون (طلب الإذن يحتاج ضغطة) */}
+      <DeviceNotificationsCard />
 
       <div className="grid md:grid-cols-2 gap-3 md:gap-4 items-stretch">
       {/* اختيار التنبيهات المُرسَلة للهاتف */}
