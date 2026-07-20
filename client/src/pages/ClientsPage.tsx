@@ -24,6 +24,7 @@ import HijriDateInput from '../components/HijriDateInput'
 import MonthlyPaymentsPanel from '../components/MonthlyPaymentsPanel'
 import ClientCardIssuancesModal from '../components/ClientCardIssuancesModal'
 import CopyButton from '../components/CopyButton'
+import PlatformLoginButtons from '../components/PlatformLoginButtons'
 import { useUiSettings } from '../hooks/useUiSettings'
 
 interface ClientListItem {
@@ -692,6 +693,15 @@ export default function ClientsPage() {
                     </div>
                   </div>
 
+                  {/* أزرار الدخول لمنصّات مؤسسة العميل (مقيم / الغرفة) */}
+                  <div className="px-4 [&:not(:empty)]:pb-3" onClick={(e) => e.stopPropagation()}>
+                    <PlatformLoginButtons
+                      organizationId={c.organization?.id}
+                      organizationName={c.organization?.name}
+                      fullWidth
+                    />
+                  </div>
+
                   {/* Card actions */}
                   <div className="flex border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
                     <button
@@ -739,6 +749,7 @@ export default function ClientsPage() {
                   <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">كرت العمل</th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">المؤسسة</th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-sky-700">سجل المؤسسة</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center">دخول المنصات</th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center">تجديد</th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-sky-700 text-center">تفاصيل</th>
                 </tr>
@@ -747,7 +758,7 @@ export default function ClientsPage() {
                 {isLoading ? (
                   Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i} className="border-b border-gray-100">
-                      {[40, 28, 32, 20, 24, 20, 16, 16].map((w, j) => (
+                      {[40, 28, 32, 20, 24, 20, 24, 16, 16].map((w, j) => (
                         <td key={j} className="px-4 py-2.5">
                           <div className={`h-4 bg-gray-100 rounded animate-pulse`} style={{ width: `${w * 3}px` }} />
                         </td>
@@ -756,7 +767,7 @@ export default function ClientsPage() {
                   ))
                 ) : filteredClients.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-16 text-center">
+                    <td colSpan={9} className="px-4 py-16 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                           <svg className="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -817,6 +828,12 @@ export default function ClientsPage() {
                             <span>{c.organization?.number ?? '—'}</span>
                             {c.organization?.number && <CopyButton value={c.organization.number} label="سجل المؤسسة" />}
                           </div>
+                        </td>
+                        <td className="px-4 py-2.5 text-center whitespace-nowrap cursor-default" onClick={(e) => e.stopPropagation()}>
+                          <PlatformLoginButtons
+                            organizationId={c.organization?.id}
+                            organizationName={c.organization?.name}
+                          />
                         </td>
                         <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                           {c.iqamaNumber && (
