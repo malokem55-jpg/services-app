@@ -829,7 +829,7 @@ export default function ClientsPage() {
                             {c.organization?.number && <CopyButton value={c.organization.number} label="سجل المؤسسة" />}
                           </div>
                         </td>
-                        <td className="px-4 py-2.5 text-center whitespace-nowrap cursor-default" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-2 py-2.5 cursor-default" onClick={(e) => e.stopPropagation()}>
                           <PlatformLoginButtons
                             organizationId={c.organization?.id}
                             organizationName={c.organization?.name}
