@@ -95,9 +95,9 @@ export const clientStepSchema = z.object({
 })
 
 // ── Client Payment ───────────────────────────────────────────────────────────
+// نموذج تسجيل الدفعة يطلب المبلغ فقط — لا يحتوي حقل تاريخ الدفعة القادمة
 export const clientPaymentSchema = z.object({
-  amount:          z.string().min(1, 'المبلغ مطلوب'),
-  nextPaymentDate: z.string().min(1, 'تاريخ الدفعة القادمة مطلوب'),
+  amount: z.string().min(1, 'المبلغ مطلوب'),
 })
 
 // ── Validation helper ────────────────────────────────────────────────────────
