@@ -22,6 +22,13 @@ export default function AnnualPaymentForm({
   const [notes, setNotes] = useState('')
   const [nextDate, setNextDate] = useState(currentNext)
 
+  const value = Number(amount)
+  const validAmount = amount !== '' && value > 0 && value <= remaining
+  // دفعة تُسدِّد المتبقي كاملاً تُنهي حساب العميل، فلا معنى لتاريخ دفعة قادمة.
+  // أما الدفعة الجزئية فيبقى عليها رصيد، والتاريخ إلزامي ليعمل التنبيه.
+  const settlesAll = validAmount && value >= remaining
+  const needsNextDate = validAmount && !settlesAll
+
   const save = useMutation({
     mutationFn: async () => {
       await apiFetch<unknown>('/api/client-payments', {
@@ -31,10 +38,10 @@ export default function AnnualPaymentForm({
           amount: Number(amount),
           isDone: true,
           notes: notes || undefined,
-          nextPaymentDate: nextDate || undefined,
+          nextPaymentDate: settlesAll ? undefined : nextDate || undefined,
         }),
       })
-      if (nextDate && nextDate !== currentNext) {
+      if (!settlesAll && nextDate && nextDate !== currentNext) {
         await apiFetch<unknown>(`/api/clients/${clientId}`, {
           method: 'PUT',
           body: JSON.stringify({ nextPaymentDate: nextDate }),
@@ -51,8 +58,7 @@ export default function AnnualPaymentForm({
     },
   })
 
-  const value = Number(amount)
-  const disabled = save.isPending || !amount || value <= 0 || value > remaining
+  const disabled = save.isPending || !validAmount || (needsNextDate && !nextDate)
 
   return (
     <form
@@ -72,10 +78,20 @@ export default function AnnualPaymentForm({
             className={inputCls} />
         </div>
         <div>
-          <label className={labelCls}>تاريخ الدفعة القادمة</label>
+          <label className={labelCls}>
+            تاريخ الدفعة القادمة
+            {needsNextDate && <span className="text-red-500"> *</span>}
+          </label>
           <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)}
-            className={inputCls} />
-          <p className="mt-1 text-xs text-gray-400">يُستخدم لتنبيه الدفعة القادمة</p>
+            disabled={settlesAll}
+            className={`${inputCls}${settlesAll ? ' bg-gray-100 text-gray-400' : ''}`} />
+          <p className="mt-1 text-xs text-gray-400">
+            {settlesAll
+              ? 'الدفعة تُسدِّد المتبقي كاملاً'
+              : needsNextDate
+                ? 'مطلوب — يبقى رصيد بعد هذه الدفعة'
+                : 'يُستخدم لتنبيه الدفعة القادمة'}
+          </p>
         </div>
         <div>
           <label className={labelCls}>ملاحظات</label>
