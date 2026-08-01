@@ -3,6 +3,10 @@
 // يملأ خانتي اسم المستخدم وكلمة المرور ثم يتوقف — الضغط على زر الدخول مسؤولية المستخدم.
 
 (() => {
+  // الخلفية تحقن السكربت عند كل اكتمال تحميل (قد يتكرر مع إعادة التوجيه) — نسخة واحدة تكفي
+  if (window.__saLoginFillRunning) return;
+  window.__saLoginFillRunning = true;
+
   const DEADLINE = Date.now() + 25000; // مهلة انتظار وصول البيانات وظهور الفورم
 
   // فورمات React/Angular تتجاهل تعيين value المباشر — نستخدم الـ setter الأصلي ونطلق أحداثًا حقيقية
@@ -44,6 +48,12 @@
   let creds = null;
   let busy = false;
 
+  // إيقاف الحلقة وتحرير العلَم حتى تستطيع حقنة لاحقة (بعد إعادة توجيه) المحاولة من جديد
+  function stop() {
+    clearInterval(timer);
+    window.__saLoginFillRunning = false;
+  }
+
   const timer = setInterval(async () => {
     if (busy) return;
     busy = true;
@@ -57,12 +67,12 @@
       if (fields) {
         if (fields.user) setNativeValue(fields.user, creds.username);
         setNativeValue(fields.pw, creds.password);
-        clearInterval(timer);
+        stop();
         chrome.runtime.sendMessage({ type: 'CREDS_USED' }).catch(() => {});
         return;
       }
 
-      if (Date.now() > DEADLINE) clearInterval(timer);
+      if (Date.now() > DEADLINE) stop();
     } finally {
       busy = false;
     }
