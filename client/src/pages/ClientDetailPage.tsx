@@ -13,13 +13,14 @@ import {
   tafweedDisplayValue,
 } from '../lib/clientForm'
 import { formatBothDates } from '../lib/hijri'
-import { clientSchema, clientStepSchema, clientPaymentSchema, getErrors } from '../lib/schemas'
+import { clientSchema, clientStepSchema, getErrors } from '../lib/schemas'
 import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
 import ClientEditFormFields from '../components/ClientEditFormFields'
 import ClientCardIssuancesModal from '../components/ClientCardIssuancesModal'
 import HijriDateInput from '../components/HijriDateInput'
 import MonthlyPaymentsPanel from '../components/MonthlyPaymentsPanel'
+import AnnualPaymentForm from '../components/AnnualPaymentForm'
 import CopyButton from '../components/CopyButton'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -248,9 +249,6 @@ export default function ClientDetailPage() {
   const [stepDate, setStepDate] = useState('')
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({})
   const [deleteStepId, setDeleteStepId] = useState<number | null>(null)
-  const [payAmount, setPayAmount] = useState('')
-  const [payNotes, setPayNotes] = useState('')
-  const [payErrors, setPayErrors] = useState<Record<string, string>>({})
   const [deletePaymentId, setDeletePaymentId] = useState<number | null>(null)
 
   // إصدار الإقامة
@@ -297,16 +295,6 @@ export default function ClientDetailPage() {
   const deleteStep = useMutation({
     mutationFn: (id: number) => apiFetch<unknown>(`/api/client-steps/${id}`, { method: 'DELETE' }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client', clientId] }); setDeleteStepId(null) },
-  })
-
-  const addPayment = useMutation({
-    mutationFn: (body: { clientId: number; amount?: number; isDone: boolean; notes?: string }) =>
-      apiFetch<unknown>('/api/client-payments', { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['client', clientId] })
-      qc.invalidateQueries({ queryKey: ['stats'] })
-      setPayAmount(''); setPayNotes('')
-    },
   })
 
   const deletePayment = useMutation({
@@ -369,14 +357,6 @@ export default function ClientDetailPage() {
     setStepErrors(errs)
     if (Object.keys(errs).length > 0) return
     addStep.mutate({ clientId, stepId: Number(stepId), stepDate: stepDate || undefined })
-  }
-
-  function handleAddPayment(e: React.FormEvent) {
-    e.preventDefault()
-    const errs = getErrors(clientPaymentSchema, { amount: payAmount })
-    setPayErrors(errs)
-    if (Object.keys(errs).length > 0) return
-    addPayment.mutate({ clientId, amount: payAmount ? Number(payAmount) : undefined, isDone: true, notes: payNotes || undefined })
   }
 
   function handleIssueIqama(e: React.FormEvent) {
@@ -803,40 +783,8 @@ export default function ClientDetailPage() {
             <MonthlyPaymentsPanel clientId={clientId} monthlyAmount={client.amount} />
           )}
           {!isMonthly && remaining > 0 && (
-            <form onSubmit={handleAddPayment}
-              className="mb-5 p-4 bg-gray-50 rounded-xl border border-gray-200">
-              <p className="text-xs font-semibold text-gray-600 mb-3">
-                تسجيل دفعة (المتبقي: {remaining.toLocaleString('en-US')} ر.س)
-              </p>
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className={labelCls}>المبلغ المستلم (ر.س)</label>
-                  <input type="number" min={1} max={remaining} value={payAmount}
-                    onChange={(e) => {
-                      const val = Number(e.target.value)
-                      setPayAmount(val > remaining ? String(remaining) : e.target.value)
-                    }}
-                    className={`${inputCls}${payErrors.amount ? ' border-red-400! focus:ring-red-400!' : ''}`} />
-                  {payErrors.amount && <p className="mt-1 text-xs text-red-500">{payErrors.amount}</p>}
-                </div>
-                <div>
-                  <label className={labelCls}>ملاحظات</label>
-                  <input type="text" value={payNotes} onChange={(e) => setPayNotes(e.target.value)}
-                    placeholder="ملاحظات اختيارية" className={inputCls} />
-                </div>
-              </div>
-              <button type="submit"
-                disabled={addPayment.isPending || !payAmount || Number(payAmount) <= 0}
-                className="rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
-                           text-white text-sm font-semibold px-8 py-2.5 transition-colors">
-                {addPayment.isPending ? '...' : 'حفظ'}
-              </button>
-              {addPayment.isError && (
-                <p className="text-xs text-red-600 mt-2">
-                  {addPayment.error instanceof Error ? addPayment.error.message : 'حدث خطأ'}
-                </p>
-              )}
-            </form>
+            <AnnualPaymentForm clientId={clientId} remaining={remaining}
+              nextPaymentDate={client.nextPaymentDate} />
           )}
           {!isMonthly && remaining <= 0 && client.payments.length > 0 && (
             <div className="mb-5 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3

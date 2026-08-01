@@ -22,6 +22,7 @@ import Modal from '../components/Modal'
 import ClientFormFields from '../components/ClientFormFields'
 import HijriDateInput from '../components/HijriDateInput'
 import MonthlyPaymentsPanel from '../components/MonthlyPaymentsPanel'
+import AnnualPaymentForm from '../components/AnnualPaymentForm'
 import ClientCardIssuancesModal from '../components/ClientCardIssuancesModal'
 import CopyButton from '../components/CopyButton'
 import PlatformLoginButtons from '../components/PlatformLoginButtons'
@@ -157,6 +158,7 @@ export default function ClientsPage() {
   const [iqamaSearch, setIqamaSearch] = useState('')
   const [orgFilter, setOrgFilter] = useState('')
   const [stepFilter, setStepFilter] = useState('')
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState('')
   const [monthlyNoReceiptDay, setMonthlyNoReceiptDay] = useState(false)
   // الافتراضي حسب ضبط الصفحات: «المكتملين» إذا كانت صفحة تحت الإجراء مفعّلة
   // (لأن إدارتهم في صفحتهم المستقلة)، و«كل العملاء» إذا كانت معطّلة
@@ -171,8 +173,6 @@ export default function ClientsPage() {
   const [detailId, setDetailId] = useState<number | null>(null)
   const [modalView, setModalView] = useState<'detail' | 'payments' | 'steps' | 'issue-iqama'>('detail')
   const [showCards, setShowCards] = useState(false)
-  const [payAmount, setPayAmount] = useState('')
-  const [payNotes, setPayNotes] = useState('')
   const [deletePayId, setDeletePayId] = useState<number | null>(null)
   const [form, setForm] = useState<ClientFormData>(EMPTY_CLIENT_FORM)
   const [stepEntries, setStepEntries] = useState<StepFormEntry[]>([])
@@ -195,8 +195,6 @@ export default function ClientsPage() {
     setDetailId(null)
     setModalView('detail')
     setShowCards(false)
-    setPayAmount('')
-    setPayNotes('')
     setDeletePayId(null)
     setNewStepId('')
     setNewStepDate('')
@@ -292,25 +290,15 @@ export default function ClientsPage() {
       if (iqamaSearch && !c.iqamaNumber?.includes(iqamaSearch)) return false
       if (orgFilter && String(c.organization?.id ?? '') !== orgFilter) return false
       if (stepFilter && String(c.steps[0]?.step?.id ?? '') !== stepFilter) return false
+      if (paymentTypeFilter && c.paymentType !== paymentTypeFilter) return false
       if (clientTypeFilter === 'under-procedure' && c.iqamaNumber) return false
       if (clientTypeFilter === 'completed' && !c.iqamaNumber) return false
       if (monthlyNoReceiptDay && (c.paymentType !== 'شهري' || c.monthlyReceiptDay != null)) return false
       return true
     })
-  }, [clients, nameSearch, iqamaSearch, orgFilter, stepFilter, clientTypeFilter, monthlyNoReceiptDay])
+  }, [clients, nameSearch, iqamaSearch, orgFilter, stepFilter, paymentTypeFilter, clientTypeFilter, monthlyNoReceiptDay])
 
-  const hasFilters = nameSearch || iqamaSearch || orgFilter || stepFilter || clientTypeFilter || monthlyNoReceiptDay
-
-  const addPayment = useMutation({
-    mutationFn: (body: { clientId: number; amount?: number; isDone: boolean; notes?: string }) =>
-      apiFetch<unknown>('/api/client-payments', { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['client', detailId] })
-      qc.invalidateQueries({ queryKey: ['stats'] })
-      setPayAmount('')
-      setPayNotes('')
-    },
-  })
+  const hasFilters = nameSearch || iqamaSearch || orgFilter || stepFilter || paymentTypeFilter || clientTypeFilter || monthlyNoReceiptDay
 
   const deletePayment = useMutation({
     mutationFn: (id: number) =>
@@ -341,17 +329,6 @@ export default function ClientsPage() {
       closeDetail()
     },
   })
-
-  function handleAddPayment(e: React.FormEvent) {
-    e.preventDefault()
-    if (!detailId) return
-    addPayment.mutate({
-      clientId: detailId,
-      amount: payAmount ? Number(payAmount) : undefined,
-      isDone: true,
-      notes: payNotes || undefined,
-    })
-  }
 
   function handleAddStep(e: React.FormEvent) {
     e.preventDefault()
@@ -518,7 +495,7 @@ export default function ClientsPage() {
         </div>
 
         {/* ── Filters ── */}
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${underProcedurePageActive ? 'lg:grid-cols-3' : 'lg:grid-cols-5'} gap-2.5 mb-4 md:shrink-0`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${underProcedurePageActive ? 'lg:grid-cols-4' : 'lg:grid-cols-6'} gap-2.5 mb-4 md:shrink-0`}>
           <div className="relative">
             <svg className="pointer-events-none absolute inset-y-0 inset-e-3 my-auto w-4 h-4 text-gray-400"
               fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -548,6 +525,12 @@ export default function ClientsPage() {
             {organizations.map((o) => (
               <option key={o.id} value={String(o.id)}>{o.name}</option>
             ))}
+          </select>
+
+          <select value={paymentTypeFilter} onChange={(e) => setPaymentTypeFilter(e.target.value)} className={inputCls}>
+            <option value="">كل طرق الدفع</option>
+            <option value="سنوي">سنوي</option>
+            <option value="شهري">شهري</option>
           </select>
 
           {!underProcedurePageActive && (
@@ -1109,33 +1092,8 @@ export default function ClientsPage() {
               <MonthlyPaymentsPanel clientId={detailClient.id} monthlyAmount={detailClient.amount} />
             )}
             {!isMonthlyPay && remaining > 0 && (
-              <form onSubmit={handleAddPayment} className="mb-5 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                <p className="text-xs font-semibold text-gray-600 mb-3">
-                  تسجيل دفعة (المتبقي: {remaining.toLocaleString('en-US')})
-                </p>
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div>
-                    <label className={labelCls}>المبلغ المستلم</label>
-                    <input type="number" min={1} max={remaining} value={payAmount}
-                      onChange={(e) => {
-                        const val = Number(e.target.value)
-                        if (val > remaining) setPayAmount(String(remaining))
-                        else setPayAmount(e.target.value)
-                      }}
-                      className={fldCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>ملاحظات</label>
-                    <input type="text" value={payNotes} onChange={(e) => setPayNotes(e.target.value)} className={fldCls} />
-                  </div>
-                </div>
-                <button type="submit"
-                  disabled={addPayment.isPending || !payAmount || Number(payAmount) <= 0 || Number(payAmount) > remaining}
-                  className="rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
-                             text-white text-sm font-semibold px-8 py-2.5 transition-colors">
-                  {addPayment.isPending ? '...' : 'حفظ'}
-                </button>
-              </form>
+              <AnnualPaymentForm key={detailClient.id} clientId={detailClient.id} remaining={remaining}
+                nextPaymentDate={detailClient.nextPaymentDate} />
             )}
 
             {!isMonthlyPay && remaining <= 0 && (

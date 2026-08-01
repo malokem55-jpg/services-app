@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar'
 import Modal from '../components/Modal'
 import HijriDateInput from '../components/HijriDateInput'
 import MonthlyPaymentsPanel from '../components/MonthlyPaymentsPanel'
+import AnnualPaymentForm from '../components/AnnualPaymentForm'
 import ClientCardIssuancesModal from '../components/ClientCardIssuancesModal'
 import CopyButton from '../components/CopyButton'
 import { apiFetch } from '../lib/api'
@@ -78,8 +79,6 @@ export default function IqamaAlertsClientsPage() {
   const [filter, setFilter] = useState<FilterKey>('all')
   const [detailId, setDetailId] = useState<number | null>(null)
   const [modalView, setModalView] = useState<'detail' | 'payments'>('detail')
-  const [payAmount, setPayAmount] = useState('')
-  const [payNotes, setPayNotes] = useState('')
   const [deletePayId, setDeletePayId] = useState<number | null>(null)
   const [showCards, setShowCards] = useState(false)
   const [renewalId, setRenewalId] = useState<number | null>(null)
@@ -100,8 +99,6 @@ export default function IqamaAlertsClientsPage() {
   function closeDetail() {
     setDetailId(null)
     setModalView('detail')
-    setPayAmount('')
-    setPayNotes('')
     setDeletePayId(null)
     setShowCards(false)
   }
@@ -140,17 +137,6 @@ export default function IqamaAlertsClientsPage() {
     enabled: detailId !== null,
   })
 
-  const addPayment = useMutation({
-    mutationFn: (body: { clientId: number; amount?: number; isDone: boolean; notes?: string }) =>
-      apiFetch<unknown>('/api/client-payments', { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['client', detailId] })
-      qc.invalidateQueries({ queryKey: ['stats'] })
-      setPayAmount('')
-      setPayNotes('')
-    },
-  })
-
   const deletePayment = useMutation({
     mutationFn: (id: number) =>
       apiFetch<unknown>(`/api/client-payments/${id}`, { method: 'DELETE' }),
@@ -160,17 +146,6 @@ export default function IqamaAlertsClientsPage() {
       setDeletePayId(null)
     },
   })
-
-  function handleAddPayment(e: React.FormEvent) {
-    e.preventDefault()
-    if (!detailId) return
-    addPayment.mutate({
-      clientId: detailId,
-      amount: payAmount ? Number(payAmount) : undefined,
-      isDone: true,
-      notes: payNotes || undefined,
-    })
-  }
 
   // نفس منطق التجديد في صفحة العملاء: تحديث التاريخ والمبلغ، وللسنوي تسجيل دفعة مستلمة
   const renewIqama = useMutation({
@@ -603,33 +578,8 @@ export default function IqamaAlertsClientsPage() {
               <MonthlyPaymentsPanel clientId={detailClient.id} monthlyAmount={detailClient.amount} />
             )}
             {!isMonthlyPay && remaining > 0 && (
-              <form onSubmit={handleAddPayment} className="mb-5 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                <p className="text-xs font-semibold text-gray-600 mb-3">
-                  تسجيل دفعة (المتبقي: {remaining.toLocaleString('en-US')})
-                </p>
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div>
-                    <label className={labelCls}>المبلغ المستلم</label>
-                    <input type="number" min={1} max={remaining} value={payAmount}
-                      onChange={(e) => {
-                        const val = Number(e.target.value)
-                        if (val > remaining) setPayAmount(String(remaining))
-                        else setPayAmount(e.target.value)
-                      }}
-                      className={fldCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>ملاحظات</label>
-                    <input type="text" value={payNotes} onChange={(e) => setPayNotes(e.target.value)} className={fldCls} />
-                  </div>
-                </div>
-                <button type="submit"
-                  disabled={addPayment.isPending || !payAmount || Number(payAmount) <= 0 || Number(payAmount) > remaining}
-                  className="rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-60
-                             text-white text-sm font-semibold px-8 py-2.5 transition-colors">
-                  {addPayment.isPending ? '...' : 'حفظ'}
-                </button>
-              </form>
+              <AnnualPaymentForm key={detailClient.id} clientId={detailClient.id} remaining={remaining}
+                nextPaymentDate={detailClient.nextPaymentDate} />
             )}
 
             {!isMonthlyPay && remaining <= 0 && (
